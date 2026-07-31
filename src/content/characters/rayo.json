@@ -1,0 +1,11 @@
+{
+  "id": "rayo",
+  "type": "characters",
+  "name": "Guitarrista Rayo",
+  "faction": "bando_gitanos",
+  "stats": { "hp": 95, "speed": 270, "armor": 1, "critChance": 0.18 },
+  "startingWeapon": "tesla_gun",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ffe14a", "glow": "#ffe14a", "shape": "triangle" },
+  "description": "Descargas eléctricas resonantes en cadena."
+}

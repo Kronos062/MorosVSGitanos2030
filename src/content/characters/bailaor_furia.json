@@ -1,0 +1,11 @@
+{
+  "id": "bailaor_furia",
+  "type": "characters",
+  "name": "Bailaor Furia",
+  "faction": "bando_gitanos",
+  "stats": { "hp": 110, "speed": 280, "armor": 2, "critChance": 0.12 },
+  "startingWeapon": "flame_thrower",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ff2bd6", "glow": "#ff2bd6", "shape": "triangle" },
+  "description": "Ataques de fuego frenéticos con alto ritmo."
+}

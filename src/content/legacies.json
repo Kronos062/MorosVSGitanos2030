@@ -1,0 +1,20 @@
+[
+  {
+    "id": "leg_first_blood",
+    "type": "legacies",
+    "name": "Primera Sangre",
+    "description": "Tras eliminar 50 enemigos en total, obtienes +10 HP máximos permanentes.",
+    "trigger": "combat:entity_killed",
+    "condition": { "op": "gte", "path": "event.killsTotal", "value": 50 },
+    "effect": { "kind": "stat_mod", "stat": "maxHp", "value": 10 }
+  },
+  {
+    "id": "leg_wave_master",
+    "type": "legacies",
+    "name": "Maestro de la Oleada",
+    "description": "Completar nivel 5 desbloquea inicio con escudo.",
+    "trigger": "ui:wave_started",
+    "condition": { "op": "gte", "path": "event.wave", "value": 5 },
+    "effect": { "kind": "stat_mod", "stat": "startingShield", "value": 1 }
+  }
+]

@@ -1,0 +1,101 @@
+[
+  {
+    "id": "heal_potion",
+    "type": "relics",
+    "name": "Poción Regenerativa",
+    "rarity": "common",
+    "category": "survival",
+    "description": "Restaura 5 de vida por tick si estás herido.",
+    "trigger": "tick:1s",
+    "condition": { "op": "lt", "path": "subject.hp", "value": "subject.maxHp" },
+    "effect": { "kind": "heal", "value": 5 }
+  },
+  {
+    "id": "shield_core",
+    "type": "relics",
+    "name": "Núcleo de Escudo",
+    "rarity": "uncommon",
+    "category": "defense",
+    "description": "Al inicio de cada oleada, otorga +1 escudo.",
+    "trigger": "ui:wave_started",
+    "condition": { "op": "always" },
+    "effect": { "kind": "emit", "event": "relic:add_shield", "payload": { "amount": 1 } }
+  },
+  {
+    "id": "combo_heart",
+    "type": "relics",
+    "name": "Corazón de Combo",
+    "rarity": "rare",
+    "category": "offense",
+    "description": "Cada baja con combo activo emite puntos extra.",
+    "trigger": "combat:entity_killed",
+    "condition": { "op": "gt", "path": "event.combo", "value": 1 },
+    "effect": { "kind": "emit", "event": "relic:bonus_damage", "payload": { "amount": 15 } }
+  },
+  {
+    "id": "vampiric_pact",
+    "type": "relics",
+    "name": "Pacto Vampírico",
+    "rarity": "epic",
+    "category": "offense",
+    "description": "Al eliminar un enemigo, restaura 3 HP.",
+    "trigger": "combat:entity_killed",
+    "condition": { "op": "always" },
+    "effect": { "kind": "heal", "value": 3 }
+  },
+  {
+    "id": "berserker_core",
+    "type": "relics",
+    "name": "Núcleo Berserker",
+    "rarity": "rare",
+    "category": "offense",
+    "description": "Al recibir daño, emite una onda expansiva de ira.",
+    "trigger": "combat:damage_received",
+    "condition": { "op": "always" },
+    "effect": { "kind": "emit", "event": "fx:screen_shake", "payload": { "intensity": 10, "time": 0.2 } }
+  },
+  {
+    "id": "gold_magnet",
+    "type": "relics",
+    "name": "Imán Gravitacional",
+    "rarity": "common",
+    "category": "utility",
+    "description": "Otorga +20 de puntuación bonus en cada inicio de oleada.",
+    "trigger": "ui:wave_started",
+    "condition": { "op": "always" },
+    "effect": { "kind": "score", "value": 20 }
+  },
+  {
+    "id": "plasma_pendant",
+    "type": "relics",
+    "name": "Colgante de Plasma",
+    "rarity": "epic",
+    "category": "offense",
+    "description": "Otorga +30 de puntuación y sanación al entrar en cada nivel.",
+    "trigger": "level:started",
+    "condition": { "op": "always" },
+    "effect": { "kind": "heal", "value": 15 }
+  },
+  {
+    "id": "overclock_chip",
+    "type": "relics",
+    "name": "Microchip Overclock",
+    "rarity": "legendary",
+    "category": "utility",
+    "description": "Otorga +50 de puntuación bonus al limpiar cada sala.",
+    "trigger": "room:cleared",
+    "condition": { "op": "always" },
+    "effect": { "kind": "score", "value": 50 }
+  },
+  {
+    "id": "nanite_barrier",
+    "type": "relics",
+    "name": "Barrera de Nanobots",
+    "rarity": "rare",
+    "category": "defense",
+    "description": "Restaura 2 HP por cada 5 enemigos eliminados.",
+    "trigger": "combat:entity_killed",
+    "condition": { "op": "gt", "path": "event.killsTotal", "value": 1 },
+    "effect": { "kind": "heal", "value": 2 }
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "biome_neon_arena",
+    "type": "biomes",
+    "name": "Arena Neón",
+    "palette": {
+      "bgGradient": ["#0d1228", "#05060d"],
+      "gridColor": "rgba(0,240,255,0.07)",
+      "borderColor": "#00f0ff",
+      "accentColor": "#ff2bd6"
+    },
+    "enemyPool": ["grunt", "swarm", "shooter", "bomber", "tank"],
+    "chestPool": ["chest_common", "chest_rare"],
+    "waveDifficulty": 1.0
+  },
+  {
+    "id": "biome_neon_forest",
+    "type": "biomes",
+    "name": "Bosque Neón",
+    "palette": {
+      "bgGradient": ["#0d2418", "#05120a"],
+      "gridColor": "rgba(57,255,136,0.08)",
+      "borderColor": "#39ff88",
+      "accentColor": "#ffe14a"
+    },
+    "enemyPool": ["swarm", "grunt", "bomber"],
+    "chestPool": ["chest_common"],
+    "waveDifficulty": 0.85
+  },
+  {
+    "id": "biome_ruins",
+    "type": "biomes",
+    "name": "Ruinas",
+    "palette": {
+      "bgGradient": ["#1a0d24", "#0a0512"],
+      "gridColor": "rgba(176,77,255,0.08)",
+      "borderColor": "#b04dff",
+      "accentColor": "#ff2bd6"
+    },
+    "enemyPool": ["shooter", "tank", "grunt"],
+    "chestPool": ["chest_rare", "chest_legendary"],
+    "waveDifficulty": 1.25
+  },
+  {
+    "id": "biome_laboratory",
+    "type": "biomes",
+    "name": "Laboratorio",
+    "palette": {
+      "bgGradient": ["#241a0d", "#120a05"],
+      "gridColor": "rgba(255,225,74,0.08)",
+      "borderColor": "#ffe14a",
+      "accentColor": "#ff3b5c"
+    },
+    "enemyPool": ["shooter", "bomber", "swarm", "tank"],
+    "chestPool": ["chest_rare", "chest_legendary"],
+    "waveDifficulty": 1.4
+  }
+]

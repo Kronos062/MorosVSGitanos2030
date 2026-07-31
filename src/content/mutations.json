@@ -1,0 +1,66 @@
+[
+  {
+    "id": "mut_rage",
+    "type": "mutations",
+    "name": "Furia",
+    "rarity": "uncommon",
+    "description": "+40% daño, +15% velocidad, color rojizo.",
+    "mods": [
+      { "stat": "damage", "op": "mul", "value": 1.40 },
+      { "stat": "speed", "op": "mul", "value": 1.15 }
+    ],
+    "visual": { "colorTint": "#ff6a00", "sizeScale": 1.0 }
+  },
+  {
+    "id": "mut_tank",
+    "type": "mutations",
+    "name": "Blindaje",
+    "rarity": "rare",
+    "description": "+80% vida, +30% tamaño, -15% velocidad.",
+    "mods": [
+      { "stat": "hp", "op": "mul", "value": 1.80 },
+      { "stat": "size", "op": "mul", "value": 1.30 },
+      { "stat": "speed", "op": "mul", "value": 0.85 }
+    ],
+    "visual": { "colorTint": "#b0b8c8", "sizeScale": 1.3 }
+  },
+  {
+    "id": "mut_swift",
+    "type": "mutations",
+    "name": "Veloz",
+    "rarity": "uncommon",
+    "description": "+70% velocidad, -25% vida.",
+    "mods": [
+      { "stat": "speed", "op": "mul", "value": 1.70 },
+      { "stat": "hp", "op": "mul", "value": 0.75 }
+    ],
+    "visual": { "colorTint": "#39ff88" }
+  },
+  {
+    "id": "mut_toxic",
+    "type": "mutations",
+    "name": "Tóxico",
+    "rarity": "epic",
+    "description": "Aplica envenenamiento al contacto.",
+    "mods": [
+      { "stat": "onHitEffect", "op": "set", "value": "poison" }
+    ],
+    "visual": { "colorTint": "#9dff00" }
+  },
+  {
+    "id": "mut_champion",
+    "type": "mutations",
+    "name": "Campeón",
+    "rarity": "legendary",
+    "description": "+150% vida, +60% daño, +20% tamaño. Deja loot legendario.",
+    "mods": [
+      { "stat": "hp", "op": "mul", "value": 2.50 },
+      { "stat": "damage", "op": "mul", "value": 1.60 },
+      { "stat": "size", "op": "mul", "value": 1.20 },
+      { "stat": "score", "op": "mul", "value": 3.0 },
+      { "stat": "xp", "op": "mul", "value": 3.0 },
+      { "stat": "lootTier", "op": "set", "value": "legendary" }
+    ],
+    "visual": { "colorTint": "#ffe14a", "sizeScale": 1.2, "aura": true }
+  }
+]

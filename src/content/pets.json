@@ -1,0 +1,55 @@
+[
+  {
+    "id": "pet_dragon",
+    "type": "pets",
+    "name": "Cyber Dragón",
+    "description": "Orbita al jugador y dispara bolas de fuego a enemigos cercanos cada 2s.",
+    "color": "#ff3b5c",
+    "glow": "#ffe14a",
+    "attackCooldown": 2.0,
+    "damage": 15,
+    "range": 220,
+    "orbitRadius": 32,
+    "orbitSpeed": 2.0
+  },
+  {
+    "id": "pet_drone_scout",
+    "type": "pets",
+    "name": "Dron Recolector",
+    "description": "Atrae pickups lejanos automáticamente y genera un escudo magnético.",
+    "color": "#00f0ff",
+    "glow": "#00f0ff",
+    "attackCooldown": 5.0,
+    "damage": 0,
+    "range": 300,
+    "orbitRadius": 28,
+    "orbitSpeed": 3.0,
+    "vacuumRadius": 250
+  },
+  {
+    "id": "pet_cyber_cat",
+    "type": "pets",
+    "name": "Gato Ciberpunk",
+    "description": "Ágil y furtivo. Dispara rayos criogénicos que ralentizan enemigos.",
+    "color": "#39ff88",
+    "glow": "#39ff88",
+    "attackCooldown": 1.8,
+    "damage": 10,
+    "range": 200,
+    "orbitRadius": 36,
+    "orbitSpeed": 2.5
+  },
+  {
+    "id": "pet_phoenix",
+    "type": "pets",
+    "name": "Fénix Neón",
+    "description": "Emite ondas ígneas pulsantes de área a su alrededor.",
+    "color": "#ff8800",
+    "glow": "#ffe14a",
+    "attackCooldown": 2.5,
+    "damage": 20,
+    "range": 120,
+    "orbitRadius": 40,
+    "orbitSpeed": 1.8
+  }
+]

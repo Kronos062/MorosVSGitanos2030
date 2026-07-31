@@ -1,0 +1,11 @@
+{
+  "id": "tariq",
+  "type": "characters",
+  "name": "Comandante Tariq",
+  "faction": "bando_moros",
+  "stats": { "hp": 130, "speed": 230, "armor": 3, "critChance": 0.08 },
+  "startingWeapon": "pistol",
+  "passiveSlots": 5,
+  "sprite": { "color": "#00f0ff", "glow": "#00f0ff", "shape": "triangle" },
+  "description": "Líder táctico. Gran armadura inicial y resistencia."
+}

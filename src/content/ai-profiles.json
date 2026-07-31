@@ -1,0 +1,27 @@
+[
+  {
+    "id": "chaser",
+    "type": "ai-profiles",
+    "priorities": [
+      { "condition": { "op": "always" }, "action": "move_toward_target" },
+      { "condition": { "op": "lte", "path": "distance", "value": "attackRange" }, "action": "melee_attack" }
+    ]
+  },
+  {
+    "id": "ranged_kiter",
+    "type": "ai-profiles",
+    "priorities": [
+      { "condition": { "op": "gt", "path": "distance", "value": 200 }, "action": "move_toward_target" },
+      { "condition": { "op": "lt", "path": "distance", "value": 140 }, "action": "move_away_from_target" },
+      { "condition": { "op": "lte", "path": "distance", "value": "attackRange" }, "action": "ranged_attack" }
+    ]
+  },
+  {
+    "id": "bomber_rush",
+    "type": "ai-profiles",
+    "priorities": [
+      { "condition": { "op": "always" }, "action": "move_toward_target" },
+      { "condition": { "op": "lte", "path": "distance", "value": "attackRange" }, "action": "self_explode" }
+    ]
+  }
+]

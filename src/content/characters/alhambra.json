@@ -1,0 +1,11 @@
+{
+  "id": "alhambra",
+  "type": "characters",
+  "name": "Guardián Alhambra",
+  "faction": "bando_moros",
+  "stats": { "hp": 160, "speed": 200, "armor": 5, "critChance": 0.05 },
+  "startingWeapon": "shotgun",
+  "passiveSlots": 5,
+  "sprite": { "color": "#0099ff", "glow": "#00f0ff", "shape": "triangle" },
+  "description": "Baluarte inexpugnable de alta supervivencia."
+}

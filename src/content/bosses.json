@@ -1,0 +1,98 @@
+[
+  {
+    "id": "boss_dragon_2030",
+    "type": "bosses",
+    "name": "Mecha Dragón 2030",
+    "enemyId": "boss_dragon_2030",
+    "phases": [
+      {
+        "phase": 1,
+        "hpThresholdPct": 1.0,
+        "attackCooldown": 1.5,
+        "speed": 50,
+        "behavior": "single_shot",
+        "color": "#ff3b5c"
+      },
+      {
+        "phase": 2,
+        "hpThresholdPct": 0.6,
+        "attackCooldown": 0.9,
+        "speed": 75,
+        "behavior": "burst_spread",
+        "color": "#ff8800"
+      },
+      {
+        "phase": 3,
+        "hpThresholdPct": 0.3,
+        "attackCooldown": 0.5,
+        "speed": 100,
+        "behavior": "rage_nova",
+        "color": "#ffe14a"
+      }
+    ]
+  },
+  {
+    "id": "boss_cyber_kraken",
+    "type": "bosses",
+    "name": "Kraken Ciberpunk 2030",
+    "enemyId": "boss_cyber_kraken",
+    "phases": [
+      {
+        "phase": 1,
+        "hpThresholdPct": 1.0,
+        "attackCooldown": 1.8,
+        "speed": 40,
+        "behavior": "tentacle_sweep",
+        "color": "#00f0ff"
+      },
+      {
+        "phase": 2,
+        "hpThresholdPct": 0.65,
+        "attackCooldown": 1.1,
+        "speed": 60,
+        "behavior": "plasma_storm",
+        "color": "#b04dff"
+      },
+      {
+        "phase": 3,
+        "hpThresholdPct": 0.25,
+        "attackCooldown": 0.6,
+        "speed": 90,
+        "behavior": "void_overload",
+        "color": "#39ff88"
+      }
+    ]
+  },
+  {
+    "id": "boss_golem_prime",
+    "type": "bosses",
+    "name": "Titán Bronce 2030",
+    "enemyId": "boss_golem_prime",
+    "phases": [
+      {
+        "phase": 1,
+        "hpThresholdPct": 1.0,
+        "attackCooldown": 2.2,
+        "speed": 35,
+        "behavior": "shield_wall",
+        "color": "#ff8800"
+      },
+      {
+        "phase": 2,
+        "hpThresholdPct": 0.55,
+        "attackCooldown": 1.3,
+        "speed": 55,
+        "behavior": "mortar_barrage",
+        "color": "#ffe14a"
+      },
+      {
+        "phase": 3,
+        "hpThresholdPct": 0.20,
+        "attackCooldown": 0.7,
+        "speed": 80,
+        "behavior": "kinetic_slam",
+        "color": "#ff3b5c"
+      }
+    ]
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "chest_common",
+    "type": "chests",
+    "name": "Cofre Común",
+    "rarity": "common",
+    "size": 16,
+    "color": "#b8c0d8",
+    "glow": "#b8c0d8",
+    "loot": {
+      "pool": [
+        { "kind": "weapon", "rarityWeight": { "common": 70, "uncommon": 25, "rare": 5 } },
+        { "kind": "heal", "weight": 20, "value": 40 },
+        { "kind": "shield", "weight": 10, "value": 1 }
+      ]
+    }
+  },
+  {
+    "id": "chest_rare",
+    "type": "chests",
+    "name": "Cofre Raro",
+    "rarity": "rare",
+    "size": 20,
+    "color": "#00f0ff",
+    "glow": "#00f0ff",
+    "loot": {
+      "pool": [
+        { "kind": "weapon", "rarityWeight": { "common": 20, "uncommon": 40, "rare": 30, "epic": 10 } },
+        { "kind": "heal", "weight": 15, "value": 60 }
+      ]
+    }
+  },
+  {
+    "id": "chest_legendary",
+    "type": "chests",
+    "name": "Cofre Legendario",
+    "rarity": "legendary",
+    "size": 24,
+    "color": "#ffe14a",
+    "glow": "#ffe14a",
+    "loot": {
+      "pool": [
+        { "kind": "weapon", "rarityWeight": { "rare": 30, "epic": 50, "legendary": 20 } }
+      ]
+    }
+  }
+]

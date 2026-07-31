@@ -1,0 +1,11 @@
+{
+  "id": "patriarca",
+  "type": "characters",
+  "name": "Patriarca Hierro",
+  "faction": "bando_gitanos",
+  "stats": { "hp": 150, "speed": 220, "armor": 4, "critChance": 0.08 },
+  "startingWeapon": "void_cannon",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ff2bd6", "glow": "#ffe14a", "shape": "triangle" },
+  "description": "Veterano curtido con potencia devastadora."
+}

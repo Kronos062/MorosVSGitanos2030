@@ -1,0 +1,11 @@
+{
+  "id": "sombra",
+  "type": "characters",
+  "name": "Sombra de Córdoba",
+  "faction": "bando_moros",
+  "stats": { "hp": 85, "speed": 290, "armor": 0, "critChance": 0.25 },
+  "startingWeapon": "blade_launcher",
+  "passiveSlots": 5,
+  "sprite": { "color": "#b04dff", "glow": "#b04dff", "shape": "triangle" },
+  "description": "Asesino sigiloso con alta probabilidad crítica."
+}

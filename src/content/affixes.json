@@ -1,0 +1,91 @@
+[
+  {
+    "id": "af_flaming",
+    "type": "affixes",
+    "kind": "prefix",
+    "name": "Flamígero/a",
+    "rarity": "uncommon",
+    "tags": ["elemental", "fire"],
+    "mods": [
+      { "stat": "damage", "op": "add_pct", "value": 0.15 },
+      { "stat": "tags", "op": "add", "value": "fire" }
+    ],
+    "color": "#ff6a00"
+  },
+  {
+    "id": "af_frozen",
+    "type": "affixes",
+    "kind": "prefix",
+    "name": "Glacial",
+    "rarity": "rare",
+    "tags": ["elemental", "ice"],
+    "mods": [
+      { "stat": "damage", "op": "add_pct", "value": 0.10 },
+      { "stat": "projectileSpeed", "op": "add_pct", "value": -0.15 },
+      { "stat": "tags", "op": "add", "value": "ice" }
+    ],
+    "color": "#6ef0ff"
+  },
+  {
+    "id": "af_vampiric",
+    "type": "affixes",
+    "kind": "prefix",
+    "name": "Vampírico/a",
+    "rarity": "epic",
+    "tags": ["life", "drain"],
+    "mods": [
+      { "stat": "damage", "op": "add_pct", "value": 0.05 },
+      { "stat": "lifesteal", "op": "set", "value": 0.08 }
+    ],
+    "color": "#b04dff"
+  },
+  {
+    "id": "af_hasty",
+    "type": "affixes",
+    "kind": "suffix",
+    "name": "de la Celeridad",
+    "rarity": "uncommon",
+    "tags": ["speed"],
+    "mods": [
+      { "stat": "fireRate", "op": "add_pct", "value": 0.25 },
+      { "stat": "damage", "op": "add_pct", "value": -0.10 }
+    ]
+  },
+  {
+    "id": "af_sharp",
+    "type": "affixes",
+    "kind": "suffix",
+    "name": "del Filo",
+    "rarity": "rare",
+    "tags": ["crit"],
+    "mods": [
+      { "stat": "critChance", "op": "add", "value": 0.12 },
+      { "stat": "damage", "op": "add_pct", "value": 0.08 }
+    ]
+  },
+  {
+    "id": "af_piercing",
+    "type": "affixes",
+    "kind": "suffix",
+    "name": "de la Perforación",
+    "rarity": "rare",
+    "tags": ["pierce"],
+    "mods": [
+      { "stat": "pierce", "op": "add", "value": 2 }
+    ]
+  },
+  {
+    "id": "af_legendary_nova",
+    "type": "affixes",
+    "kind": "suffix",
+    "name": "de la Nova",
+    "rarity": "legendary",
+    "tags": ["legendary"],
+    "mods": [
+      { "stat": "damage", "op": "add_pct", "value": 0.35 },
+      { "stat": "count", "op": "add", "value": 2 },
+      { "stat": "spread", "op": "add", "value": 0.12 }
+    ],
+    "color": "#ffe14a"
+  }
+]

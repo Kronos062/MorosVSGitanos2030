@@ -1,0 +1,44 @@
+[
+  {
+    "id": "synergy_gun_and_fury",
+    "type": "synergies",
+    "name": "Furia Armada",
+    "description": "Si tienes rifle + reliquia ofensiva, +15% daño.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "precision" }
+    ],
+    "effect": { "kind": "stat_mod", "stat": "damage_mult", "value": 1.15 }
+  },
+  {
+    "id": "synergy_fire_and_thunder",
+    "type": "synergies",
+    "name": "Llama y Trueno",
+    "description": "Si equipas un arma de fuego y posees una mascota, +20% velocidad de ataque.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "fire" },
+      { "kind": "has_pet", "petId": "pet_drone_scout" }
+    ],
+    "effect": { "kind": "stat_mod", "stat": "fire_rate_mult", "value": 1.20 }
+  },
+  {
+    "id": "synergy_shadow_rail",
+    "type": "synergies",
+    "name": "Sombra y Riel",
+    "description": "Si equipas armas de energía cinético-perforante, +10% golpe crítico.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "energy" },
+      { "kind": "weapon_tag", "tag": "piercing" }
+    ],
+    "effect": { "kind": "stat_mod", "stat": "crit_chance", "value": 0.10 }
+  },
+  {
+    "id": "synergy_vampiric_tactics",
+    "type": "synergies",
+    "name": "Táctica Vampírica",
+    "description": "Armas de gran esparcimiento otorgan robo de vida adicional.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "spread" }
+    ],
+    "effect": { "kind": "stat_mod", "stat": "lifesteal", "value": 0.05 }
+  }
+]

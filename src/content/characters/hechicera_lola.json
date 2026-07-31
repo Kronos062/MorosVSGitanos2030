@@ -1,0 +1,11 @@
+{
+  "id": "hechicera_lola",
+  "type": "characters",
+  "name": "Hechicera Lola",
+  "faction": "bando_gitanos",
+  "stats": { "hp": 90, "speed": 260, "armor": 0, "critChance": 0.20 },
+  "startingWeapon": "laser",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ff3b5c", "glow": "#ff3b5c", "shape": "triangle" },
+  "description": "Mística misteriosa de gran potencia mística."
+}

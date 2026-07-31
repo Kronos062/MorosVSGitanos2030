@@ -1,0 +1,58 @@
+[
+  {
+    "id": "event_acid_rain",
+    "type": "events",
+    "name": "Lluvia Ácida",
+    "description": "Niebla corrosiva sobre la arena. Los escudos se desgastan lentamente.",
+    "duration": 20,
+    "mods": [
+      { "stat": "playerSpeedMult", "op": "mul", "value": 0.90 }
+    ],
+    "color": "#39ff88"
+  },
+  {
+    "id": "event_blood_moon",
+    "type": "events",
+    "name": "Luna Neón Sangrienta",
+    "description": "Los enemigos causan +50% daño pero duplican la puntuación.",
+    "duration": 30,
+    "mods": [
+      { "stat": "enemyDamageMult", "op": "mul", "value": 1.50 },
+      { "stat": "scoreMult", "op": "mul", "value": 2.00 }
+    ],
+    "color": "#ff3b5c"
+  },
+  {
+    "id": "event_gold_rush",
+    "type": "events",
+    "name": "Fiebre de Créditos",
+    "description": "Aparecen más créditos y cofres de mayor rareza.",
+    "duration": 25,
+    "mods": [
+      { "stat": "dropRateMult", "op": "mul", "value": 2.50 }
+    ],
+    "color": "#ffe14a"
+  },
+  {
+    "id": "event_solar_flare",
+    "type": "events",
+    "name": "Llamarada Solar",
+    "description": "Pulso térmico global. La cadencia de disparo aumenta un +30%.",
+    "duration": 20,
+    "mods": [
+      { "stat": "fireRateMult", "op": "mul", "value": 1.30 }
+    ],
+    "color": "#ff6a00"
+  },
+  {
+    "id": "event_cyber_glitch",
+    "type": "events",
+    "name": "Anomalía Digital",
+    "description": "El espacio-tiempo se distorsiona. Aumenta la velocidad de esquiva.",
+    "duration": 18,
+    "mods": [
+      { "stat": "dashSpeedMult", "op": "mul", "value": 1.40 }
+    ],
+    "color": "#00f0ff"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "res_elemental_overload",
+    "type": "resonances",
+    "name": "Sobrecarga Elemental",
+    "description": "Si posees armas o afijos de Fuego y Hielo simultáneamente, tus disparos emiten una onda expansiva.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "fire" },
+      { "kind": "weapon_tag", "tag": "ice" }
+    ],
+    "effect": { "kind": "emit", "event": "resonance:triggered", "payload": { "id": "res_elemental_overload", "bonusDamage": 20 } }
+  },
+  {
+    "id": "res_full_cyber_armory",
+    "type": "resonances",
+    "name": "Armería Ciberpunk",
+    "description": "Si posees 3 o más componentes ciber/energía, +20% cadencia de tiro.",
+    "requires": [
+      { "kind": "weapon_tag", "tag": "energy" },
+      { "kind": "relic_category", "category": "survival" }
+    ],
+    "effect": { "kind": "stat_mod", "stat": "fireRateMult", "value": 1.20 }
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "skill_damage",
+    "type": "skills",
+    "name": "Sobrecarga de Impacto",
+    "description": "+20% Daño de arma.",
+    "icon": "⚔️",
+    "rarity": "common",
+    "mods": [{ "stat": "damageMult", "op": "add_pct", "value": 0.20 }]
+  },
+  {
+    "id": "skill_speed",
+    "type": "skills",
+    "name": "Propulsor Sintético",
+    "description": "+15% Velocidad de movimiento.",
+    "icon": "👟",
+    "rarity": "common",
+    "mods": [{ "stat": "speedMult", "op": "add_pct", "value": 0.15 }]
+  },
+  {
+    "id": "skill_pierce",
+    "type": "skills",
+    "name": "Proyectiles de Tungsteno",
+    "description": "+1 Perforación a todos tus disparos.",
+    "icon": "🏹",
+    "rarity": "uncommon",
+    "mods": [{ "stat": "pierce", "op": "add", "value": 1 }]
+  },
+  {
+    "id": "skill_shield",
+    "type": "skills",
+    "name": "Matriz Defensiva",
+    "description": "+1 Carga de escudo regenerable.",
+    "icon": "🛡️",
+    "rarity": "uncommon",
+    "mods": [{ "stat": "shield", "op": "add", "value": 1 }]
+  },
+  {
+    "id": "skill_crit",
+    "type": "skills",
+    "name": "Mira Ciber-Óptica",
+    "description": "+12% Probabilidad de golpe crítico.",
+    "icon": "🎯",
+    "rarity": "rare",
+    "mods": [{ "stat": "critChance", "op": "add", "value": 0.12 }]
+  },
+  {
+    "id": "skill_vampirism",
+    "type": "skills",
+    "name": "Inyector Nanómico",
+    "description": "+5% Robo de vida por baja.",
+    "icon": "💉",
+    "rarity": "rare",
+    "mods": [{ "stat": "lifesteal", "op": "add", "value": 0.05 }]
+  },
+  {
+    "id": "skill_max_hp",
+    "type": "skills",
+    "name": "Núcleo Vitalicio",
+    "description": "+30 HP Máximos y curación completa.",
+    "icon": "❤️",
+    "rarity": "common",
+    "mods": [{ "stat": "maxHp", "op": "add", "value": 30 }]
+  },
+  {
+    "id": "skill_multishot",
+    "type": "skills",
+    "name": "Disipador Múltiple",
+    "description": "+1 Proyectil adicional por disparo.",
+    "icon": "✨",
+    "rarity": "epic",
+    "mods": [{ "stat": "count", "op": "add", "value": 1 }]
+  }
+]

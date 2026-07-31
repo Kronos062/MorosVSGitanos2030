@@ -1,0 +1,11 @@
+{
+  "id": "benghazi",
+  "type": "characters",
+  "name": "Jinete Benghazi",
+  "faction": "bando_moros",
+  "stats": { "hp": 100, "speed": 310, "armor": 1, "critChance": 0.10 },
+  "startingWeapon": "crossbow",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ffe14a", "glow": "#ffe14a", "shape": "triangle" },
+  "description": "Rápido y ágil en combate a distancia."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "bronce",
+  "type": "characters",
+  "name": "Campero Bronce",
+  "faction": "bando_gitanos",
+  "stats": { "hp": 125, "speed": 240, "armor": 3, "critChance": 0.10 },
+  "startingWeapon": "rifle",
+  "passiveSlots": 5,
+  "sprite": { "color": "#ff8800", "glow": "#ff8800", "shape": "triangle" },
+  "description": "Especialista en emboscadas y rifles de largo alcance."
+}

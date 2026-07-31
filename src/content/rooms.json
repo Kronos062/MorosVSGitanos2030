@@ -1,0 +1,107 @@
+[
+  {
+    "id": "arena_01",
+    "type": "rooms",
+    "name": "Arena Central",
+    "width": 1280,
+    "height": 800,
+    "layout": "arena",
+    "walls": [
+      { "x": 0, "y": 0, "w": 1280, "h": 4 },
+      { "x": 0, "y": 796, "w": 1280, "h": 4 },
+      { "x": 0, "y": 0, "w": 4, "h": 800 },
+      { "x": 1276, "y": 0, "w": 4, "h": 800 }
+    ],
+    "obstacles": [],
+    "spawnPoints": [
+      { "x": 100, "y": 100 }, { "x": 1180, "y": 100 },
+      { "x": 100, "y": 700 }, { "x": 1180, "y": 700 }
+    ],
+    "exitDoor": { "x": 600, "y": 10, "w": 80, "h": 8, "locked": true },
+    "waves": [
+      { "enemies": [{ "id": "grunt", "count": 3 }], "pacing": "slow" },
+      { "enemies": [{ "id": "grunt", "count": 4 }, { "id": "swarm", "count": 2 }], "pacing": "slow" },
+      { "enemies": [{ "id": "grunt", "count": 5 }, { "id": "shooter", "count": 1 }], "pacing": "normal" },
+      { "enemies": [{ "id": "grunt", "count": 5 }, { "id": "swarm", "count": 3 }, { "id": "shooter", "count": 1 }], "pacing": "normal" },
+      { "enemies": [{ "id": "grunt", "count": 6 }, { "id": "bomber", "count": 1 }, { "id": "shooter", "count": 2 }], "pacing": "intense" },
+      { "enemies": [{ "id": "grunt", "count": 7 }, { "id": "swarm", "count": 4 }, { "id": "bomber", "count": 1 }], "pacing": "intense" },
+      { "enemies": [{ "id": "grunt", "count": 6 }, { "id": "tank", "count": 1 }, { "id": "shooter", "count": 2 }], "pacing": "intense" }
+    ],
+    "pickupPool": ["heal", "score", "weapon", "shield"],
+    "chestSpawns": [
+      { "x": 640, "y": 400, "chestId": "chest_common" }
+    ]
+  },
+  {
+    "id": "corridor_01",
+    "type": "rooms",
+    "name": "Corredor Largo",
+    "width": 1600,
+    "height": 640,
+    "layout": "corridor",
+    "walls": [
+      { "x": 0, "y": 0, "w": 1600, "h": 4 },
+      { "x": 0, "y": 636, "w": 1600, "h": 4 },
+      { "x": 0, "y": 0, "w": 4, "h": 640 },
+      { "x": 1596, "y": 0, "w": 4, "h": 640 }
+    ],
+    "obstacles": [
+      { "x": 400, "y": 200, "w": 40, "h": 40 },
+      { "x": 800, "y": 440, "w": 40, "h": 40 },
+      { "x": 1200, "y": 200, "w": 40, "h": 40 }
+    ],
+    "spawnPoints": [
+      { "x": 80, "y": 80 }, { "x": 1520, "y": 80 },
+      { "x": 80, "y": 560 }, { "x": 1520, "y": 560 }
+    ],
+    "exitDoor": { "x": 1500, "y": 316, "w": 8, "h": 80, "locked": true },
+    "waves": [
+      { "enemies": [{ "id": "swarm", "count": 6 }], "pacing": "slow" },
+      { "enemies": [{ "id": "grunt", "count": 5 }, { "id": "swarm", "count": 3 }], "pacing": "normal" },
+      { "enemies": [{ "id": "shooter", "count": 3 }, { "id": "grunt", "count": 3 }], "pacing": "normal" },
+      { "enemies": [{ "id": "bomber", "count": 2 }, { "id": "grunt", "count": 4 }], "pacing": "intense" },
+      { "enemies": [{ "id": "tank", "count": 1 }, { "id": "shooter", "count": 3 }, { "id": "grunt", "count": 5 }], "pacing": "intense" }
+    ],
+    "pickupPool": ["heal", "score", "weapon", "shield"],
+    "chestSpawns": [
+      { "x": 600, "y": 320, "chestId": "chest_common" },
+      { "x": 1000, "y": 320, "chestId": "chest_rare" }
+    ]
+  },
+  {
+    "id": "chamber_01",
+    "type": "rooms",
+    "name": "Cámara del Jefe",
+    "width": 960,
+    "height": 960,
+    "layout": "chamber",
+    "walls": [
+      { "x": 0, "y": 0, "w": 960, "h": 4 },
+      { "x": 0, "y": 956, "w": 960, "h": 4 },
+      { "x": 0, "y": 0, "w": 4, "h": 960 },
+      { "x": 956, "y": 0, "w": 4, "h": 960 }
+    ],
+    "obstacles": [
+      { "x": 200, "y": 200, "w": 80, "h": 80 },
+      { "x": 680, "y": 200, "w": 80, "h": 80 },
+      { "x": 200, "y": 680, "w": 80, "h": 80 },
+      { "x": 680, "y": 680, "w": 80, "h": 80 }
+    ],
+    "spawnPoints": [
+      { "x": 80, "y": 80 }, { "x": 880, "y": 80 },
+      { "x": 80, "y": 880 }, { "x": 880, "y": 880 }
+    ],
+    "exitDoor": { "x": 440, "y": 950, "w": 80, "h": 8, "locked": true },
+    "waves": [
+      { "enemies": [{ "id": "tank", "count": 2 }], "pacing": "slow" },
+      { "enemies": [{ "id": "shooter", "count": 4 }, { "id": "grunt", "count": 3 }], "pacing": "normal" },
+      { "enemies": [{ "id": "bomber", "count": 3 }, { "id": "tank", "count": 1 }], "pacing": "intense" },
+      { "enemies": [{ "id": "tank", "count": 2 }, { "id": "shooter", "count": 4 }, { "id": "swarm", "count": 8 }], "pacing": "intense" },
+      { "enemies": [{ "id": "tank", "count": 3 }, { "id": "bomber", "count": 2 }, { "id": "shooter", "count": 4 }], "pacing": "intense" }
+    ],
+    "pickupPool": ["heal", "score", "weapon", "shield"],
+    "chestSpawns": [
+      { "x": 480, "y": 480, "chestId": "chest_legendary" }
+    ]
+  }
+]
