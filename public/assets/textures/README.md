@@ -1,11 +1,10 @@
-# Directorio de Texturas de Asfalto y Calles Deterioradas
+# Directorio de Texturas
 
-Coloca aquí las imágenes de fondo, patrones de asfalto, grietas de hormigón, muros de ladrillo o grafitis urbanos.
+Coloca aquí texturas de asfalto, hormigón, muros o grafitis.
 
-Ejemplos de nombres de archivo recomendados:
-- `asphalt_dark.png` (Textura de asfalto nocturno)
-- `concrete_wall.png` (Muro de hormigón desgastado)
-- `graffiti_neon.png` (Grafiti neón urbano)
-- `hazard_stripe.png` (Bandas de peligro amarillas)
+Ejemplos:
+- `asphalt_dark.png`
+- `concrete_wall.png`
+- `graffiti_neon.png`
 
-Ruta accesible desde la aplicación: `/assets/textures/nombre_archivo.png`
+Ruta accesible: `/assets/textures/nombre_archivo.png`
