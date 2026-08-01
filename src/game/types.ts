@@ -16,6 +16,8 @@ export interface Projectile {
   pierced: Set<number>;
   life: number;
   owner: 'player' | 'enemy';
+  _bounceCount?: number;
+  _explosionRadius?: number;
 }
 
 export interface EnemyEntity {
@@ -49,10 +51,11 @@ export interface PickupEntity {
   id: number;
   x: number;
   y: number;
-  kind: 'heal' | 'score' | 'weapon' | 'shield';
+  kind: 'heal' | 'score' | 'weapon' | 'shield' | 'item';
   color: string;
   value: number;
   weaponId?: string;
+  itemId?: string;
   bob: number;
   life: number;
 }
@@ -76,7 +79,7 @@ export interface RoomBounds {
   h: number;
 }
 
-export type RoomKind = 'start' | 'combat' | 'treasure' | 'boss';
+export type RoomKind = 'start' | 'combat' | 'treasure' | 'boss' | 'portal';
 
 export interface RoomNode {
   id: number;
@@ -115,17 +118,19 @@ export interface MinimapData {
 }
 
 export type InputAction =
-  | 'up'
-  | 'down'
-  | 'left'
-  | 'right'
-  | 'shoot'
-  | 'dash'
+  | 'moveUp'
+  | 'moveDown'
+  | 'moveLeft'
+  | 'moveRight'
   | 'interact'
+  | 'attack'
+  | 'dash'
   | 'pause'
-  | 'map';
+  | 'openBuild'
+  | 'openMap';
 
 export type KeyBindings = Record<InputAction, string>;
+
 
 export interface Particle {
   x: number;
@@ -137,6 +142,8 @@ export interface Particle {
   color: string;
   size: number;
 }
+
+export type EquipSlot = 'helm' | 'chest' | 'pants' | 'boots';
 
 export interface PlayerState {
   x: number;
@@ -167,6 +174,21 @@ export interface PlayerState {
   pierceBonus: number;
   countBonus: number;
   lifesteal: number;
+  fireRateMult: number;
+  projectileSizeBonus: number;
+  bounceBonus: number;
+  explosionBonus: number;
+  /** One item id per slot, null = empty */
+  equipment: Record<EquipSlot, string | null>;
+  /** Crit damage multiplier (default 2, can be boosted by sets) */
+  critDamageMult: number;
+}
+
+export interface PortalEntity {
+  x: number;
+  y: number;
+  active: boolean;
+  kind: 'descent' | 'final';
 }
 
 export interface GameStats {
@@ -187,13 +209,41 @@ export interface GameStats {
   boss?: { name: string; hp: number; maxHp: number } | null;
   weaponPrompt?: { name: string; color: string } | null;
   chestPrompt?: { name: string; color: string } | null;
+  portalPrompt?: { kind: string } | null;
   ended: 'victory' | 'defeat' | null;
   goldEarned: number;
   currentRoomLabel: string;
   roomsCleared: number;
   roomsTotal: number;
+  mapNumber: number;
+  totalMaps: number;
   minimap: MinimapData | null;
   build: BuildStats | null;
+}
+
+export interface BuildItemEntry {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  color: string;
+  rarity: string;
+  slot: EquipSlot;
+  mods: Array<{ stat: string; op: string; value: number; label: string }>;
+  setId?: string;
+}
+
+export interface ActiveSetInfo {
+  setId: string;
+  name: string;
+  color: string;
+  equipped: number;
+  bonuses: Array<{
+    pieces: number;
+    description: string;
+    active: boolean;
+    special?: string;
+  }>;
 }
 
 export interface BuildStats {
@@ -205,11 +255,16 @@ export interface BuildStats {
   speed: number;
   armor: number;
   critChance: number;
+  critDamageMult: number;
   damageMult: number;
   speedMult: number;
   pierceBonus: number;
   countBonus: number;
   lifesteal: number;
+  fireRateMult: number;
+  projectileSizeBonus: number;
+  bounceBonus: number;
+  explosionBonus: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -223,9 +278,28 @@ export interface BuildStats {
   weaponPierce: number;
   weaponSpread: number;
   weaponTags: string[];
-  /** true if the player has a weapon prompt nearby (potential swap) */
+  weaponBurst?: number;
+  weaponBounce?: number;
+  weaponExplosion?: number;
+  weaponLifetime?: number;
+  weaponSizeMult?: number;
   hasNearbyWeapon: boolean;
   nearbyWeaponName?: string;
+  equippedItems: BuildItemEntry[];
+  maxItemSlots: number;
+  activeSets: ActiveSetInfo[];
+}
+
+export interface ItemPickupData {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  color: string;
+  rarity: string;
+  slot: EquipSlot;
+  mods: Array<{ stat: string; op: string; value: number; label: string }>;
+  setId?: string;
 }
 
 export interface SkillChoice {
@@ -252,4 +326,5 @@ export type GameScreen =
   | 'map'
   | 'levelup'
   | 'gameover'
-  | 'victory';
+  | 'victory'
+  | 'itempickup';

@@ -28,15 +28,16 @@ export interface SaveData {
 const KEY = 'mvg2030_save_v1';
 
 export const DEFAULT_BINDINGS: KeyBindings = {
-  up: 'KeyW',
-  down: 'KeyS',
-  left: 'KeyA',
-  right: 'KeyD',
-  shoot: 'Space',
+  moveUp: 'KeyW',
+  moveDown: 'KeyS',
+  moveLeft: 'KeyA',
+  moveRight: 'KeyD',
+  attack: 'Mouse0',
   dash: 'ShiftLeft',
   interact: 'KeyE',
   pause: 'KeyP',
-  map: 'KeyM',
+  openBuild: 'KeyB',
+  openMap: 'Tab',
 };
 
 const DEFAULT_SAVE: SaveData = {
@@ -187,6 +188,8 @@ export function codeLabel(code: string): string {
     ArrowRight: '→',
     Escape: 'ESC',
     Enter: 'ENTER',
+    Tab: 'TAB',
+    Mouse0: 'CLIC',
   };
   if (map[code]) return map[code];
   if (code.startsWith('Key')) return code.slice(3);

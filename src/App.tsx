@@ -5,7 +5,9 @@ import { WEAPONS, RARITY_COLORS } from './content/weapons';
 import { BESTIARY_LORE } from './content/enemies';
 import { GameEngine } from './game/engine';
 import { audio } from './game/audio';
-import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats } from './game/types';
+import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, BuildItemEntry, EquipSlot } from './game/types';
+import { EQUIP_SLOT_LABELS, EQUIP_SLOT_ICONS, RARITY_COLORS as EQ_COLORS } from './content/equipment';
+
 import {
   loadSave,
   writeSave,
@@ -30,22 +32,24 @@ const emptyStats: GameStats = {
   hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 40, dashPct: 1,
   score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
   weaponName: '', weaponColor: '#00f0ff',
-  boss: null, weaponPrompt: null, chestPrompt: null,
+  boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
   ended: null, goldEarned: 0,
   currentRoomLabel: '', roomsCleared: 0, roomsTotal: 0,
+  mapNumber: 1, totalMaps: 10,
   minimap: null, build: null,
 };
 
 const BINDING_ROWS: Array<{ action: InputAction; label: string }> = [
-  { action: 'up', label: 'Arriba' },
-  { action: 'down', label: 'Abajo' },
-  { action: 'left', label: 'Izquierda' },
-  { action: 'right', label: 'Derecha' },
-  { action: 'shoot', label: 'Disparar' },
+  { action: 'moveUp', label: 'Arriba' },
+  { action: 'moveDown', label: 'Abajo' },
+  { action: 'moveLeft', label: 'Izquierda' },
+  { action: 'moveRight', label: 'Derecha' },
+  { action: 'attack', label: 'Atacar' },
   { action: 'dash', label: 'Dash' },
   { action: 'interact', label: 'Interactuar' },
   { action: 'pause', label: 'Pausa' },
-  { action: 'map', label: 'Mapa' },
+  { action: 'openBuild', label: 'Build' },
+  { action: 'openMap', label: 'Mapa' },
 ];
 
 function MinimapView({ data, large = false }: { data: MinimapData; large?: boolean }) {
@@ -96,16 +100,20 @@ function MinimapView({ data, large = false }: { data: MinimapData; large?: boole
 }
 
 function BuildPanel({ build }: { build: BuildStats }) {
+  type SlotKey = 'helm' | 'chest' | 'pants' | 'boots';
   return (
     <div style={{ textAlign: 'left', fontSize: '0.85rem' }}>
-      <h3 style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level}</h3>
+      <h3 style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp}/{build.xpToNext}</h3>
 
       <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
         <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
-        <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong></div>
+        <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
         <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4 }}>
-          <div>Daño: {build.weaponDamage} · Cadencia: {build.weaponFireRate}/s</div>
-          <div>Proyectiles: {build.weaponCount} · Perforación: {build.weaponPierce} · Dispersión: {Math.round(build.weaponSpread * 100)}%</div>
+          <div>Daño: {build.weaponDamage} · Cadencia: {(build.weaponFireRate * build.fireRateMult).toFixed(1)}/s · Dispersión: {Math.round(build.weaponSpread * 100)}%</div>
+          <div>Proyectiles: {build.weaponCount} · Perforación: {build.weaponPierce}</div>
+          {(build.weaponBurst ?? 0) > 1 && <div>Ráfaga: ×{build.weaponBurst}</div>}
+          {(build.weaponBounce ?? 0) > 0 && <div>Rebotes: {build.weaponBounce}</div>}
+          {(build.weaponExplosion ?? 0) > 0 && <div>Explosión: r{build.weaponExplosion}</div>}
           <div>Tags: {build.weaponTags.join(', ')}</div>
         </div>
       </div>
@@ -117,8 +125,58 @@ function BuildPanel({ build }: { build: BuildStats }) {
         </div>
       )}
 
+      {/* Equipment slots */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontWeight: 800, color: '#ffe14a', marginBottom: 8, letterSpacing: '0.1em' }}>ESTADÍSTICAS</div>
+        <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>EQUIPO</div>
+        {(['helm','chest','pants','boots'] as SlotKey[]).map((slot) => {
+          const eq = build.equippedItems.find((e) => e.slot === slot);
+          return (
+            <div key={slot} style={{ padding: '6px 10px', marginBottom: 4, background: 'rgba(0,0,0,0.3)', border: `1px solid ${eq ? eq.color+'55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                {EQUIP_SLOT_ICONS[slot]} {EQUIP_SLOT_LABELS[slot]}
+              </span>
+              {eq ? (
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#8891b8' }}>{eq.icon}</span>
+                  <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
+                  <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
+                </span>
+              ) : (
+                <span style={{ color: '#555', fontSize: '0.75rem' }}>Vacío</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Set synergies */}
+      {build.activeSets.length > 0 && (
+        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
+          <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>SINERGIAS DE CONJUNTO</div>
+          {build.activeSets.map((s) => (
+            <div key={s.setId} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${s.color}40`, borderRadius: 4 }}>
+              <div style={{ fontWeight: 800, color: s.color, marginBottom: 4 }}>
+                {s.name} <span style={{fontSize:'0.7rem',color:'#8891b8'}}>{s.equipped}/4 piezas</span>
+              </div>
+              {s.bonuses.map((b, j) => (
+                <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
+                  {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
+                  {b.special && <span style={{marginLeft:6,color:'#ff2bd6',fontSize:'0.7rem'}}>⚡ {b.special}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {build.equippedItems.length === 0 && (
+        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.05)', border: '1px dashed rgba(176,77,255,0.2)', borderRadius: 4, textAlign: 'center', color: '#94a3b8' }}>
+          Sin equipo. ¡Ábrelos en cofres o derrota jefes!
+        </div>
+      )}
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 800, color: '#ffe14a', marginBottom: 8, letterSpacing: '0.1em' }}>ESTADÍSTICAS FINALES</div>
         <div className="build-grid">
           <div className="build-cell"><span className="build-cell-label">Vida</span><span className="build-cell-value" style={{ color: '#ff2a4b' }}>{Math.ceil(build.hp)}/{build.maxHp}</span></div>
           <div className="build-cell"><span className="build-cell-label">Escudo</span><span className="build-cell-value" style={{ color: '#00f0ff' }}>{build.shield}</span></div>
@@ -126,16 +184,12 @@ function BuildPanel({ build }: { build: BuildStats }) {
           <div className="build-cell"><span className="build-cell-label">Velocidad</span><span className="build-cell-value" style={{ color: '#39ff88' }}>{build.speed}</span></div>
           <div className="build-cell"><span className="build-cell-label">Crítico</span><span className="build-cell-value" style={{ color: '#ffe14a' }}>{Math.round(build.critChance * 100)}%</span></div>
           <div className="build-cell"><span className="build-cell-label">Robo vida</span><span className="build-cell-value" style={{ color: '#ff2bd6' }}>{Math.round(build.lifesteal * 100)}%</span></div>
-        </div>
-      </div>
-
-      <div style={{ padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
-        <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 6, letterSpacing: '0.1em' }}>BONIFICACIONES</div>
-        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-          <div>Daño: +{Math.round((build.damageMult - 1) * 100)}%</div>
-          <div>Velocidad: +{Math.round((build.speedMult - 1) * 100)}%</div>
-          <div>Perforación: +{build.pierceBonus}</div>
-          <div>Proyectiles: +{build.countBonus}</div>
+          <div className="build-cell"><span className="build-cell-label">Daño ×</span><span className="build-cell-value" style={{ color: '#ff8800' }}>×{build.damageMult.toFixed(2)}</span></div>
+          <div className="build-cell"><span className="build-cell-label">Cadencia ×</span><span className="build-cell-value" style={{ color: '#00c8ff' }}>×{build.fireRateMult.toFixed(2)}</span></div>
+          <div className="build-cell"><span className="build-cell-label">Perforación +</span><span className="build-cell-value">+{build.pierceBonus}</span></div>
+          <div className="build-cell"><span className="build-cell-label">Proyectiles +</span><span className="build-cell-value">+{build.countBonus}</span></div>
+          {build.bounceBonus > 0 && <div className="build-cell"><span className="build-cell-label">Rebotes +</span><span className="build-cell-value">+{build.bounceBonus}</span></div>}
+          {build.explosionBonus > 0 && <div className="build-cell"><span className="build-cell-label">Explosión +</span><span className="build-cell-value">+{build.explosionBonus}</span></div>}
         </div>
       </div>
     </div>
@@ -153,6 +207,7 @@ export default function App() {
   const [endResult, setEndResult] = useState<'victory' | 'defeat' | null>(null);
   const [rebinding, setRebinding] = useState<InputAction | null>(null);
   const [factionConfirm, setFactionConfirm] = useState(false);
+  const [itemPickup, setItemPickup] = useState<{ item: ItemPickupData; equipped: BuildItemEntry[]; resolve: (slot: EquipSlot | null) => void } | null>(null);
   const joyThumbRef = useRef<HTMLDivElement>(null);
   const selectedCharRef = useRef(selectedChar);
   selectedCharRef.current = selectedChar;
@@ -196,8 +251,13 @@ export default function App() {
     });
     const offWeapon = engine.onWeaponDiscover((id) => { setSave((prev) => discoverWeapon(prev, id)); });
     const offKill = engine.onKillRecord((id) => { setSave((prev) => recordKill(prev, id)); });
+    const offItem = engine.onItemPickup((item, equipped, resolve) => {
+      engineRef.current?.pause();
+      setItemPickup({ item, equipped, resolve });
+      setScreen('itempickup');
+    });
 
-    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); engine.destroy(); engineRef.current = null; };
+    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); engine.destroy(); engineRef.current = null; };
   }, []);
 
   useEffect(() => {
@@ -207,7 +267,7 @@ export default function App() {
         setSave((prev) => setBinding(prev, rebinding, e.code)); setRebinding(null); audio.play('button'); return;
       }
       if (e.code === 'Enter' && screen === 'menu') { setScreen('chars'); audio.play('button'); }
-      const pauseCode = save.bindings.pause; const mapCode = save.bindings.map;
+      const pauseCode = save.bindings.pause; const mapCode = save.bindings.openMap;
       if ((e.code === pauseCode || e.code === 'Escape') && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
         e.preventDefault();
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('paused'); }
@@ -287,10 +347,10 @@ export default function App() {
         <div className="hud">
           <div className="hud-top">
             <div className="hud-panel">
+              <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
               <div className="stat-row"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
-              <div className="stat-row"><span className="stat-label">Bajas</span><span className="stat-value">{stats.kills}</span></div>
             </div>
             <div className="hud-panel">
               <div className="stat-row"><span className="stat-label">Combo</span><span className="stat-value">x{stats.multiplier.toFixed(2)}</span></div>
@@ -299,15 +359,16 @@ export default function App() {
             </div>
             {stats.minimap && screen !== 'map' && (
               <div className="hud-panel minimap-panel">
-                <div className="stat-label" style={{ marginBottom: 4 }}>MAPA · {codeLabel(save.bindings.map)}</div>
+                <div className="stat-label" style={{ marginBottom: 4 }}>MAPA · {codeLabel(save.bindings.openMap)}</div>
                 <MinimapView data={stats.minimap} />
                 <div className="health-text" style={{ marginTop: 4 }}>{stats.roomsCleared}/{stats.roomsTotal} salas</div>
               </div>
             )}
           </div>
           {stats.boss && (<div className="boss-bar"><div className="name">{stats.boss.name}</div><div className="bar"><div className="fill" style={{ width: `${(stats.boss.hp / stats.boss.maxHp) * 100}%` }} /></div></div>)}
-          {stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
-          {!stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
+          {stats.portalPrompt && (<div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] {stats.portalPrompt.kind}</div>)}
+          {!stats.portalPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
+          {!stats.portalPrompt && !stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
           <div className="hud-bottom">
             <div className="health-bar-container">
               <div className="health-bar-bg"><div className="health-bar-fill" style={{ width: `${Math.max(0, (stats.hp / stats.maxHp) * 100)}%` }} /></div>
@@ -316,7 +377,7 @@ export default function App() {
             </div>
             <div className="abilities">
               <div className="ability">💨<div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
-              <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.shoot).slice(0, 3)}</span></div>
+              <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
             </div>
           </div>
         </div>
@@ -560,11 +621,78 @@ export default function App() {
           </div>
         )}
 
+        {screen === 'itempickup' && itemPickup && (() => {
+    const curEq = itemPickup.equipped.find((e) => e.slot === itemPickup.item.slot);
+    return (
+      <div className="screen">
+        <div className="screen-content">
+          <h2 className="section-title" style={{ color: itemPickup.item.color }}>
+            {itemPickup.item.icon} OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
+          </h2>
+
+          {/* Side-by-side comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            {/* CURRENT */}
+            <div style={{ padding: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, textAlign: 'left' }}>
+              <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 6 }}>EQUIPADO</div>
+              {curEq ? (
+                <>
+                  <div style={{ fontWeight: 800, color: curEq.color, marginBottom: 4 }}>{curEq.icon} {curEq.name}</div>
+                  <div style={{ fontSize: '0.7rem', color: EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{curEq.rarity.toUpperCase()}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{curEq.description}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
+                    {curEq.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: '#555', fontSize: '0.8rem' }}>(Vacío)</div>
+              )}
+            </div>
+            {/* NEW */}
+            <div style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: `2px solid ${itemPickup.item.color}66`, borderRadius: 4, textAlign: 'left' }}>
+              <div style={{ fontSize: '0.7rem', color: '#39ff88', marginBottom: 6 }}>ENCONTRADO</div>
+              <div style={{ fontWeight: 800, color: itemPickup.item.color, marginBottom: 4 }}>{itemPickup.item.icon} {itemPickup.item.name}</div>
+              <div style={{ fontSize: '0.7rem', color: EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{itemPickup.item.rarity.toUpperCase()}</div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{itemPickup.item.description}</div>
+              <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
+                {itemPickup.item.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
+              </div>
+            </div>
+          </div>
+
+          <div className="menu-grid">
+            <button type="button" className="menu-btn primary" onClick={() => {
+              itemPickup.resolve(itemPickup.item.slot);
+              setItemPickup(null);
+              engineRef.current?.resume();
+              setScreen('playing');
+            }}>
+              Equipar
+            </button>
+            <button type="button" className="menu-btn" onClick={() => {
+              itemPickup.resolve(null);
+              setItemPickup(null);
+              engineRef.current?.resume();
+              setScreen('playing');
+            }}>
+              Mantener {curEq ? 'actual' : 'vacío'}
+            </button>
+          </div>
+          {itemPickup.item.setId && (
+            <div style={{ marginTop: 12, fontSize: '0.75rem', color: '#b04dff' }}>
+              Pertenece al conjunto: <strong>{itemPickup.item.setId.replace('set_','')}</strong>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })()}
+
         {screen === 'map' && (
           <div className="screen">
             <div className="screen-content" style={{ maxWidth: 820 }}>
               <h2 className="section-title" style={{ color: '#00f0ff' }}>MAPA GLOBAL</h2>
-              <p style={{ color: '#94a3b8', marginBottom: 12, fontSize: '0.85rem' }}>Sala actual, descubiertas y pasillos · {codeLabel(save.bindings.map)} / ESC para cerrar</p>
+              <p style={{ color: '#94a3b8', marginBottom: 12, fontSize: '0.85rem' }}>Sala actual, descubiertas y pasillos · {codeLabel(save.bindings.openMap)} / ESC para cerrar</p>
               {stats.minimap && <MinimapView data={stats.minimap} large />}
               <div className="menu-grid" style={{ marginTop: 16 }}>
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); engineRef.current?.resume(); setScreen('playing'); }}>Cerrar mapa</button>
