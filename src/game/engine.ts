@@ -1,11 +1,26 @@
 import { getCharacter, type CharacterDef } from '../content/characters';
-import { getWeapon, WEAPONS, type WeaponDef } from '../content/weapons';
-import { ENEMIES, BOSSES, type EnemyDef } from '../content/enemies';
+import {
+  getWeapon,
+  generateWeapon,
+  registerGenerated,
+  type GeneratedWeapon,
+} from '../content/weapons';
+import { BOSSES, getEnemy, type EnemyDef } from '../content/enemies';
 import { pickSkillChoices, SKILLS, type SkillDef } from '../content/skills';
 import { getChest, type ChestDef } from '../content/chests';
+import { getPet, petStatBoosts, type PetDef } from '../content/pets';
+import { balanceStat } from '../content/statBalance';
+import {
+  LootMemory,
+  getLootTable,
+  rollLootCategory,
+  pickDirectedWeapon,
+  pickDirectedEquipment,
+  type BuildContext,
+} from './lootDirector';
 import {
   getEquipment,
-  pickRandomEquipment,
+  generateEquipment,
   EQUIP_SLOTS,
   getSetBonusDef,
   type EquipSlot,
@@ -16,8 +31,10 @@ import type {
   ChestEntity,
   CorridorNode,
   EnemyEntity,
+  EventInstance,
   GameStats,
   InputAction,
+  InteractiveEventEntity,
   ItemPickupData,
   KeyBindings,
   MinimapData,
@@ -33,6 +50,10 @@ import type {
 } from './types';
 import { audio } from './audio';
 import { DEFAULT_BINDINGS, type PermanentUpgrades } from './persistence';
+import { EnemyDirector, type DirectorContext } from './enemyDirector';
+import { EventDirector } from './eventDirector';
+import { RunDirector, type RunTelemetry } from './runDirector';
+import { pickBiomeForMap, type BiomeDef } from '../content/biomes';
 
 const ROOM_W = 900;
 const ROOM_H = 700;
@@ -141,8 +162,19 @@ export class GameEngine {
   private runSeed = 0;
   private portal: PortalEntity | null = null;
   private pendingItemPickup: { pk: PickupEntity } | null = null;
+  private equippedPetId: string | null = null;
+  private pet: { x: number; y: number; angle: number; timers: Record<string, number> } | null = null;
+  private lootMemory = new LootMemory();
+  private currentBiome!: BiomeDef;
+  private biomeParticles: Array<{ x: number; y: number; vx: number; vy: number; size: number; alpha: number }> = [];
+  private enemyDirector = new EnemyDirector();
+  private eventDirector = new EventDirector();
+  private runDirector = new RunDirector();
   private characterId = 'tariq';
   private pendingSkills: SkillChoice[] | null = null;
+  /** Skills acquired this run — reapplied every recalc so they persist and
+   *  flow through the global Stat Balance layer like every other source. */
+  private acquiredSkills: SkillDef[] = [];
   private onStatsCbs = new Set<(s: GameStats) => void>();
   private onLevelUpCbs = new Set<(choices: SkillChoice[]) => void>();
   private onEndCbs = new Set<(result: 'victory' | 'defeat', stats: GameStats) => void>();
@@ -152,6 +184,12 @@ export class GameEngine {
   private worldTime = 0;
   private nearestWeapon: PickupEntity | null = null;
   private nearestChest: ChestEntity | null = null;
+  private eventEntities: InteractiveEventEntity[] = [];
+  private nearestEvent: InteractiveEventEntity | null = null;
+  private currentEvent: EventInstance | null = null;
+  private challengeFailed = false;
+  private challengeTimer = 0;
+  private onEventInteractCbs = new Set<(instance: EventInstance, callback: (idx: number | null) => void) => void>();
   private onItemPickupCbs = new Set<(item: ItemPickupData, equipped: BuildItemEntry[], callback: (slot: EquipSlot | null) => void) => void>();
   private disposed = false;
   private bindings: KeyBindings = { ...DEFAULT_BINDINGS };
@@ -264,11 +302,16 @@ export class GameEngine {
     this.onItemPickupCbs.add(cb);
     return () => this.onItemPickupCbs.delete(cb);
   }
+  onEventInteract(cb: typeof GameEngine.prototype.onEventInteractCbs extends Set<infer F> ? F : never) {
+    this.onEventInteractCbs.add(cb);
+    return () => this.onEventInteractCbs.delete(cb);
+  }
 
-  start(characterId: string, upgrades: PermanentUpgrades, bindings?: KeyBindings) {
+  start(characterId: string, upgrades: PermanentUpgrades, bindings?: KeyBindings, petId?: string | null) {
     this.characterId = characterId;
     this.upgrades = upgrades;
     if (bindings) this.bindings = { ...bindings };
+    this.equippedPetId = petId ?? null;
     this.resetRun();
     audio.resume();
     this.running = true;
@@ -301,7 +344,12 @@ export class GameEngine {
   applySkill(skillId: string) {
     const skill = SKILLS.find((s) => s.id === skillId);
     if (!skill) return;
-    this.applySkillMods(skill);
+    // Record the skill and recompute so it goes through the balance layer
+    // alongside equipment / sets / pet. Full heal for the maxHp skill preserved.
+    this.acquiredSkills.push(skill);
+    const grantsMaxHp = skill.mods.some((m) => m.stat === 'maxHp');
+    this.recalcStats();
+    if (grantsMaxHp) this.player.hp = this.player.maxHp;
     this.pendingSkills = null;
     this.resume();
     this.pushStats();
@@ -314,9 +362,11 @@ export class GameEngine {
         score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
         weaponName: '', weaponColor: '#00f0ff',
         boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
+        eventPrompt: null, activeChallenge: null,
         ended: null, goldEarned: 0,
         currentRoomLabel: '', roomsCleared: 0, roomsTotal: 0,
         mapNumber: 1, totalMaps: TOTAL_MAPS,
+        biomeName: '', biomeIcon: '', biomeColor: '#00f0ff',
         minimap: null, build: null,
       };
     }
@@ -341,9 +391,15 @@ export class GameEngine {
       weaponName: w.name,
       weaponColor: w.color,
       boss: boss ? { name: boss.name, hp: boss.hp, maxHp: boss.maxHp } : null,
-      weaponPrompt: nw ? { name: getWeapon(nw.weaponId ?? 'pistol').name, color: nw.color } : null,
+      weaponPrompt: nw ? { name: getWeapon(nw.weaponId ?? 'pulse_pistol').name, color: nw.color } : null,
       chestPrompt: this.nearestChest ? { name: this.nearestChest.name, color: this.nearestChest.color } : null,
       portalPrompt: this.portal?.active ? { kind: this.portal.kind === 'descent' ? 'Descender' : 'Portal final' } : null,
+      eventPrompt: this.nearestEvent?.active ? { name: this.nearestEvent.instance.name, color: this.nearestEvent.instance.color } : null,
+      activeChallenge: this.currentEvent?.combatRules ? { 
+        desc: this.currentEvent.description, 
+        failed: this.challengeFailed, 
+        time: this.currentEvent.combatRules.timeLimit ? Math.ceil(this.challengeTimer) : undefined 
+      } : null,
       ended: this.ended,
       goldEarned: this.goldEarned,
       currentRoomLabel: this.inCorridor
@@ -357,6 +413,9 @@ export class GameEngine {
       roomsTotal: this.rooms.length,
       mapNumber: this.mapNumber,
       totalMaps: TOTAL_MAPS,
+      biomeName: this.currentBiome?.name ?? 'Distrito Neón',
+      biomeIcon: this.currentBiome?.icon ?? '🏙️',
+      biomeColor: this.currentBiome?.theme?.wallColor ?? '#00f0ff',
       minimap: this.buildMinimap(),
       build: this.getBuildStats(),
     };
@@ -401,6 +460,24 @@ export class GameEngine {
     }
     return Array.from(counts.entries()).map(([setId, count]) => {
       const def = getSetBonusDef(setId);
+      let synergyActive = false;
+      let counterSynergyActive = false;
+      if (count >= 2 && def?.synergy) {
+        const w = getWeapon(this.player.weaponId);
+        const syn = def.synergy;
+        const tagMatch = syn.weaponTags?.some((t) => w.tags.includes(t)) ?? false;
+        const affixMatch = syn.affixIds?.some((a) => w.affixId === a) ?? false;
+        const elemMatch = syn.element ? w.element === syn.element : false;
+        synergyActive = tagMatch || affixMatch || elemMatch;
+      }
+      if (count >= 2 && def?.counterSynergy) {
+        const w = getWeapon(this.player.weaponId);
+        const cs = def.counterSynergy;
+        const tagMatch = cs.weaponTags?.some((t) => w.tags.includes(t)) ?? false;
+        const affixMatch = cs.affixIds?.some((a) => w.affixId === a) ?? false;
+        const elemMatch = cs.element ? w.element === cs.element : false;
+        counterSynergyActive = tagMatch || affixMatch || elemMatch;
+      }
       return {
         setId, name: def?.name ?? setId, color: def?.color ?? '#fff',
         equipped: count,
@@ -408,6 +485,13 @@ export class GameEngine {
           pieces: b.pieces, description: b.description,
           active: count >= b.pieces, special: b.special,
         })),
+        synergyDescription: def?.synergy?.description,
+        synergyActive,
+        playstyle: def?.playstyle ?? '',
+        strengths: def?.strengths ?? [],
+        weaknesses: def?.weaknesses ?? [],
+        counterSynergy: def?.counterSynergy,
+        counterSynergyActive,
       };
     });
   }
@@ -428,14 +512,18 @@ export class GameEngine {
       explosionBonus: p.explosionBonus,
       level: p.level, xp: p.xp, xpToNext: p.xpToNext,
       weaponId: p.weaponId, weaponName: w.name, weaponColor: w.color,
-      weaponRarity: w.rarity, weaponDamage: w.damage,
+      weaponRarity: w.quality,
+      weaponAffixName: w.affixName,
+      weaponAffixColor: w.affixColor,
+      weaponAffixDescription: w.affixDescription,
+      weaponDamage: w.damage,
       weaponFireRate: w.fireRate, weaponCount: w.count,
       weaponPierce: w.pierce, weaponSpread: w.spread, weaponTags: w.tags,
       weaponBurst: w.burstCount, weaponBounce: w.bounceCount,
       weaponExplosion: w.explosionRadius, weaponLifetime: w.lifetime,
       weaponSizeMult: w.sizeMult,
       hasNearbyWeapon: !!nw,
-      nearbyWeaponName: nw ? getWeapon(nw.weaponId ?? 'pistol').name : undefined,
+      nearbyWeaponName: nw ? getWeapon(nw.weaponId ?? 'pulse_pistol').name : undefined,
       equippedItems: this.buildEquippedItemEntries(),
       maxItemSlots: EQUIP_SLOTS.length,
       activeSets: this.buildActiveSets(),
@@ -480,6 +568,8 @@ export class GameEngine {
       }),
       currentRoomId: this.currentRoomId,
       player: { x: this.player.x, y: this.player.y },
+      biomeBg: this.currentBiome?.theme?.minimapBg,
+      biomeRoomColor: this.currentBiome?.theme?.minimapRoomColor,
     };
   }
 
@@ -560,7 +650,7 @@ export class GameEngine {
     }
     if (bossId === -1) bossId = total - 1;
 
-    // Assign kinds. Boss goes to bossId; the rest get a mix of treasure / portal / combat.
+    // Assign kinds. Boss goes to bossId; the rest get a mix of treasure / portal / event / combat.
     for (const node of nodes) {
       if (node.id === 0) continue;
       if (node.id === bossId) {
@@ -569,15 +659,23 @@ export class GameEngine {
         continue;
       }
       const roll = rng();
-      if (roll < 0.30) {
+      if (roll < 0.15) {
         node.kind = 'treasure';
         node.label = `Botín ${String.fromCharCode(65 + node.id - 1)}`;
-      } else if (roll < 0.38 && node.id > 2) {
+      } else if (roll < 0.23 && node.id > 2) {
         node.kind = 'portal';
         node.label = 'Sala vacía';
       } else {
-        node.kind = 'combat';
-        node.label = `Calle ${node.id}`;
+        const buildTags = this.buildLootContext().weaponTags;
+        const evId = this.eventDirector.pickEvent(this.mapNumber, rng, this.runDirector, buildTags, this.currentBiome);
+        if (evId) {
+          node.kind = 'event';
+          (node as any).eventId = evId;
+          node.label = '???';
+        } else {
+          node.kind = 'combat';
+          node.label = `Calle ${node.id}`;
+        }
       }
     }
 
@@ -769,7 +867,7 @@ export class GameEngine {
       facingX: 1, facingY: 0,
       isDashing: false, dashTime: 0, dashCooldown: 0, dashCooldownMax: 1.2,
       xp: 0, level: 1, xpToNext: 40,
-      weaponId: char.startingWeapon,
+      weaponId: 'pulse_pistol',
       fireCooldown: 0, invuln: 0,
       color: char.sprite.color, glow: char.sprite.glow, name: char.name,
       damageMult: dmgBonus,
@@ -779,13 +877,15 @@ export class GameEngine {
       critDamageMult: 2,
     };
     this.recalcStats();
-    for (const cb of this.onWeaponDiscoverCbs) cb(char.startingWeapon);
+    for (const cb of this.onWeaponDiscoverCbs) cb('pulse_pistol');
   }
 
   private newMapLayout() {
+    this.currentBiome = pickBiomeForMap(this.mapNumber, TOTAL_MAPS, this.seededRandom());
     this.rooms = [];
     this.corridors = [];
     this.buildMapLayout();
+    this.initBiomeParticles();
     const start = this.rooms[0].bounds;
     this.player.x = start.x + start.w * 0.35;
     this.player.y = start.y + start.h / 2;
@@ -795,12 +895,17 @@ export class GameEngine {
     this.pickups = [];
     this.particles = [];
     this.chests = [];
+    this.eventEntities = [];
     this.enemiesToSpawn = [];
     this.spawnTimer = 0;
     this.portal = null;
     this.camera = { x: this.player.x, y: this.player.y, shake: 0 };
     this.nearestWeapon = null;
     this.nearestChest = null;
+    this.nearestEvent = null;
+    this.currentEvent = null;
+    this.challengeFailed = false;
+    this.challengeTimer = 0;
     this.nextId = 1;
     this.worldTime = 0;
     this.currentRoomId = 0;
@@ -809,13 +914,148 @@ export class GameEngine {
     this.roomWaveTotal = COMBAT_WAVES;
     this.inCorridor = false;
 
+    // (Re)spawn the equipped pet next to the player for the new map.
+    this.initPet();
+
     this.spawnChest('chest_street', start.x + start.w * 0.65, start.y + start.h / 2, 0);
+  }
+
+  private getEquippedPetDef(): PetDef | undefined {
+    return this.equippedPetId ? getPet(this.equippedPetId) : undefined;
+  }
+
+  /** Snapshot of the current build for the Loot Director (data-only). */
+  private buildLootContext(): BuildContext {
+    const w = getWeapon(this.player.weaponId);
+    const setCounts: Record<string, number> = {};
+    for (const slot of EQUIP_SLOTS) {
+      const id = this.player.equipment[slot];
+      if (!id) continue;
+      const eq = getEquipment(id);
+      if (eq.setId) setCounts[eq.setId] = (setCounts[eq.setId] ?? 0) + 1;
+    }
+    return {
+      mapNumber: this.mapNumber,
+      totalMaps: TOTAL_MAPS,
+      weaponTags: w.tags ?? [],
+      weaponElement: w.element,
+      weaponAffixId: w.affixId,
+      setCounts,
+      petId: this.equippedPetId,
+    };
+  }
+
+  /** Telemetry snapshot for the Global Run Director. */
+  private buildRunTelemetry(): RunTelemetry {
+    const p = this.player;
+    const w = getWeapon(p?.weaponId ?? '');
+    const petDef = this.getEquippedPetDef();
+    const setCounts: Record<string, number> = {};
+    if (p) {
+      for (const slot of EQUIP_SLOTS) {
+        const id = p.equipment[slot];
+        if (!id) continue;
+        const eq = getEquipment(id);
+        if (eq.setId) setCounts[eq.setId] = (setCounts[eq.setId] ?? 0) + 1;
+      }
+    }
+    return {
+      mapNumber: this.mapNumber,
+      totalMaps: TOTAL_MAPS,
+      roomsCleared: this.rooms.filter((r) => r.status === 'cleared').length,
+      totalKills: this.kills,
+      recentKills: this.enemyDirector.getIntensity(),
+      damageTakenRecent: 0,
+      damageTakenTotal: 0,
+      healsUsed: 0,
+      goldEarned: this.goldEarned,
+      bossesDefeated: 0,
+      playerHpRatio: p && p.maxHp > 0 ? p.hp / p.maxHp : 1,
+      playerShield: p?.shield ?? 0,
+      playerLevel: p?.level ?? 1,
+      weaponTags: w?.tags ?? [],
+      weaponElement: w?.element,
+      weaponAffixId: w?.affixId,
+      equippedSets: Object.keys(setCounts),
+      equippedPetId: this.equippedPetId,
+      petElement: petDef?.effects.find((e) => e.key)?.key,
+    };
+  }
+
+  /** Director-driven weapon generation for a given loot-table source. */
+  private directedWeapon(tableId: string): GeneratedWeapon {
+    const table = getLootTable(tableId);
+    const ctx = this.buildLootContext();
+    const { baseId, quality, affixId } = pickDirectedWeapon(table, ctx, this.lootMemory, this.runDirector, this.currentBiome);
+    const gw = generateWeapon(baseId, quality, `gen_${this.nextId++}`, affixId);
+    registerGenerated(gw);
+    return gw;
+  }
+
+  /** Director-driven equipment generation for a given loot-table source. */
+  private directedEquipment(tableId: string) {
+    const table = getLootTable(tableId);
+    const ctx = this.buildLootContext();
+    const { baseId, quality } = pickDirectedEquipment(table, ctx, this.lootMemory, this.runDirector, this.currentBiome);
+    return generateEquipment(baseId, quality, `eq_${this.nextId++}`);
+  }
+
+  private initPet() {
+    const def = this.getEquippedPetDef();
+    if (!def) { this.pet = null; return; }
+    this.pet = { x: this.player.x, y: this.player.y, angle: 0, timers: {} };
+    for (const eff of def.effects) this.pet.timers[eff.kind + (eff.key ?? '')] = 0;
+  }
+
+  private initBiomeParticles() {
+    this.biomeParticles = [];
+    const theme = this.currentBiome?.theme;
+    if (!theme) return;
+    const count = theme.particleDensity ?? 25;
+    for (let i = 0; i < count; i++) {
+      this.biomeParticles.push({
+        x: Math.random() * (this.worldW || 2000),
+        y: Math.random() * (this.worldH || 2000),
+        vx: (Math.random() - 0.5) * 18,
+        vy: theme.particleType === 'embers' ? -25 - Math.random() * 25 : (Math.random() - 0.5) * 20,
+        size: theme.particleType === 'embers' ? 2 + Math.random() * 3 : 2 + Math.random() * 2,
+        alpha: 0.3 + Math.random() * 0.5,
+      });
+    }
+  }
+
+  private updateBiomeParticles(dt: number) {
+    const theme = this.currentBiome?.theme;
+    if (!theme) return;
+    const ww = this.worldW || 2000;
+    const wh = this.worldH || 2000;
+    for (const p of this.biomeParticles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (theme.particleType === 'embers' && p.y < 0) {
+        p.y = wh;
+        p.x = Math.random() * ww;
+      } else {
+        if (p.x < 0) p.x = ww;
+        if (p.x > ww) p.x = 0;
+        if (p.y < 0) p.y = wh;
+        if (p.y > wh) p.y = 0;
+      }
+    }
   }
 
   private resetRun() {
     this.mapNumber = 1;
     // Fresh random seed for this run — every new run gets a distinct layout.
     this.runSeed = (Math.floor(Math.random() * 2147483646) + 1) >>> 0;
+    // Fresh Loot Director memory so anti-dup state doesn't leak between runs.
+    this.lootMemory.reset();
+    // Fresh Enemy Director state so intensity/memory doesn't leak between runs.
+    this.enemyDirector.reset();
+    this.eventDirector.resetRun();
+    this.runDirector.resetRun();
+    // Fresh skill list for the new run.
+    this.acquiredSkills = [];
     this.score = 0;
     this.kills = 0;
     this.combo = 0;
@@ -838,6 +1078,8 @@ export class GameEngine {
     this.score += 200 * this.mapNumber;
     // Keep player state, rebuild the map. All ground items disappear on descent.
     this.pendingItemPickup = null;
+    this.eventDirector.onNextMap();
+    this.runDirector.onNextMap();
     this.newMapLayout();
     this.recalcStats();
     if (!this.running) {
@@ -937,13 +1179,16 @@ export class GameEngine {
   private update(dt: number) {
     if (this.ended) return;
     this.worldTime += dt;
+    this.runDirector.update(this.buildRunTelemetry(), dt);
     const input = this.pollInput();
     this.updatePlayer(dt, input);
     this.updateProjectiles(dt);
     this.updateEnemies(dt);
     this.updatePickups(dt);
     this.updateParticles(dt);
+    this.updateBiomeParticles(dt);
     this.updateRoomFlow(dt);
+    this.updatePet(dt);
     this.updateCamera(dt);
     this.handleCombat();
     this.handlePickups(input);
@@ -1105,6 +1350,13 @@ export class GameEngine {
         if (this.currentRoomId !== r.id) {
           this.currentRoomId = r.id;
           r.discovered = true;
+          // Pet reveal_map effect: also reveal connected neighbour rooms.
+          if (this.petRevealBonus() > 0) {
+            for (const nbId of r.connections) {
+              const nb = this.rooms.find((rr) => rr.id === nbId);
+              if (nb) nb.discovered = true;
+            }
+          }
           if (r.status === 'locked') {
             this.activateRoom(r);
           }
@@ -1119,6 +1371,8 @@ export class GameEngine {
     room.discovered = true;
     this.roomCombatActive = false;
     this.roomWave = 0;
+    // Record activation time so the director's context can measure room duration.
+    (room as any)._activatedAt = this.worldTime;
     this.enemies = [];
     this.enemiesToSpawn = [];
     this.projectiles = this.projectiles.filter((pr) => pr.owner === 'player');
@@ -1131,6 +1385,41 @@ export class GameEngine {
       room.status = 'cleared';
       this.spawnChest('chest_armory', room.bounds.x + room.bounds.w / 2, room.bounds.y + room.bounds.h / 2, room.id);
       audio.play('wave_start');
+      return;
+    }
+    if (room.kind === 'event') {
+      const rng = this.seededRandom();
+      const instance = this.eventDirector.generateInstance(
+        (room as any).eventId,
+        {
+          mapNumber: this.mapNumber,
+          directedWeapon: (t) => this.directedWeapon(t),
+          directedEquipment: (t) => this.directedEquipment(t),
+        },
+        rng,
+      );
+      this.currentEvent = instance;
+      
+      if (instance.combatRules) {
+        this.roomCombatActive = true;
+        this.roomWaveTotal = instance.combatRules.waveCount;
+        this.roomWave = 0;
+        this.wave = room.id;
+        this.challengeFailed = false;
+        this.challengeTimer = instance.combatRules.timeLimit ?? 0;
+        this.startNextWave(room);
+      } else {
+        // Interactive event: mark room cleared of combat, spawn interaction point
+        room.status = 'cleared';
+        this.eventEntities.push({
+          id: this.nextId++,
+          x: room.bounds.x + room.bounds.w / 2,
+          y: room.bounds.y + room.bounds.h / 2,
+          instance,
+          active: true,
+        });
+        audio.play('wave_start');
+      }
       return;
     }
     if (room.kind === 'portal') {
@@ -1160,52 +1449,77 @@ export class GameEngine {
     this.queueCombatWave(room, this.roomWave);
   }
 
-  private queueBossEnemies(room: RoomNode) {
-    const n = room.id;
-    const list: EnemyDef[] = [];
-    const boss = BOSSES[Math.min(2, Math.floor(n / 2)) % BOSSES.length];
-    list.push({
-      ...boss,
-      hp: Math.floor(boss.hp * (1 + n * 0.05)),
-    });
-    for (let i = 0; i < 4; i++) {
-      const def = ENEMIES[Math.floor(Math.random() * Math.min(5, ENEMIES.length))];
-      list.push({
-        ...def,
-        hp: Math.floor(def.hp * (1 + n * 0.1)),
-        damage: Math.floor(def.damage * (1 + n * 0.06)),
-      });
+  private buildDirectorContext(): DirectorContext {
+    const p = this.player;
+    const w = getWeapon(p.weaponId);
+    const room = this.rooms.find((r) => r.id === this.currentRoomId);
+    const setCounts: Record<string, number> = {};
+    for (const slot of EQUIP_SLOTS) {
+      const id = p.equipment[slot];
+      if (!id) continue;
+      const eq = getEquipment(id);
+      if (eq.setId) setCounts[eq.setId] = (setCounts[eq.setId] ?? 0) + 1;
     }
+    const roomTime = room && (room as any)._activatedAt != null
+      ? this.worldTime - (room as any)._activatedAt
+      : 0;
+    return {
+      mapNumber: this.mapNumber,
+      roomId: this.currentRoomId,
+      totalRunTime: this.worldTime,
+      roomTime,
+      playerHpRatio: p.maxHp > 0 ? p.hp / p.maxHp : 1,
+      playerShield: p.shield,
+      playerLevel: p.level,
+      playerWeaponId: p.weaponId,
+      weaponRarity: w.quality,
+      equippedSets: Object.keys(setCounts),
+      equippedPetId: this.equippedPetId,
+      totalKills: this.kills,
+      recentKills: this.enemyDirector.getIntensity(),
+      killRate: this.enemyDirector.getIntensity(),
+      recentDamageTaken: 0,
+      nearDeathCount: 0,
+      gold: this.goldEarned,
+      chestsOpened: this.chests.filter((c) => c.opened).length,
+      bossesDefeated: 0,
+      roomCleared: false,
+    };
+  }
+
+  private queueBossEnemies(room: RoomNode) {
+    // Biome weighted boss selection
+    const bossPool = BOSSES.map((b) => ({
+      boss: b,
+      weight: this.currentBiome?.bossWeights?.[b.id] ?? 1,
+    }));
+    const totalW = bossPool.reduce((s, x) => s + x.weight, 0);
+    let r = Math.random() * totalW;
+    let chosenBoss = BOSSES[Math.min(2, Math.floor(room.id / 2)) % BOSSES.length];
+    for (const item of bossPool) {
+      r -= item.weight;
+      if (r <= 0) { chosenBoss = item.boss; break; }
+    }
+
+    const ctx = this.buildDirectorContext();
+    const adds = this.enemyDirector.generateBossAdds(chosenBoss.id, ctx.mapNumber, this.currentBiome);
+    const list: EnemyDef[] = [
+      { ...chosenBoss, hp: Math.floor(chosenBoss.hp * (1 + room.id * 0.05)) },
+      ...adds,
+    ];
     this.enemiesToSpawn = list;
     this.spawnTimer = 0.15;
   }
 
-  private queueCombatWave(room: RoomNode, waveNum: number) {
-    const n = room.id;
-    const list: EnemyDef[] = [];
-    // Smaller packs per wave; difficulty scales with room id and wave index
-    const budget = 3 + n + waveNum;
-    const pool = ENEMIES.filter((e) => {
-      if (n < 2 && waveNum < 2) return e.tags.includes('basic') || e.tags.includes('swarm') || e.id === 'shooter';
-      if (n < 4) return !e.tags.includes('miniboss') && !e.tags.includes('boss');
-      return !e.tags.includes('boss');
-    });
-    for (let i = 0; i < budget; i++) {
-      const def = pool[Math.floor(Math.random() * pool.length)] ?? ENEMIES[0];
-      list.push({
-        ...def,
-        hp: Math.floor(def.hp * (1 + (n - 1) * 0.1 + (waveNum - 1) * 0.08)),
-        damage: Math.floor(def.damage * (1 + (n - 1) * 0.06 + (waveNum - 1) * 0.05)),
-        speed: def.speed * (1 + (n - 1) * 0.02 + (waveNum - 1) * 0.02),
-        score: Math.floor(def.score * (1 + (n - 1) * 0.08 + (waveNum - 1) * 0.05)),
-      });
-      if (def.tags.includes('swarm') && Math.random() < 0.45) {
-        list.push({
-          ...def,
-          hp: Math.floor(def.hp * (1 + (n - 1) * 0.08)),
-        });
-      }
+  private queueCombatWave(_room: RoomNode, _waveNum: number) {
+    const ctx = this.buildDirectorContext();
+    if (this.currentEvent?.combatRules?.isCursed) {
+      // Simulate later map progression for cursed rooms
+      ctx.mapNumber = Math.min(TOTAL_MAPS, ctx.mapNumber + 3);
     }
+    ctx.roomTime = 0;
+    const dt = this.fixedDt;
+    const list = this.enemyDirector.generateWave(ctx, this.player, dt, this.runDirector, this.currentBiome);
     this.enemiesToSpawn = list;
     this.spawnTimer = 0.2;
   }
@@ -1227,8 +1541,15 @@ export class GameEngine {
     if (!room) return;
 
     if (this.roomCombatActive && room.status === 'active') {
+      if (this.currentEvent?.combatRules?.timeLimit && !this.challengeFailed) {
+        this.challengeTimer -= dt;
+        if (this.challengeTimer <= 0) {
+          this.challengeFailed = true;
+        }
+      }
+
       if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
-        if (room.kind === 'combat' && this.roomWave < this.roomWaveTotal) {
+        if ((room.kind === 'combat' || room.kind === 'event') && this.roomWave < this.roomWaveTotal) {
           this.startNextWave(room);
         } else {
           this.clearRoom(room);
@@ -1264,6 +1585,7 @@ export class GameEngine {
           case 'maxHp': this.player.maxHp += m.val; this.player.hp = Math.min(this.player.maxHp, this.player.hp + (m.val > 0 ? m.val : 0)); break;
           case 'armor': this.player.armor += m.val; break;
           case 'speed': if (m.op === 'mult') this.player.speedMult *= (1 + m.val); else this.player.speed *= (1 + m.val / 100); break;
+          case 'speedMult': this.player.speedMult *= (1 + m.val); break;
           case 'critChance': this.player.critChance += m.val; break;
           case 'damageMult': this.player.damageMult *= (1 + m.val); break;
           case 'fireRateMult': this.player.fireRateMult *= (1 + m.val); break;
@@ -1278,6 +1600,11 @@ export class GameEngine {
         }
       }
     };
+
+    // Skills acquired this run (persist across recompute, flow through balance).
+    for (const skill of this.acquiredSkills) {
+      addMods(skill.mods.map((m) => this.skillModToGeneric(m)));
+    }
 
     // Apply equipment piece mods
     for (const slot of EQUIP_SLOTS) {
@@ -1304,7 +1631,73 @@ export class GameEngine {
           if (bonus.special === 'lethalStrike') this.player.critDamageMult = 3;
         }
       }
+      // Weapon synergy: if the equipped weapon matches the set's synergy
+      // criteria (tag / affix / element), apply the bonus damage. Requires
+      // at least 2 pieces so it feels like a build commitment. Data-driven.
+      const w = getWeapon(this.player.weaponId);
+      if (count >= 2 && def.synergy) {
+        const syn = def.synergy;
+        const tagMatch = syn.weaponTags?.some((t) => w.tags.includes(t)) ?? false;
+        const affixMatch = syn.affixIds?.some((a) => w.affixId === a) ?? false;
+        const elemMatch = syn.element ? w.element === syn.element : false;
+        if ((tagMatch || affixMatch || elemMatch) && syn.damageMult) {
+          this.player.damageMult *= (1 + syn.damageMult);
+        }
+      }
+      // Counter-synergy: soft penalty when the weapon conflicts with the set.
+      // Never prohibitive (damageMult > 0), just reduced efficiency.
+      if (count >= 2 && def.counterSynergy) {
+        const cs = def.counterSynergy;
+        const tagMatch = cs.weaponTags?.some((t) => w.tags.includes(t)) ?? false;
+        const affixMatch = cs.affixIds?.some((a) => w.affixId === a) ?? false;
+        const elemMatch = cs.element ? w.element === cs.element : false;
+        if ((tagMatch || affixMatch || elemMatch) && cs.damageMult) {
+          this.player.damageMult *= cs.damageMult;
+        }
+      }
     }
+
+    // Pet passive stat_boost effects (data-driven). Synergy tags optionally
+    // scale the bonus if the equipped weapon matches.
+    const petDef = this.getEquippedPetDef();
+    if (petDef) {
+      const w = getWeapon(this.player.weaponId);
+      for (const b of petStatBoosts(petDef)) {
+        let val = b.value;
+        if (b.synergyTags && b.synergyTags.length > 0) {
+          const match = b.synergyTags.some((t) => w.tags.includes(t) || w.element === t || w.affixId === t);
+          if (match) val *= 2; // synergy doubles the boost
+        }
+        addMods([{ stat: b.key, op: b.op, val }]);
+      }
+    }
+
+    // ---- GLOBAL STAT BALANCE LAYER ----
+    // Every final player stat passes through the data-driven balance system
+    // (soft caps + diminishing returns + hard caps). This is the ONLY place
+    // stats are capped. Stats without a balance entry pass through unchanged.
+    this.applyStatBalance();
+  }
+
+  /** Final pass: run each accumulated stat through the global balance curves. */
+  private applyStatBalance() {
+    const p = this.player;
+    p.maxHp = Math.round(balanceStat('maxHp', p.maxHp));
+    p.armor = balanceStat('armor', p.armor);
+    p.shield = Math.round(balanceStat('shield', p.shield));
+    p.critChance = balanceStat('critChance', p.critChance);
+    p.critDamageMult = balanceStat('critDamageMult', p.critDamageMult);
+    p.damageMult = balanceStat('damageMult', p.damageMult);
+    p.fireRateMult = balanceStat('fireRateMult', p.fireRateMult);
+    p.speedMult = balanceStat('speedMult', p.speedMult);
+    p.lifesteal = balanceStat('lifesteal', p.lifesteal);
+    p.pierceBonus = Math.round(balanceStat('pierceBonus', p.pierceBonus));
+    p.countBonus = Math.round(balanceStat('countBonus', p.countBonus));
+    p.bounceBonus = Math.round(balanceStat('bounceBonus', p.bounceBonus));
+    p.explosionBonus = Math.round(balanceStat('explosionBonus', p.explosionBonus));
+    p.projectileSizeBonus = balanceStat('projectileSizeBonus', p.projectileSizeBonus);
+    // Clamp current hp to (possibly newly capped) maxHp.
+    if (p.hp > p.maxHp) p.hp = p.maxHp;
   }
 
   private equipItem(itemId: string, slot: EquipSlot): string | null {
@@ -1315,6 +1708,7 @@ export class GameEngine {
   }
 
   private clearRoom(room: RoomNode) {
+    this.enemyDirector.onRoomCleared();
     room.status = 'cleared';
     this.roomCombatActive = false;
     audio.play('levelup');
@@ -1322,14 +1716,19 @@ export class GameEngine {
     if (room.kind === 'combat') {
       this.spawnChest('chest_street', room.bounds.x + room.bounds.w / 2, room.bounds.y + room.bounds.h / 2, room.id);
       if (Math.random() < 0.3) {
-        const eq = pickRandomEquipment(false);
-        this.spawnPickup(room.bounds.x + room.bounds.w / 2 + 30, room.bounds.y + room.bounds.h / 2 - 20, 'item', eq.color, 0, undefined, eq.id);
+        const eq = this.directedEquipment('reward');
+        this.spawnPickup(room.bounds.x + room.bounds.w / 2 + 30, room.bounds.y + room.bounds.h / 2 - 20, 'item', eq.color, 0, undefined, eq.genId);
+      }
+    }
+    if (room.kind === 'event') {
+      if (this.currentEvent?.combatRules && !this.challengeFailed) {
+        this.spawnChest(this.currentEvent.combatRules.rewardChest, room.bounds.x + room.bounds.w / 2, room.bounds.y + room.bounds.h / 2, room.id);
       }
     }
     if (room.kind === 'boss') {
       this.spawnChest('chest_boss', room.bounds.x + room.bounds.w / 2, room.bounds.y + room.bounds.h / 2 - 40, room.id);
-      const eq = pickRandomEquipment(true);
-      this.spawnPickup(room.bounds.x + room.bounds.w / 2 - 30, room.bounds.y + room.bounds.h / 2 - 60, 'item', eq.color, 0, undefined, eq.id);
+      const eq = this.directedEquipment('reward');
+      this.spawnPickup(room.bounds.x + room.bounds.w / 2 - 30, room.bounds.y + room.bounds.h / 2 - 60, 'item', eq.color, 0, undefined, eq.genId);
       // Boss killed → open a descent portal (or final portal on map 10)
       const isFinal = this.mapNumber >= TOTAL_MAPS;
       this.portal = {
@@ -1395,7 +1794,9 @@ export class GameEngine {
         const spread = (i - half) * w.spread + (Math.random() - 0.5) * w.spread * 0.3;
         const ang = baseAngle + spread;
         const crit = Math.random() < p.critChance;
-        const dmg = w.damage * p.damageMult * (crit ? 2 : 1);
+        // "Unstable" affix: erratic damage between -25% and +75%.
+        const unstableMult = w.unstable ? 0.75 + Math.random() * 1.0 : 1;
+        const dmg = w.damage * p.damageMult * (crit ? 2 : 1) * unstableMult;
         const size = (w.projectileSize + p.projectileSizeBonus + (crit ? 2 : 0)) * (w.sizeMult ?? 1);
         this.projectiles.push({
           id: this.nextId++,
@@ -1412,6 +1813,12 @@ export class GameEngine {
           owner: 'player',
           _bounceCount: (w.bounceCount ?? 0) + p.bounceBonus,
           _explosionRadius: (w.explosionRadius ?? 0) + p.explosionBonus,
+          // Affix carry-over (weapon-local; independent from item lifesteal).
+          _lifesteal: w.lifesteal,
+          _element: w.element,
+          _elementChance: w.elementChance,
+          _chain: w.chain,
+          _chainChance: w.chainChance,
         });
       }
     }
@@ -1453,6 +1860,59 @@ export class GameEngine {
     this.projectiles = next;
   }
 
+  /** Applies weapon-affix effects when a player projectile hits an enemy. */
+  private applyProjectileAffix(pr: Projectile, e: EnemyEntity) {
+    // Weapon-local lifesteal (independent from item lifesteal).
+    if (pr._lifesteal && pr._lifesteal > 0) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + pr.damage * pr._lifesteal);
+    }
+    // Elemental status
+    if (pr._element && (pr._elementChance === undefined || Math.random() < pr._elementChance)) {
+      switch (pr._element) {
+        case 'fire':
+        case 'radiant':
+          e.burnTimer = 3;
+          e.burnDps = Math.max(2, pr.damage * 0.2);
+          break;
+        case 'toxic':
+        case 'dark':
+          e.poisonTimer = 4;
+          e.poisonDps = Math.max(2, pr.damage * 0.15);
+          break;
+        case 'ice':
+          e.slowTimer = 2.5;
+          break;
+        case 'electric':
+          break; // chaining handled below
+      }
+    }
+    // Chain lightning
+    if (pr._chain && pr._chain > 0 && (pr._chainChance === undefined || Math.random() < pr._chainChance)) {
+      let remaining = pr._chain;
+      const alreadyHit = new Set<number>([e.id]);
+      let sourceX = e.x;
+      let sourceY = e.y;
+      while (remaining > 0) {
+        let best: EnemyEntity | null = null;
+        let bestD = 220;
+        for (const other of this.enemies) {
+          if (alreadyHit.has(other.id)) continue;
+          const dd = Math.hypot(other.x - sourceX, other.y - sourceY);
+          if (dd < bestD) { bestD = dd; best = other; }
+        }
+        if (!best) break;
+        best.hp -= pr.damage * 0.5;
+        best.hitFlash = 0.1;
+        this.burst(best.x, best.y, '#6ef0ff', 4);
+        if (best.hp <= 0) this.killEnemy(best);
+        alreadyHit.add(best.id);
+        sourceX = best.x;
+        sourceY = best.y;
+        remaining -= 1;
+      }
+    }
+  }
+
   private explodeAt(x: number, y: number, radius: number, damage: number, color: string) {
     audio.play('explosion');
     this.burst(x, y, color, 16);
@@ -1475,26 +1935,45 @@ export class GameEngine {
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.attackTimer > 0) e.attackTimer -= dt;
 
+      // Affix damage-over-time / control status ticking (engine-generic).
+      if (e.burnTimer && e.burnTimer > 0) {
+        e.burnTimer -= dt;
+        e.hp -= (e.burnDps ?? 0) * dt;
+        if (Math.random() < dt * 6) this.burst(e.x, e.y, '#ff6a00', 1);
+      }
+      if (e.poisonTimer && e.poisonTimer > 0) {
+        e.poisonTimer -= dt;
+        e.hp -= (e.poisonDps ?? 0) * dt;
+        if (Math.random() < dt * 6) this.burst(e.x, e.y, '#9dff00', 1);
+      }
+      let slowFactor = 1;
+      if (e.slowTimer && e.slowTimer > 0) {
+        e.slowTimer -= dt;
+        slowFactor = 0.5;
+      }
+      if (e.hp <= 0) { this.killEnemy(e); continue; }
+
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
       const nx = dx / dist;
       const ny = dy / dist;
+const spd = e.speed * slowFactor;
 
       if (e.aiProfile === 'chaser') {
-        e.x += nx * e.speed * dt;
-        e.y += ny * e.speed * dt;
+        e.x += nx * spd * dt;
+        e.y += ny * spd * dt;
       } else if (e.aiProfile === 'ranged_kiter') {
         const ideal = e.attackRange * 0.7;
         if (dist < ideal * 0.6) {
-          e.x -= nx * e.speed * dt;
-          e.y -= ny * e.speed * dt;
+          e.x -= nx * spd * dt;
+          e.y -= ny * spd * dt;
         } else if (dist > ideal) {
-          e.x += nx * e.speed * 0.7 * dt;
-          e.y += ny * e.speed * 0.7 * dt;
+          e.x += nx * spd * 0.7 * dt;
+          e.y += ny * spd * 0.7 * dt;
         } else {
-          e.x += -ny * e.speed * 0.5 * dt;
-          e.y += nx * e.speed * 0.5 * dt;
+          e.x += -ny * spd * 0.5 * dt;
+          e.y += nx * spd * 0.5 * dt;
         }
         if (dist < e.attackRange && e.attackTimer <= 0 && e.projectile) {
           e.attackTimer = e.attackCooldown;
@@ -1514,8 +1993,8 @@ export class GameEngine {
           });
         }
       } else if (e.aiProfile === 'bomber_rush') {
-        e.x += nx * e.speed * 1.3 * dt;
-        e.y += ny * e.speed * 1.3 * dt;
+        e.x += nx * spd * 1.3 * dt;
+        e.y += ny * spd * 1.3 * dt;
         if (dist < (e.explosionRadius ?? 50) * 0.5) {
           this.explodeEnemy(e);
           e.hp = 0;
@@ -1552,6 +2031,11 @@ export class GameEngine {
     if (this.inCorridor || this.isPlayerInCorridor()) return;
     if (p.invuln > 0 || p.isDashing) return;
     const dmg = Math.max(1, amount - p.armor);
+
+    if (this.currentEvent?.combatRules?.noDamage) {
+      this.challengeFailed = true;
+    }
+
     if (p.shield > 0) {
       p.shield -= 1;
       p.invuln = 0.4;
@@ -1563,6 +2047,7 @@ export class GameEngine {
     p.invuln = 0.5;
     this.camera.shake = 0.35;
     audio.play('hurt');
+    this.enemyDirector.onDamageTaken(dmg);
     this.burst(p.x, p.y, '#ff2a4b', 10);
     if (p.hp <= 0) {
       p.hp = 0;
@@ -1582,6 +2067,7 @@ export class GameEngine {
           pr.pierced.add(e.id);
           audio.play('hit');
           this.burst(pr.x, pr.y, pr.color, 4);
+          this.applyProjectileAffix(pr, e);
           if (e.hp <= 0) this.killEnemy(e);
           // explosion on first hit if projectile has it
           if (pr._explosionRadius && pr._explosionRadius > 0) {
@@ -1614,14 +2100,16 @@ export class GameEngine {
     this.kills += 1;
     this.combo += 1;
     this.comboTimer = 3;
+    this.enemyDirector.onKill();
+    if (e.isBoss) {
+      this.enemyDirector.onBossDefeated();
+      this.runDirector.onBossDefeated(e.defId);
+    }
     const gain = Math.floor(e.score * this.comboMultiplier());
     this.score += gain;
-    this.goldEarned += Math.max(1, Math.floor(e.score / 8));
-    this.grantXp(e.xp);
-    if (e.isBoss) {
-      const eq = pickRandomEquipment(true);
-      this.spawnPickup(e.x + 20, e.y - 20, 'item', eq.color, 0, undefined, eq.id);
-    }
+    this.goldEarned += Math.max(1, Math.floor((e.score / 8) * this.petGoldMult()));
+    this.grantXp(Math.round(e.xp * this.petXpMult()));
+
     audio.play('kill');
     this.burst(e.x, e.y, e.color, 14);
     this.camera.shake = Math.min(0.6, this.camera.shake + (e.isBoss ? 0.5 : 0.15));
@@ -1634,31 +2122,51 @@ export class GameEngine {
       );
     }
 
-    // Normal enemies: basic loot only. Bosses may still drop weapons.
-    if (Math.random() < 0.14 || e.isBoss) {
-      this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
-    }
-    if (Math.random() < 0.12) {
-      this.spawnPickup(e.x + 10, e.y, 'score', '#ffe14a', 50);
-    }
-    if (Math.random() < 0.06 || e.isBoss) {
-      this.spawnPickup(e.x - 10, e.y + 8, 'shield', '#00f0ff', 1);
-    }
-    if (e.isBoss && Math.random() < 0.9) {
-      const w = this.pickWeapon(true);
-      this.spawnPickup(e.x, e.y - 12, 'weapon', w.color, 0, w.id);
-      for (const cb of this.onWeaponDiscoverCbs) cb(w.id);
-    }
-  }
+    // --- Loot Director: source-based tables decide the drops. ---
+    // Bosses use a rich table (guaranteed weapon + equipment); miniboss and
+    // normal enemies use their own tables. Pet loot_luck still nudges chances.
+    const luck = 1 + this.petLootLuck();
 
-  private pickWeapon(highTier: boolean): WeaponDef {
-    if (highTier) {
-      const pool = WEAPONS.filter((w) =>
-        ['rare', 'epic', 'legendary'].includes(w.rarity),
-      );
-      return pool[Math.floor(Math.random() * pool.length)] ?? WEAPONS[0];
+    if (e.isBoss) {
+      // Bosses always give strong, interesting rewards (Rule 5).
+      const eq = this.directedEquipment('enemy_boss');
+      this.spawnPickup(e.x + 20, e.y - 20, 'item', eq.color, 0, undefined, eq.genId);
+      const w = this.directedWeapon('enemy_boss');
+      this.spawnPickup(e.x, e.y - 12, 'weapon', w.color, 0, w.genId);
+      for (const cb of this.onWeaponDiscoverCbs) cb(w.baseId);
+      this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
+      this.spawnPickup(e.x - 10, e.y + 8, 'shield', '#00f0ff', 1);
+    } else {
+      const def = getEnemy(e.defId);
+      const isMiniboss = def?.tags.includes('miniboss') ?? false;
+      const table = getLootTable(isMiniboss ? 'enemy_miniboss' : 'enemy_normal');
+      // Category roll decides the single main drop for this kill.
+      const cat = rollLootCategory(table, this.runDirector);
+      switch (cat) {
+        case 'gold':
+        case 'heal':
+          if (Math.random() < 0.85 * luck) this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
+          break;
+        case 'shield':
+          this.spawnPickup(e.x - 10, e.y + 8, 'shield', '#00f0ff', 1);
+          break;
+        case 'weapon': {
+          const w = this.directedWeapon(table.id);
+          this.spawnPickup(e.x, e.y - 12, 'weapon', w.color, 0, w.genId);
+          for (const cb of this.onWeaponDiscoverCbs) cb(w.baseId);
+          break;
+        }
+        case 'equipment': {
+          const eq = this.directedEquipment(table.id);
+          this.spawnPickup(e.x + 12, e.y - 12, 'item', eq.color, 0, undefined, eq.genId);
+          break;
+        }
+        default:
+          break;
+      }
+      // Small independent chance for bonus coins on top (feels lively).
+      if (Math.random() < 0.12 * luck) this.spawnPickup(e.x + 10, e.y, 'score', '#ffe14a', 50);
     }
-    return WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
   }
 
   private grantXp(amount: number) {
@@ -1677,21 +2185,12 @@ export class GameEngine {
     }
   }
 
-  private applySkillMods(skill: SkillDef) {
-    const p = this.player;
-    for (const m of skill.mods) {
-      if (m.stat === 'damageMult') p.damageMult += m.value;
-      if (m.stat === 'speedMult') p.speedMult += m.value;
-      if (m.stat === 'pierce') p.pierceBonus += m.value;
-      if (m.stat === 'shield') p.shield += m.value;
-      if (m.stat === 'critChance') p.critChance += m.value;
-      if (m.stat === 'lifesteal') p.lifesteal += m.value;
-      if (m.stat === 'maxHp') {
-        p.maxHp += m.value;
-        p.hp = p.maxHp;
-      }
-      if (m.stat === 'count') p.countBonus += m.value;
-    }
+/** Normalizes a skill mod into the generic { stat, op, val } shape used by recalc.
+   *  Skill stat names map onto engine stat names; 'add_pct' behaves like a mult. */
+  private skillModToGeneric(m: { stat: string; op: string; value: number }): { stat: string; op: string; val: number } {
+    // Skills use 'speedMult'/'damageMult' etc. and 'pierce'/'count'/'shield'.
+    const op = m.op === 'add_pct' ? 'mult' : m.op;
+    return { stat: m.stat, op, val: m.value };
   }
 
   private spawnPickup(
@@ -1738,15 +2237,21 @@ export class GameEngine {
       if (kind === 'shield') this.spawnPickup(chest.x + ox, chest.y + 28, 'shield', '#00f0ff', 1);
     });
 
+    // Loot Director: map the chest type to its own loot table (Rule 3).
+    const chestTable =
+      chest.defId === 'chest_boss' ? 'chest_legendary'
+      : chest.defId === 'chest_armory' ? 'chest_rare'
+      : 'chest_common';
+
     if (Math.random() < def.weaponChance) {
-      const w = this.pickWeapon(def.highTier);
-      this.spawnPickup(chest.x, chest.y - 18, 'weapon', w.color, 0, w.id);
-      for (const cb of this.onWeaponDiscoverCbs) cb(w.id);
+      const w = this.directedWeapon(chestTable);
+      this.spawnPickup(chest.x, chest.y - 18, 'weapon', w.color, 0, w.genId);
+      for (const cb of this.onWeaponDiscoverCbs) cb(w.baseId);
     }
     // Equipment drop chance from chest
     if (Math.random() < (def.highTier ? 0.8 : 0.35)) {
-      const eq = pickRandomEquipment(def.highTier);
-      this.spawnPickup(chest.x + 18, chest.y - 6, 'item', eq.color, 0, undefined, eq.id);
+      const eq = this.directedEquipment(chestTable);
+      this.spawnPickup(chest.x + 18, chest.y - 6, 'item', eq.color, 0, undefined, eq.genId);
     }
   }
 
@@ -1773,7 +2278,8 @@ export class GameEngine {
       }
       if (d < 28 && pk.kind === 'item') {
         if (input.interact && !this.nearestChest && !this.pendingItemPickup) {
-          const eq = getEquipment(pk.itemId ?? 'helm_cloth');
+          const equipId = pk.itemId ?? EQUIP_SLOTS[0];
+          const eq = getEquipment(equipId);
           const equipped = this.buildEquippedItemEntries();
           // Do NOT destroy the pickup here: the user may cancel, in which case
           // the item must remain on the ground. Store a reference so the
@@ -1784,7 +2290,7 @@ export class GameEngine {
           for (const cb of this.onItemPickupCbs) {
             cb(
               {
-                id: eq.id, name: eq.name, icon: eq.icon,
+                id: equipId, name: eq.name, icon: eq.icon,
                 description: eq.description, color: eq.color, rarity: eq.rarity,
                 slot: eq.slot, setId: eq.setId,
                 mods: eq.mods.map((m) => ({
@@ -1793,7 +2299,7 @@ export class GameEngine {
                 })),
               },
               equipped,
-              (slot: EquipSlot | null) => this.resolveItemPickup(eq.id, slot),
+              (slot: EquipSlot | null) => this.resolveItemPickup(equipId, slot),
             );
           }
         }
@@ -1821,6 +2327,8 @@ export class GameEngine {
       this.nearestWeapon.life = 0;
       this.nearestWeapon = null;
       audio.play('pickup');
+      // Re-evaluate stats so set→weapon synergies update to the new weapon.
+      this.recalcStats();
       for (const cb of this.onWeaponDiscoverCbs) cb(p.weaponId);
     }
   }
@@ -1841,8 +2349,9 @@ export class GameEngine {
       if (pending) {
         if (previousId) {
           const prevDef = getEquipment(previousId);
-          // Replace the pickup in-place so its position, id, etc. are reused.
-          pending.pk.itemId = prevDef.id;
+          // Reuse the pickup in-place, keeping the DISPLACED piece's exact id
+          // (genId → preserves its quality, set and all properties).
+          pending.pk.itemId = previousId;
           pending.pk.color = prevDef.color;
           // Keep life = Infinity for equipment (already set by spawnPickup).
         } else {
@@ -1880,13 +2389,78 @@ export class GameEngine {
           this.advanceToNextMap();
         }
         this.nearestChest = null;
+        this.nearestEvent = null;
         return;
       }
+    }
+
+    // Event interaction
+    this.nearestEvent = null;
+    let bestEv = 60;
+    for (const ev of this.eventEntities) {
+      if (!ev.active) continue;
+      const d = Math.hypot(ev.x - p.x, ev.y - p.y);
+      if (d < bestEv) {
+        bestEv = d;
+        this.nearestEvent = ev;
+      }
+    }
+    if (this.nearestEvent && input.interact) {
+      this.running = false;
+      for (const cb of this.onEventInteractCbs) {
+        cb(this.nearestEvent.instance, (idx) => this.resolveEventOption(this.nearestEvent!.id, idx));
+      }
+      return;
     }
 
     if (this.nearestChest && input.interact) {
       this.openChest(this.nearestChest);
       this.nearestChest = null;
+    }
+  }
+
+  private resolveEventOption(eventEntId: number, optionIndex: number | null) {
+    const ent = this.eventEntities.find(e => e.id === eventEntId);
+    if (!ent) return;
+    this.runDirector.onEventCompleted(ent.instance.id);
+    
+    if (optionIndex === null) {
+      audio.play('button');
+    } else {
+      const opt = ent.instance.options![optionIndex];
+      if (opt.costGold && this.goldEarned < opt.costGold) {
+        audio.play('hurt');
+        return;
+      }
+      if (opt.costHpPct && this.player.hp <= this.player.maxHp * opt.costHpPct) {
+        audio.play('hurt');
+        return;
+      }
+      
+      audio.play('levelup');
+      ent.active = false;
+      
+      for (const a of opt.actions) {
+        if (a.kind === 'stat_mod') {
+           this.acquiredSkills.push({
+             id: 'event_mod', name: 'Evento', description: '', icon: '', rarity: 'common',
+             mods: [{ stat: a.stat, op: a.op, value: a.val }]
+           });
+           this.recalcStats();
+        }
+        if (a.kind === 'add_gold') this.goldEarned += a.value;
+        if (a.kind === 'lose_gold') this.goldEarned -= a.value;
+        if (a.kind === 'heal') this.player.hp = Math.min(this.player.maxHp, this.player.hp + a.value);
+        if (a.kind === 'lose_hp_pct') this.player.hp -= this.player.maxHp * a.value;
+        if (a.kind === 'spawn_chest') this.spawnChest(a.chestId, ent.x, ent.y + 40, this.currentRoomId);
+        if (a.kind === 'drop_weapon') this.spawnPickup(ent.x - 20, ent.y + 20, 'weapon', a.color, 0, a.weaponGenId);
+        if (a.kind === 'drop_equipment') this.spawnPickup(ent.x + 20, ent.y + 20, 'item', a.color, 0, undefined, a.equipGenId);
+      }
+    }
+    
+    if (!this.ended) {
+      this.running = true;
+      this.last = performance.now();
     }
   }
 
@@ -1921,6 +2495,160 @@ export class GameEngine {
   private updateCamera(dt: number) {
     this.camera.x += (this.player.x - this.camera.x) * Math.min(1, dt * 8);
     this.camera.y += (this.player.y - this.camera.y) * Math.min(1, dt * 8);
+  }
+
+  /* --------------------------------------------------------------
+   * PET SYSTEM — fully generic, driven by PetDef.effects[].
+   * Adding a new pet requires no engine changes.
+   * ------------------------------------------------------------ */
+  private updatePet(dt: number) {
+    const def = this.getEquippedPetDef();
+    if (!def || !this.pet) return;
+    const pet = this.pet;
+
+    // Orbit around the player.
+    pet.angle += def.stats.orbitSpeed * dt;
+    const r = def.stats.orbitRadius;
+    const targetX = this.player.x + Math.cos(pet.angle) * r;
+    const targetY = this.player.y + Math.sin(pet.angle) * r;
+    pet.x += (targetX - pet.x) * Math.min(1, dt * 10);
+    pet.y += (targetY - pet.y) * Math.min(1, dt * 10);
+
+    // Skip active combat effects while transitioning corridors.
+    const inCorridor = this.inCorridor;
+
+    for (const eff of def.effects) {
+      const tk = eff.kind + (eff.key ?? '');
+      switch (eff.kind) {
+        case 'coin_magnet': {
+          const radius = eff.radius ?? 220;
+          for (const pk of this.pickups) {
+            if (pk.kind !== 'score' && pk.kind !== 'heal' && pk.kind !== 'shield') continue;
+            const dx = this.player.x - pk.x;
+            const dy = this.player.y - pk.y;
+            const d = Math.hypot(dx, dy);
+            if (d < radius && d > 1) {
+              pk.x += (dx / d) * 260 * dt;
+              pk.y += (dy / d) * 260 * dt;
+            }
+          }
+          break;
+        }
+        case 'regen': {
+          pet.timers[tk] -= dt;
+          if (pet.timers[tk] <= 0) {
+            pet.timers[tk] = eff.interval ?? 1;
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + (eff.value ?? 1));
+          }
+          break;
+        }
+        case 'auto_fire': {
+          if (inCorridor) break;
+          pet.timers[tk] -= dt;
+          if (pet.timers[tk] <= 0) {
+            const target = this.findNearestEnemy(pet.x, pet.y, eff.radius ?? 420);
+            if (target) {
+              pet.timers[tk] = eff.interval ?? 0.7;
+              const dx = target.x - pet.x;
+              const dy = target.y - pet.y;
+              const d = Math.hypot(dx, dy) || 1;
+              this.projectiles.push({
+                id: this.nextId++, x: pet.x, y: pet.y,
+                vx: (dx / d) * 640, vy: (dy / d) * 640,
+                damage: (eff.value ?? 8) * (1 + (this.mapNumber - 1) * 0.1),
+                color: def.color, size: 4, pierce: 0, pierced: new Set(),
+                life: 1.4, owner: 'player',
+              });
+              audio.play('shoot');
+            }
+          }
+          break;
+        }
+        case 'slow_aura': {
+          if (inCorridor) break;
+          pet.timers[tk] -= dt;
+          if (pet.timers[tk] <= 0) {
+            pet.timers[tk] = eff.interval ?? 0.4;
+            const radius = eff.radius ?? 160;
+            for (const e of this.enemies) {
+              if (Math.hypot(e.x - pet.x, e.y - pet.y) < radius) e.slowTimer = 0.8;
+            }
+          }
+          break;
+        }
+        case 'apply_status': {
+          if (inCorridor) break;
+          pet.timers[tk] -= dt;
+          if (pet.timers[tk] <= 0) {
+            pet.timers[tk] = eff.interval ?? 0.9;
+            const radius = eff.radius ?? 150;
+            const dps = eff.value ?? 6;
+            for (const e of this.enemies) {
+              if (Math.hypot(e.x - pet.x, e.y - pet.y) >= radius) continue;
+              if (eff.key === 'fire') { e.burnTimer = 3; e.burnDps = dps; }
+              else if (eff.key === 'toxic') { e.poisonTimer = 4; e.poisonDps = dps; }
+              else if (eff.key === 'ice') { e.slowTimer = 2; }
+            }
+          }
+          break;
+        }
+        case 'block_projectiles': {
+          if (inCorridor) break;
+          pet.timers[tk] -= dt;
+          if (pet.timers[tk] <= 0) {
+            pet.timers[tk] = eff.interval ?? 0.5;
+            const radius = eff.radius ?? 90;
+            let blocked = false;
+            this.projectiles = this.projectiles.filter((pr) => {
+              if (pr.owner !== 'enemy') return true;
+              if (Math.hypot(pr.x - pet.x, pr.y - pet.y) < radius) { blocked = true; return false; }
+              return true;
+            });
+            if (blocked) this.burst(pet.x, pet.y, def.color, 5);
+          }
+          break;
+        }
+        // coin/loot/xp/gold/reveal/stat_boost are passive: handled where relevant.
+        default:
+          break;
+      }
+    }
+  }
+
+  /** Multiplier applied to XP gains from the equipped pet (data-driven). */
+  private petXpMult(): number {
+    const def = this.getEquippedPetDef();
+    if (!def) return 1;
+    let m = 1;
+    for (const e of def.effects) if (e.kind === 'xp_boost') m += e.value ?? 0;
+    return m;
+  }
+
+  /** Multiplier applied to gold gains from the equipped pet. */
+  private petGoldMult(): number {
+    const def = this.getEquippedPetDef();
+    if (!def) return 1;
+    let m = 1;
+    for (const e of def.effects) if (e.kind === 'gold_boost') m += e.value ?? 0;
+    return m;
+  }
+
+  /** Extra drop-chance bonus from the equipped pet (loot_luck). */
+  private petLootLuck(): number {
+    const def = this.getEquippedPetDef();
+    if (!def) return 0;
+    let b = 0;
+    for (const e of def.effects) if (e.kind === 'loot_luck') b += e.value ?? 0;
+    return b;
+  }
+
+  /** Extra minimap reveal radius factor from the equipped pet. */
+  private petRevealBonus(): number {
+    const def = this.getEquippedPetDef();
+    if (!def) return 0;
+    let b = 0;
+    for (const e of def.effects) if (e.kind === 'reveal_map') b += e.value ?? 0;
+    return b;
   }
 
   private findNearestEnemy(x: number, y: number, maxDist: number) {
@@ -1970,6 +2698,25 @@ export class GameEngine {
     // chests
     for (const c of this.chests) {
       this.drawChest(ctx, c);
+    }
+
+    // events
+    for (const ev of this.eventEntities) {
+      if (!ev.active) continue;
+      ctx.save();
+      ctx.translate(ev.x, ev.y);
+      ctx.shadowColor = ev.instance.color;
+      ctx.shadowBlur = 18 + Math.sin(this.worldTime * 4) * 6;
+      ctx.fillStyle = ev.instance.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ev.instance.icon, 0, 0);
+      ctx.restore();
     }
 
     // pickups
@@ -2053,12 +2800,44 @@ export class GameEngine {
       ctx.stroke();
     }
 
+    // Equipped pet (orbiting companion).
+    const petDef = this.getEquippedPetDef();
+    if (petDef && this.pet) {
+      const ps = petDef.stats.size;
+      ctx.save();
+      ctx.translate(this.pet.x, this.pet.y);
+      ctx.shadowColor = petDef.color;
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = petDef.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, ps, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.font = `${ps * 1.6}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(petDef.icon, 0, 1);
+      ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    }
+
     for (const pt of this.particles) {
       ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
       ctx.fillStyle = pt.color;
       ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
     }
     ctx.globalAlpha = 1;
+
+    // Ambient biome particles
+    const theme = this.currentBiome?.theme;
+    if (theme && this.biomeParticles.length > 0) {
+      ctx.fillStyle = theme.particleColor;
+      for (const bp of this.biomeParticles) {
+        ctx.globalAlpha = bp.alpha;
+        ctx.fillRect(bp.x, bp.y, bp.size, bp.size);
+      }
+      ctx.globalAlpha = 1;
+    }
 
     // Portal entity drawing
     if (this.portal?.active) {
@@ -2124,7 +2903,7 @@ export class GameEngine {
 
     const grd = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.75);
     grd.addColorStop(0, 'rgba(0,0,0,0)');
-    grd.addColorStop(1, 'rgba(0,0,0,0.45)');
+    grd.addColorStop(1, theme?.ambientLight ?? 'rgba(0,0,0,0.45)');
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, w, h);
   }
@@ -2152,6 +2931,7 @@ export class GameEngine {
   }
 
   private drawWorld(ctx: CanvasRenderingContext2D) {
+    const bt = this.currentBiome?.theme;
     // dark void
     ctx.fillStyle = '#07090e';
     ctx.fillRect(-200, -200, this.worldW + 400, this.worldH + 400);
@@ -2165,13 +2945,13 @@ export class GameEngine {
         !combatLock && (from.status === 'cleared' || to.status === 'cleared');
       const b = c.bounds;
       const vertical = b.h > b.w;
-      ctx.fillStyle = open ? '#12161f' : '#0b0d12';
+      ctx.fillStyle = open ? (bt?.corridorColor ?? '#12161f') : '#0b0d12';
       ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.strokeStyle = open ? 'rgba(255,204,0,0.35)' : 'rgba(80,80,90,0.4)';
+      ctx.strokeStyle = open ? (bt?.wallColor ?? 'rgba(255,204,0,0.35)') : 'rgba(80,80,90,0.4)';
       ctx.lineWidth = 3;
       ctx.strokeRect(b.x, b.y, b.w, b.h);
       if (open) {
-        ctx.strokeStyle = 'rgba(255,204,0,0.25)';
+        ctx.strokeStyle = bt?.primaryColor ?? 'rgba(255,204,0,0.25)';
         ctx.setLineDash([12, 10]);
         ctx.beginPath();
         if (vertical) {
@@ -2197,12 +2977,12 @@ export class GameEngine {
     for (const room of this.rooms) {
       const b = room.bounds;
       const lit = room.discovered || room.status !== 'locked';
-      ctx.fillStyle = lit ? '#141722' : '#0c0e14';
+      ctx.fillStyle = lit ? (bt?.floorColor ?? '#141722') : '#0c0e14';
       ctx.fillRect(b.x, b.y, b.w, b.h);
 
       // grid
       if (lit) {
-        ctx.strokeStyle = 'rgba(255,204,0,0.07)';
+        ctx.strokeStyle = bt?.primaryColor ?? 'rgba(255,204,0,0.07)';
         ctx.lineWidth = 1;
         for (let gx = b.x; gx < b.x + b.w; gx += 80) {
           ctx.beginPath();
@@ -2218,18 +2998,19 @@ export class GameEngine {
         }
       }
 
-      // border color — portal rooms are same as cleared
+      // border color
       let border = 'rgba(100,100,120,0.4)';
       if (room.status === 'active') border = 'rgba(255,85,0,0.75)';
-      else if (room.status === 'cleared') border = 'rgba(57,255,136,0.45)';
+      else if (room.status === 'cleared') border = bt?.wallColor ?? 'rgba(57,255,136,0.45)';
       else if (room.kind === 'boss') border = 'rgba(255,43,214,0.5)';
+      else if (room.kind === 'event') border = 'rgba(176,77,255,0.4)';
       ctx.strokeStyle = border;
       ctx.lineWidth = 5;
       ctx.strokeRect(b.x + 3, b.y + 3, b.w - 6, b.h - 6);
 
-      // decoration blocks — only for start/combat/treasure (not portal/boss)
+      // decoration blocks
       if (lit && room.kind !== 'portal' && room.kind !== 'boss') {
-        ctx.fillStyle = '#1a1e2e';
+        ctx.fillStyle = bt?.wallFillColor ?? '#1a1e2e';
         const blocks = [
           [b.x + 40, b.y + 40, 90, 60],
           [b.x + b.w - 140, b.y + 40, 100, 70],
@@ -2238,7 +3019,7 @@ export class GameEngine {
         ];
         for (const [bx, by, bw, bh] of blocks) {
           ctx.fillRect(bx, by, bw, bh);
-          ctx.strokeStyle = 'rgba(0,200,255,0.12)';
+          ctx.strokeStyle = bt?.primaryColor ?? 'rgba(0,200,255,0.12)';
           ctx.lineWidth = 2;
           ctx.strokeRect(bx, by, bw, bh);
         }
@@ -2292,4 +3073,4 @@ export class GameEngine {
   }
 }
 
-export type { CharacterDef, WeaponDef, ChestDef };
+export type { CharacterDef, GeneratedWeapon, ChestDef };

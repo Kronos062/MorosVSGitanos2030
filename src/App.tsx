@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName } from './content/characters';
 import type { Faction } from './content/characters';
-import { WEAPONS, RARITY_COLORS } from './content/weapons';
+import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
 import { BESTIARY_LORE } from './content/enemies';
+import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
 import { GameEngine } from './game/engine';
 import { audio } from './game/audio';
 import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, BuildItemEntry, EquipSlot } from './game/types';
@@ -21,6 +22,8 @@ import {
   resetBindings,
   setFaction,
   switchFaction,
+  buyPet,
+  equipPet,
   upgradeCost,
   codeLabel,
   factionLabel,
@@ -36,6 +39,7 @@ const emptyStats: GameStats = {
   ended: null, goldEarned: 0,
   currentRoomLabel: '', roomsCleared: 0, roomsTotal: 0,
   mapNumber: 1, totalMaps: 10,
+  biomeName: '', biomeIcon: '', biomeColor: '#00f0ff',
   minimap: null, build: null,
 };
 
@@ -108,6 +112,14 @@ function BuildPanel({ build }: { build: BuildStats }) {
       <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
         <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
         <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
+        {build.weaponAffixName && (
+          <div style={{ marginTop: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.3)', borderLeft: `3px solid ${build.weaponAffixColor ?? '#fff'}`, borderRadius: 2 }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: build.weaponAffixColor ?? '#fff' }}>
+              Afijo: {build.weaponAffixName}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{build.weaponAffixDescription}</div>
+          </div>
+        )}
         <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4 }}>
           <div>Daño: {build.weaponDamage} · Cadencia: {(build.weaponFireRate * build.fireRateMult).toFixed(1)}/s · Dispersión: {Math.round(build.weaponSpread * 100)}%</div>
           <div>Proyectiles: {build.weaponCount} · Perforación: {build.weaponPierce}</div>
@@ -130,19 +142,28 @@ function BuildPanel({ build }: { build: BuildStats }) {
         <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>EQUIPO</div>
         {(['helm','chest','pants','boots'] as SlotKey[]).map((slot) => {
           const eq = build.equippedItems.find((e) => e.slot === slot);
+          const setInfo = eq?.setId ? build.activeSets.find((s) => s.setId === eq.setId) : undefined;
           return (
-            <div key={slot} style={{ padding: '6px 10px', marginBottom: 4, background: 'rgba(0,0,0,0.3)', border: `1px solid ${eq ? eq.color+'55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                {EQUIP_SLOT_ICONS[slot]} {EQUIP_SLOT_LABELS[slot]}
-              </span>
-              {eq ? (
-                <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#8891b8' }}>{eq.icon}</span>
-                  <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
-                  <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
+            <div key={slot} style={{ padding: '6px 10px', marginBottom: 4, background: 'rgba(0,0,0,0.3)', border: `1px solid ${eq ? eq.color+'55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                  {EQUIP_SLOT_ICONS[slot]} {EQUIP_SLOT_LABELS[slot]}
                 </span>
-              ) : (
-                <span style={{ color: '#555', fontSize: '0.75rem' }}>Vacío</span>
+                {eq ? (
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#8891b8' }}>{eq.icon}</span>
+                    <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
+                    <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
+                  </span>
+                ) : (
+                  <span style={{ color: '#555', fontSize: '0.75rem' }}>Vacío</span>
+                )}
+              </div>
+              {eq && (
+                <div style={{ fontSize: '0.68rem', color: '#8891b8', marginTop: 3, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span>{eq.mods.map((m) => m.label).join(' · ')}</span>
+                  {setInfo && <span style={{ color: setInfo.color }}>Conjunto {setInfo.name} ({setInfo.equipped}/4)</span>}
+                </div>
               )}
             </div>
           );
@@ -153,19 +174,63 @@ function BuildPanel({ build }: { build: BuildStats }) {
       {build.activeSets.length > 0 && (
         <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
           <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>SINERGIAS DE CONJUNTO</div>
-          {build.activeSets.map((s) => (
-            <div key={s.setId} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${s.color}40`, borderRadius: 4 }}>
-              <div style={{ fontWeight: 800, color: s.color, marginBottom: 4 }}>
-                {s.name} <span style={{fontSize:'0.7rem',color:'#8891b8'}}>{s.equipped}/4 piezas</span>
-              </div>
-              {s.bonuses.map((b, j) => (
-                <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
-                  {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
-                  {b.special && <span style={{marginLeft:6,color:'#ff2bd6',fontSize:'0.7rem'}}>⚡ {b.special}</span>}
+          {build.activeSets.map((s) => {
+            const slotKeys: SlotKey[] = ['helm', 'chest', 'pants', 'boots'];
+            return (
+              <div key={s.setId} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${s.color}40`, borderRadius: 4 }}>
+                <div style={{ fontWeight: 800, color: s.color, marginBottom: 4 }}>
+                  {s.name} <span style={{fontSize:'0.7rem',color:'#8891b8'}}>{s.equipped}/4 piezas</span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {/* Per-slot ✓/✗ progress */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.7rem' }}>
+                  {slotKeys.map((slot) => {
+                    const has = build.equippedItems.some((e) => e.slot === slot && e.setId === s.setId);
+                    return (
+                      <span key={slot} style={{ color: has ? '#39ff88' : '#666' }}>
+                        {EQUIP_SLOT_LABELS[slot]} {has ? '✓' : '✗'}
+                      </span>
+                    );
+                  })}
+                </div>
+                {s.bonuses.map((b, j) => (
+                  <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
+                    {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
+                  </div>
+                ))}
+                {s.playstyle && (
+                  <div style={{ fontSize: '0.72rem', color: '#8891b8', marginBottom: 4 }}>
+                    {s.playstyle}
+                  </div>
+                )}
+                {s.strengths.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
+                    <span style={{ color: '#39ff88' }}>Fortalezas: </span>
+                    {s.strengths.map((tag, i) => (
+                      <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(57,255,136,0.12)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {s.weaknesses.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
+                    <span style={{ color: '#ff5500' }}>Debilidades: </span>
+                    {s.weaknesses.map((tag, i) => (
+                      <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(255,85,0,0.12)', border: '1px solid rgba(255,85,0,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {s.synergyDescription && (
+                  <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.synergyActive ? '#ffe14a' : '#666' }}>
+                    {s.synergyActive ? '⚡ ACTIVA' : '○'} Sinergia: {s.synergyDescription}
+                  </div>
+                )}
+                {s.counterSynergy && (
+                  <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.counterSynergyActive ? '#ff5500' : '#666' }}>
+                    {s.counterSynergyActive ? '⚠ ACTIVA' : '○'} Contrasinergia: {s.counterSynergy.description}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -208,6 +273,7 @@ export default function App() {
   const [rebinding, setRebinding] = useState<InputAction | null>(null);
   const [factionConfirm, setFactionConfirm] = useState(false);
   const [itemPickup, setItemPickup] = useState<{ item: ItemPickupData; equipped: BuildItemEntry[]; resolve: (slot: EquipSlot | null) => void } | null>(null);
+  const [eventData, setEventData] = useState<{ instance: any; resolve: (idx: number | null) => void } | null>(null);
   const joyThumbRef = useRef<HTMLDivElement>(null);
   const selectedCharRef = useRef(selectedChar);
   selectedCharRef.current = selectedChar;
@@ -256,8 +322,13 @@ export default function App() {
       setItemPickup({ item, equipped, resolve });
       setScreen('itempickup');
     });
+    const offEvent = engine.onEventInteract((instance, resolve) => {
+      engineRef.current?.pause();
+      setEventData({ instance, resolve });
+      setScreen('event');
+    });
 
-    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); engine.destroy(); engineRef.current = null; };
+    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offEvent(); engine.destroy(); engineRef.current = null; };
   }, []);
 
   useEffect(() => {
@@ -285,9 +356,18 @@ export default function App() {
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
-    engineRef.current?.start(selectedChar, save.upgrades, save.bindings);
+    engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet);
     setEndResult(null); setSkillChoices([]); setScreen('playing');
-  }, [selectedChar, save.upgrades, save.bindings]);
+  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet]);
+
+  const onBuyPet = (petId: string, cost: number) => {
+    const next = buyPet(save, petId, cost);
+    if (next) { audio.play('pickup'); setSave(next); } else { audio.play('hurt'); }
+  };
+  const onEquipPet = (petId: string | null) => {
+    audio.play('button');
+    setSave((prev) => equipPet(prev, petId));
+  };
 
   const backToMenu = useCallback(() => { audio.play('button'); engineRef.current?.pause(); setScreen('menu'); }, []);
   const chooseSkill = (id: string) => { audio.play('levelup'); engineRef.current?.applySkill(id); setSkillChoices([]); setScreen('playing'); };
@@ -347,6 +427,7 @@ export default function App() {
         <div className="hud">
           <div className="hud-top">
             <div className="hud-panel">
+              <div className="stat-row"><span className="stat-label">Bioma</span><span className="stat-value" style={{ color: stats.biomeColor, fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
               <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
@@ -429,6 +510,7 @@ export default function App() {
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('armory'); }}>Armería</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('bestiary'); }}>Bestiario</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('shop'); }}>Tienda</button>
+                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('pets'); }}>Mascotas</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('controls'); }}>Controles</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('scores'); }}>Puntuaciones</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('options'); }}>Opciones</button>
@@ -472,13 +554,13 @@ export default function App() {
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>ARMERÍA DE ARMAS</h2>
               <div className="list-scroll" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {WEAPONS.map((w) => {
+                {WEAPON_BASES.map((w) => {
                   const discovered = !!save.armory[w.id];
                   return (
                     <div key={w.id} className={`item-card ${discovered ? '' : 'dim'}`} style={{ borderColor: discovered ? w.color : 'rgba(255,255,255,0.1)' }}>
                       <div style={{ fontWeight: 800, color: discovered ? w.color : '#888' }}>{discovered ? w.name : '???????'}</div>
                       <div style={{ fontSize: '0.75rem', color: '#8891b8', marginTop: 4 }}>
-                        {discovered ? (<><div>Rareza: <strong style={{ color: RARITY_COLORS[w.rarity] }}>{w.rarity.toUpperCase()}</strong></div><div>Daño: {w.damage} | Cadencia: {w.fireRate}/s</div><div>Proyectiles: {w.count} | Penetración: {w.pierce}</div></>) : (<div>Arma desconocida</div>)}
+                        {discovered ? (<><div>Daño base: <strong>{w.damage}</strong> · Cadencia: {w.fireRate}/s</div><div>Proy: {w.count} · Perf: {w.pierce} · Tags: {w.tags.join(', ')}</div><div style={{ marginTop: 2, opacity: 0.7 }}>La calidad se al generar el arma.</div></>) : (<div>Arma desconocida</div>)}
                       </div>
                     </div>
                   );
@@ -516,10 +598,89 @@ export default function App() {
               <div className="gold-box"><div className="label">SALDO</div><div className="value">🪙 {save.gold.toLocaleString()}</div></div>
               <div className="shop-row"><div><div style={{ fontWeight: 800 }}>NÚCLEO DE VITALIDAD (HP)</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permHpLevel} (+{save.upgrades.permHpLevel * 10} HP)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('hp')}>{upgradeCost(save.upgrades.permHpLevel)} 🪙</button></div>
               <div className="shop-row"><div><div style={{ fontWeight: 800 }}>POTENCIA DE DAÑO</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permDamageLevel} (+{save.upgrades.permDamageLevel * 5}%)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('damage')}>{upgradeCost(save.upgrades.permDamageLevel)} 🪙</button></div>
+
+              <h3 style={{ color: '#b04dff', letterSpacing: '0.12em', margin: '14px 0 8px' }}>MASCOTAS</h3>
+              <div className="list-scroll" style={{ maxHeight: 240 }}>
+                {PET_DEFS.map((pet) => {
+                  const owned = !!save.pets[pet.id];
+                  const equipped = save.equippedPet === pet.id;
+                  return (
+                    <div key={pet.id} className="shop-row" style={{ borderColor: `${PET_RARITY_COLORS[pet.rarity]}55` }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: PET_RARITY_COLORS[pet.rarity] }}>
+                          {pet.icon} {pet.name} <span style={{ fontSize: '0.65rem', color: '#8891b8' }}>{pet.rarity.toUpperCase()}</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{pet.ability}</div>
+                      </div>
+                      {owned ? (
+                        <button type="button" className={`menu-btn ${equipped ? 'primary' : ''}`} onClick={() => onEquipPet(equipped ? null : pet.id)}>
+                          {equipped ? 'Equipada' : 'Equipar'}
+                        </button>
+                      ) : (
+                        <button type="button" className="menu-btn primary" onClick={() => onBuyPet(pet.id, pet.cost)}>{pet.cost} 🪙</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
             </div>
           </div>
         )}
+
+        {screen === 'pets' && (() => {
+          const eqPet = save.equippedPet ? getPet(save.equippedPet) : undefined;
+          const owned = PET_DEFS.filter((p) => save.pets[p.id]);
+          return (
+            <div className="screen">
+              <div className="screen-content">
+                <h2 className="section-title" style={{ color: '#b04dff' }}>MASCOTAS</h2>
+
+                <div className="detail-box" style={{ borderColor: eqPet ? `${eqPet.color}55` : undefined }}>
+                  <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 4 }}>EQUIPADA</div>
+                  {eqPet ? (
+                    <>
+                      <div style={{ fontWeight: 800, color: PET_RARITY_COLORS[eqPet.rarity] }}>{eqPet.icon} {eqPet.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 4 }}>{eqPet.description}</div>
+                      <div style={{ fontSize: '0.78rem', color: eqPet.color, marginTop: 4 }}>Habilidad: {eqPet.ability}</div>
+                      <button type="button" className="menu-btn" style={{ marginTop: 8 }} onClick={() => onEquipPet(null)}>Desequipar</button>
+                    </>
+                  ) : (
+                    <div style={{ color: '#666' }}>Ninguna mascota equipada.</div>
+                  )}
+                </div>
+
+                <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '4px 0 8px' }}>
+                  DESBLOQUEADAS ({owned.length}/{PET_DEFS.length})
+                </h3>
+                <div className="list-scroll" style={{ maxHeight: 320 }}>
+                  {owned.length === 0 && (
+                    <p style={{ opacity: 0.7, fontSize: '0.85rem' }}>Aún no tienes mascotas. Cómpralas en la Tienda.</p>
+                  )}
+                  {owned.map((pet) => {
+                    const isEq = save.equippedPet === pet.id;
+                    return (
+                      <div key={pet.id} className="item-card" style={{ borderColor: `${PET_RARITY_COLORS[pet.rarity]}55` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 800, color: PET_RARITY_COLORS[pet.rarity] }}>{pet.icon} {pet.name}</span>
+                          <button type="button" className={`menu-btn binding-btn ${isEq ? 'primary' : ''}`} onClick={() => onEquipPet(isEq ? null : pet.id)}>{isEq ? 'Equipada' : 'Equipar'}</button>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{pet.description}</div>
+                        <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3 }}>⚡ {pet.ability}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 3 }}>
+                          Órbita {pet.stats.orbitRadius} · Rareza {pet.rarity.toUpperCase()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {screen === 'controls' && (
           <div className="screen">
@@ -587,7 +748,7 @@ export default function App() {
 
               <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
                 audio.play('button');
-                const fresh: SaveData = { faction: null, gold: 0, armory: { pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS } };
+                const fresh: SaveData = { faction: null, gold: 0, armory: { pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null };
                 writeSave(fresh); setSave(fresh); setRebinding(null);
               }}>Borrar progreso</button>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
@@ -617,6 +778,60 @@ export default function App() {
               <div className="menu-grid" style={{ marginTop: 16 }}>
                 <button type="button" className="menu-btn primary" onClick={() => { audio.play('button'); setScreen('paused'); }}>Volver</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {screen === 'event' && eventData && (
+          <div className="screen">
+            <div className="screen-content">
+              <h2 className="section-title" style={{ color: eventData.instance.color }}>
+                {eventData.instance.icon} {eventData.instance.name.toUpperCase()}
+              </h2>
+              <div style={{ marginBottom: 16, color: '#94a3b8', fontSize: '0.85rem' }}>
+                {eventData.instance.description}
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {eventData.instance.options?.map((opt: any, i: number) => {
+                  const canAffordGold = !opt.costGold || stats.goldEarned >= opt.costGold;
+                  const canAffordHp = !opt.costHpPct || stats.hp > stats.maxHp * opt.costHpPct;
+                  const canAfford = canAffordGold && canAffordHp;
+                  
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={!canAfford}
+                      className="menu-btn"
+                      style={{ textAlign: 'left', opacity: canAfford ? 1 : 0.5 }}
+                      onClick={() => {
+                        eventData.resolve(i);
+                        setEventData(null);
+                        engineRef.current?.resume();
+                        setScreen('playing');
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: opt.color, marginBottom: 4 }}>{opt.label}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{opt.description}</div>
+                      {(opt.costGold || opt.costHpPct) && (
+                        <div style={{ fontSize: '0.7rem', marginTop: 6, color: '#ff2a4b' }}>
+                          Coste: {opt.costGold ? `${opt.costGold} 🪙` : ''} {opt.costHpPct ? `Pierdes ${Math.round(opt.costHpPct * 100)}% de Vida Max` : ''}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button type="button" className="menu-btn full-width" onClick={() => {
+                eventData.resolve(null);
+                setEventData(null);
+                engineRef.current?.resume();
+                setScreen('playing');
+              }}>
+                Ignorar
+              </button>
             </div>
           </div>
         )}
@@ -691,7 +906,9 @@ export default function App() {
         {screen === 'map' && (
           <div className="screen">
             <div className="screen-content" style={{ maxWidth: 820 }}>
-              <h2 className="section-title" style={{ color: '#00f0ff' }}>MAPA GLOBAL</h2>
+              <h2 className="section-title" style={{ color: stats.biomeColor }}>
+                {stats.biomeIcon} {stats.biomeName.toUpperCase()} · MAPA {stats.mapNumber}/{stats.totalMaps}
+              </h2>
               <p style={{ color: '#94a3b8', marginBottom: 12, fontSize: '0.85rem' }}>Sala actual, descubiertas y pasillos · {codeLabel(save.bindings.openMap)} / ESC para cerrar</p>
               {stats.minimap && <MinimapView data={stats.minimap} large />}
               <div className="menu-grid" style={{ marginTop: 16 }}>

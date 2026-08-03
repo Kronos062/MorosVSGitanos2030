@@ -23,6 +23,10 @@ export interface SaveData {
   highScores: HighScore[];
   volume: number;
   bindings: KeyBindings;
+  /** Permanently unlocked pets (id → true). */
+  pets: Record<string, boolean>;
+  /** Currently equipped pet id, or null. Persists between runs. */
+  equippedPet: string | null;
 }
 
 const KEY = 'mvg2030_save_v1';
@@ -49,6 +53,8 @@ const DEFAULT_SAVE: SaveData = {
   highScores: [],
   volume: 0.7,
   bindings: { ...DEFAULT_BINDINGS },
+  pets: {},
+  equippedPet: null,
 };
 
 function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
@@ -72,6 +78,8 @@ export function loadSave(): SaveData {
       highScores: parsed.highScores ?? [],
       volume: parsed.volume ?? 0.7,
       bindings: mergeBindings(parsed.bindings),
+      pets: parsed.pets ?? {},
+      equippedPet: parsed.equippedPet ?? null,
     };
   } catch {
     return structuredClone(DEFAULT_SAVE);
@@ -153,7 +161,7 @@ export function setFaction(data: SaveData, faction: Faction): SaveData {
   return next;
 }
 
-/** Resets all progress but keeps bindings/volume, assigns new faction. */
+  /** Resets all progress but keeps bindings/volume, assigns new faction. */
 export function switchFaction(data: SaveData, faction: Faction): SaveData {
   const next: SaveData = {
     faction,
@@ -164,7 +172,30 @@ export function switchFaction(data: SaveData, faction: Faction): SaveData {
     highScores: [],
     volume: data.volume,
     bindings: { ...data.bindings },
+    pets: {},
+    equippedPet: null,
   };
+  writeSave(next);
+  return next;
+}
+
+/** Buy a pet permanently. Returns null if not enough gold or already owned. */
+export function buyPet(data: SaveData, petId: string, cost: number): SaveData | null {
+  if (data.pets[petId]) return null;
+  if (data.gold < cost) return null;
+  const next: SaveData = {
+    ...data,
+    gold: data.gold - cost,
+    pets: { ...data.pets, [petId]: true },
+  };
+  writeSave(next);
+  return next;
+}
+
+/** Equip a pet (must be owned) or unequip with null. Persists automatically. */
+export function equipPet(data: SaveData, petId: string | null): SaveData {
+  if (petId !== null && !data.pets[petId]) return data;
+  const next: SaveData = { ...data, equippedPet: petId };
   writeSave(next);
   return next;
 }

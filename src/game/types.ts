@@ -18,6 +18,12 @@ export interface Projectile {
   owner: 'player' | 'enemy';
   _bounceCount?: number;
   _explosionRadius?: number;
+  /** Affix carry-over so hit resolution can apply effects generically. */
+  _lifesteal?: number;
+  _element?: 'fire' | 'ice' | 'electric' | 'toxic' | 'radiant' | 'dark';
+  _elementChance?: number;
+  _chain?: number;
+  _chainChance?: number;
 }
 
 export interface EnemyEntity {
@@ -45,6 +51,12 @@ export interface EnemyEntity {
   hitFlash: number;
   spawnAnim: number;
   isBoss: boolean;
+  /** Affix-driven status effects (generic, engine-handled). */
+  burnTimer?: number;
+  burnDps?: number;
+  poisonTimer?: number;
+  poisonDps?: number;
+  slowTimer?: number;
 }
 
 export interface PickupEntity {
@@ -79,7 +91,7 @@ export interface RoomBounds {
   h: number;
 }
 
-export type RoomKind = 'start' | 'combat' | 'treasure' | 'boss' | 'portal';
+export type RoomKind = 'start' | 'combat' | 'treasure' | 'boss' | 'portal' | 'event';
 
 export interface RoomNode {
   id: number;
@@ -115,6 +127,52 @@ export interface MinimapData {
   }>;
   currentRoomId: number;
   player: { x: number; y: number };
+  biomeBg?: string;
+  biomeRoomColor?: string;
+}
+
+export type EventAction = 
+  | { kind: 'stat_mod'; stat: string; op: 'add'|'mult'; val: number }
+  | { kind: 'add_gold'; value: number }
+  | { kind: 'lose_gold'; value: number }
+  | { kind: 'heal'; value: number }
+  | { kind: 'lose_hp_pct'; value: number }
+  | { kind: 'spawn_chest'; chestId: string }
+  | { kind: 'drop_weapon'; weaponGenId: string, baseId: string, color: string }
+  | { kind: 'drop_equipment'; equipGenId: string, color: string };
+
+export interface EventOption {
+  label: string;
+  description: string;
+  color: string;
+  actions: EventAction[];
+  costGold?: number;
+  costHpPct?: number; 
+}
+
+export interface EventInstance {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  type: string;
+  options?: EventOption[];
+  combatRules?: {
+    isCursed: boolean;
+    timeLimit?: number;
+    noDamage?: boolean;
+    rewardChest: string;
+    waveCount: number;
+  };
+}
+
+export interface InteractiveEventEntity {
+  id: number;
+  x: number;
+  y: number;
+  instance: EventInstance;
+  active: boolean;
 }
 
 export type InputAction =
@@ -217,8 +275,13 @@ export interface GameStats {
   roomsTotal: number;
   mapNumber: number;
   totalMaps: number;
+  biomeName: string;
+  biomeIcon: string;
+  biomeColor: string;
   minimap: MinimapData | null;
   build: BuildStats | null;
+  eventPrompt?: { name: string; color: string } | null;
+  activeChallenge?: { desc: string; failed: boolean; time?: number } | null;
 }
 
 export interface BuildItemEntry {
@@ -244,6 +307,19 @@ export interface ActiveSetInfo {
     active: boolean;
     special?: string;
   }>;
+  synergyDescription?: string;
+  synergyActive?: boolean;
+  playstyle: string;
+  strengths: string[];
+  weaknesses: string[];
+  counterSynergy?: {
+    weaponTags?: string[];
+    affixIds?: string[];
+    element?: string;
+    damageMult?: number;
+    description: string;
+  };
+  counterSynergyActive?: boolean;
 }
 
 export interface BuildStats {
@@ -272,6 +348,9 @@ export interface BuildStats {
   weaponName: string;
   weaponColor: string;
   weaponRarity: string;
+  weaponAffixName?: string;
+  weaponAffixColor?: string;
+  weaponAffixDescription?: string;
   weaponDamage: number;
   weaponFireRate: number;
   weaponCount: number;
@@ -317,6 +396,7 @@ export type GameScreen =
   | 'armory'
   | 'bestiary'
   | 'shop'
+  | 'pets'
   | 'controls'
   | 'scores'
   | 'options'
@@ -327,4 +407,5 @@ export type GameScreen =
   | 'levelup'
   | 'gameover'
   | 'victory'
-  | 'itempickup';
+  | 'itempickup'
+  | 'event';
