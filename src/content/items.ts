@@ -1,4 +1,5 @@
 import type { Rarity } from './weapons';
+import { runRandom } from '../game/random';
 
 export type StatId =
   | 'maxHp'
@@ -223,5 +224,5 @@ export function pickRandomItem(highTier: boolean): ItemDef {
     return true;
   });
   const weighted = pool.flatMap((it) => Array(RARITY_WEIGHTS[it.rarity]).fill(it));
-  return weighted[Math.floor(Math.random() * weighted.length)] ?? ITEMS[0];
+  return weighted[runRandom.int('loot', weighted.length)] ?? ITEMS[0];
 }

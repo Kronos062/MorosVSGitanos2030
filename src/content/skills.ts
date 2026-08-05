@@ -1,3 +1,5 @@
+import { runRandom } from '../game/random';
+
 export interface SkillDef {
   id: string;
   name: string;
@@ -22,7 +24,7 @@ export function pickSkillChoices(count = 3): SkillDef[] {
   const pool = [...SKILLS];
   const result: SkillDef[] = [];
   while (result.length < count && pool.length > 0) {
-    const i = Math.floor(Math.random() * pool.length);
+    const i = runRandom.int('choice', pool.length);
     result.push(pool.splice(i, 1)[0]);
   }
   return result;

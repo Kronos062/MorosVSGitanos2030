@@ -24,6 +24,7 @@ import {
 import { SET_DEFS, type EquipSlot } from '../content/equipment';
 import type { RunDirector } from './runDirector';
 import type { BiomeDef } from '../content/biomes';
+import { runRandom } from './random';
 
 /* ------------------------------------------------------------------ */
 /*  LOOT TABLES — pure data. One table per loot source.               */
@@ -231,7 +232,7 @@ export function rollDirectedQuality(
   });
   const total = pool.reduce((s, q) => s + q.weight, 0);
   if (total <= 0) return 'common';
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   for (const q of pool) {
     r -= q.weight;
     if (r <= 0) return q.rarity;
@@ -274,7 +275,7 @@ export function pickDirectedWeapon(
   });
 
   const total = pool.reduce((s, p) => s + p.weight, 0);
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   let chosen = pool[0].base;
   for (const p of pool) {
     r -= p.weight;
@@ -285,7 +286,7 @@ export function pickDirectedWeapon(
 
   // Affix roll — reuse existing chance table, then anti-dup weighted pick.
   let affixId: string | null = null;
-  if (Math.random() < (AFFIX_CHANCE[quality] ?? 0)) {
+  if (runRandom.next('loot') < (AFFIX_CHANCE[quality] ?? 0)) {
     affixId = pickDirectedAffix(chosen, ctx, mem, pref);
   }
 
@@ -316,7 +317,7 @@ function pickDirectedAffix(
   });
   if (pool.length === 0) return null;
   const total = pool.reduce((s, p) => s + p.weight, 0);
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   for (const p of pool) {
     r -= p.weight;
     if (r <= 0) return p.id;
@@ -359,14 +360,14 @@ export function pickDirectedEquipment(
   });
 
   const total = pool.reduce((s, p) => s + p.weight, 0);
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   let chosen = pool[0].set;
   for (const p of pool) {
     r -= p.weight;
     if (r <= 0) { chosen = p.set; break; }
   }
 
-  const slot = slots[Math.floor(Math.random() * slots.length)];
+  const slot = slots[runRandom.int('loot', slots.length)];
   const quality = rollDirectedQuality(table, ctx, runDirector);
 
   mem.rememberSet(chosen.setId);
@@ -386,7 +387,7 @@ export function rollLootCategory(table: LootTableDef, runDirector?: RunDirector)
   );
   const total = entries.reduce((s, [, w]) => s + w, 0);
   if (total <= 0) return 'nothing';
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   for (const [cat, w] of entries) {
     r -= w;
     if (r <= 0) return cat;

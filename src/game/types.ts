@@ -57,6 +57,9 @@ export interface EnemyEntity {
   poisonTimer?: number;
   poisonDps?: number;
   slowTimer?: number;
+  /** Boss phase tracking (set by engine, data-driven). */
+  currentPhase?: number;
+  phaseInvuln?: number;
 }
 
 export interface PickupEntity {
@@ -101,6 +104,7 @@ export interface RoomNode {
   discovered: boolean;
   connections: number[];
   label: string;
+  eventId?: string;
 }
 
 export interface CorridorNode {
@@ -264,7 +268,7 @@ export interface GameStats {
   multiplier: number;
   weaponName: string;
   weaponColor: string;
-  boss?: { name: string; hp: number; maxHp: number } | null;
+  boss?: { name: string; hp: number; maxHp: number; phase?: string } | null;
   weaponPrompt?: { name: string; color: string } | null;
   chestPrompt?: { name: string; color: string } | null;
   portalPrompt?: { kind: string } | null;
@@ -400,6 +404,7 @@ export type GameScreen =
   | 'controls'
   | 'scores'
   | 'options'
+  | 'ascension'
   | 'playing'
   | 'paused'
   | 'build'

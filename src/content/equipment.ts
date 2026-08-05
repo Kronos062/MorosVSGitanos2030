@@ -1,4 +1,5 @@
 import type { Rarity } from './weapons';
+import { runRandom } from '../game/random';
 
 export type EquipSlot = 'helm' | 'chest' | 'pants' | 'boots';
 
@@ -703,7 +704,7 @@ export function rollArmorQuality(highTier: boolean): Rarity {
     ? ARMOR_QUALITIES.filter((q) => q.rarity !== 'common')
     : ARMOR_QUALITIES;
   const total = pool.reduce((s, q) => s + q.dropWeight, 0);
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   for (const q of pool) {
     r -= q.dropWeight;
     if (r <= 0) return q.rarity;
@@ -718,9 +719,9 @@ let equipGenCounter = 1;
  * Returns a fully generated & registered equipment piece.
  */
 export function pickRandomEquipment(highTier: boolean): GeneratedEquipment {
-  const set = SET_DEFS[Math.floor(Math.random() * SET_DEFS.length)];
+  const set = SET_DEFS[runRandom.int('loot', SET_DEFS.length)];
   const slots: EquipSlot[] = ['helm', 'chest', 'pants', 'boots'];
-  const slot = slots[Math.floor(Math.random() * slots.length)];
+  const slot = slots[runRandom.int('loot', slots.length)];
   const quality = rollArmorQuality(highTier);
   const baseId = `${set.setId}_${slot}`;
   return generateEquipment(baseId, quality, `eq_${equipGenCounter++}`);

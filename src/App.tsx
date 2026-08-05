@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName } from './content/characters';
 import type { Faction } from './content/characters';
 import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
+import { ASCENSION_LEVELS } from './content/ascension';
 import { BESTIARY_LORE } from './content/enemies';
 import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
 import { GameEngine } from './game/engine';
@@ -312,6 +313,13 @@ export default function App() {
       setSave((prev) => {
         let next = addGold(prev, s.goldEarned);
         next = pushHighScore(next, { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: new Date().toISOString() });
+        // Unlock next ascension level on victory
+        if (result === 'victory') {
+          const maxUnlocked = Math.min(prev.activeAscension + 1, 9);
+          if (maxUnlocked > prev.highestAscension) {
+            next = { ...next, highestAscension: maxUnlocked };
+          }
+        }
         return next;
       });
     });
@@ -356,9 +364,9 @@ export default function App() {
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
-    engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet);
+    engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet, undefined, save.activeAscension);
     setEndResult(null); setSkillChoices([]); setScreen('playing');
-  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet]);
+  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension]);
 
   const onBuyPet = (petId: string, cost: number) => {
     const next = buyPet(save, petId, cost);
@@ -370,7 +378,16 @@ export default function App() {
   };
 
   const backToMenu = useCallback(() => { audio.play('button'); engineRef.current?.pause(); setScreen('menu'); }, []);
-  const chooseSkill = (id: string) => { audio.play('levelup'); engineRef.current?.applySkill(id); setSkillChoices([]); setScreen('playing'); };
+  const chooseSkill = (id: string) => {
+    audio.play('levelup');
+    engineRef.current?.applySkill(id);
+    // If applySkill queued another level-up (multiple levels gained from the
+    // same XP grant), the engine already pushed new choices via onLevelUp —
+    // stay on the levelup screen instead of forcing back to 'playing'.
+    if (engineRef.current?.hasPendingSkillChoice()) return;
+    setSkillChoices([]);
+    setScreen('playing');
+  };
 
   const onBuy = (kind: 'hp' | 'damage') => {
     const level = kind === 'hp' ? save.upgrades.permHpLevel : save.upgrades.permDamageLevel;
@@ -446,10 +463,36 @@ export default function App() {
               </div>
             )}
           </div>
-          {stats.boss && (<div className="boss-bar"><div className="name">{stats.boss.name}</div><div className="bar"><div className="fill" style={{ width: `${(stats.boss.hp / stats.boss.maxHp) * 100}%` }} /></div></div>)}
+          {stats.boss && (
+            <div className="boss-bar">
+              <div className="name">
+                {stats.boss.name}
+                {stats.boss.phase && (
+                  <span style={{ marginLeft: 8, fontSize: '0.8em', color: '#ffe14a' }}>
+                    — {stats.boss.phase}
+                  </span>
+                )}
+              </div>
+              <div className="bar">
+                <div className="fill" style={{ width: `${(stats.boss.hp / stats.boss.maxHp) * 100}%` }} />
+              </div>
+            </div>
+          )}
           {stats.portalPrompt && (<div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] {stats.portalPrompt.kind}</div>)}
-          {!stats.portalPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
-          {!stats.portalPrompt && !stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
+          {!stats.portalPrompt && stats.eventPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.eventPrompt.color }}>[{interactLabel}] {stats.eventPrompt.name}</div>)}
+          {!stats.portalPrompt && !stats.eventPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
+          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
+          {stats.activeChallenge && (
+            <div className="boss-bar" style={{ borderColor: stats.activeChallenge.failed ? 'rgba(255,42,75,0.6)' : 'rgba(255,204,0,0.5)' }}>
+              <div className="name" style={{ color: stats.activeChallenge.failed ? 'var(--hazard-red)' : 'var(--street-yellow)' }}>
+                {stats.activeChallenge.desc}
+                {stats.activeChallenge.time !== undefined && !stats.activeChallenge.failed && (
+                  <span style={{ marginLeft: 8 }}>⏱ {stats.activeChallenge.time}s</span>
+                )}
+                {stats.activeChallenge.failed && <span style={{ marginLeft: 8 }}>· FALLIDO</span>}
+              </div>
+            </div>
+          )}
           <div className="hud-bottom">
             <div className="health-bar-container">
               <div className="health-bar-bg"><div className="health-bar-fill" style={{ width: `${Math.max(0, (stats.hp / stats.maxHp) * 100)}%` }} /></div>
@@ -541,9 +584,90 @@ export default function App() {
                 <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>
                 <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>HP {selected.stats.hp} · SPD {selected.stats.speed} · ARM {selected.stats.armor} · CRIT {Math.round(selected.stats.critChance * 100)}%</p>
               </div>
+              <div style={{ marginBottom: 10 }}>
+                <div className="menu-grid">
+                  <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('ascension'); }}>
+                    {(() => {
+                      const al = ASCENSION_LEVELS.find((l) => l.level === save.activeAscension);
+                      return al ? `${al.icon} ${al.name} (Nivel ${al.level})` : '⚡ Normal (Nivel 0)';
+                    })()}
+                  </button>
+                </div>
+              </div>
               <div className="menu-grid">
                 <button type="button" className="menu-btn primary" onClick={startGame}>Combatir</button>
                 <button type="button" className="menu-btn" onClick={backToMenu}>Volver</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {screen === 'ascension' && (
+          <div className="screen">
+            <div className="screen-content">
+              <h2 className="section-title" style={{ color: '#ffe14a' }}>NIVEL DE ASCENSIÓN</h2>
+              <p style={{ color: '#94a3b8', marginBottom: 16, fontSize: '0.85rem' }}>
+                Modifica la dificultad. Sube el nivel para retos más duros y mejores recompensas.
+              </p>
+              <div style={{ marginBottom: 14 }}>
+                <div className="list-scroll" style={{ maxHeight: 360 }}>
+                  {ASCENSION_LEVELS.map((al) => {
+                    const locked = al.level > 0 && al.level > save.highestAscension + 1;
+                    const active = save.activeAscension === al.level;
+                    return (
+                      <div
+                        key={al.level}
+                        className="item-card"
+                        style={{
+                          borderColor: locked ? 'rgba(255,255,255,0.06)' : active ? al.color : `${al.color}44`,
+                          opacity: locked ? 0.45 : 1,
+                          marginBottom: 6,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, color: locked ? '#555' : al.color }}>
+                            {al.icon} Nivel {al.level}: {al.name}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: locked ? '#444' : '#8891b8' }}>
+                            {locked ? '🔒' : active ? '✓ ACTIVO' : ''}
+                          </span>
+                        </div>
+                        {!locked && (
+                          <>
+                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
+                              {al.description}
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: '0.7rem', color: '#8891b8' }}>
+                              {al.modifiers.map((m, i) => (
+                                <span key={i} style={{ marginRight: 10 }}>{m.icon} {m.label}</span>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        {!locked && !active && (
+                          <button
+                            type="button"
+                            className="menu-btn"
+                            style={{ marginTop: 6, fontSize: '0.8rem' }}
+                            onClick={() => {
+                              audio.play('button');
+                              setSave((prev) => {
+                                const next = { ...prev, activeAscension: al.level };
+                                writeSave(next);
+                                return next;
+                              });
+                            }}
+                          >
+                            Activar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="menu-grid">
+                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('chars'); }}>Volver</button>
               </div>
             </div>
           </div>
@@ -748,7 +872,7 @@ export default function App() {
 
               <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
                 audio.play('button');
-                const fresh: SaveData = { faction: null, gold: 0, armory: { pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null };
+                const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0 };
                 writeSave(fresh); setSave(fresh); setRebinding(null);
               }}>Borrar progreso</button>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>

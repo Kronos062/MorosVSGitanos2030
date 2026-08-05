@@ -1,5 +1,7 @@
 
 
+import { runRandom } from '../game/random';
+
 /* ======================================================================
    biomes.ts — Data-driven Biomes System.
    ----------------------------------------------------------------------
@@ -221,8 +223,8 @@ export const BIOMES: BiomeDef[] = [
       particleDensity: 20,
       decorStyle: 'ruins',
     },
-    enemyTagWeights: { shield: 1.5, tank: 1.4, golem: 1.5 },
-    enemyRoleWeights: { tank: 1.45, frontline: 1.3 },
+    enemyTagWeights: { shield: 1.5, tank: 1.4, golem: 1.5, frontline: 1.3 },
+    enemyRoleWeights: { tank: 1.45 },
     lootTagWeights: { heavy: 1.35, precision: 1.3, shield: 1.4 },
     lootElementWeights: { radiant: 1.4 },
     eventDefWeights: { shrine_light: 1.5, altar_sangre: 1.3 },
@@ -235,7 +237,11 @@ export function getBiome(id: string): BiomeDef {
 }
 
 /** Picks a biome for the given map using weights and map range constraints. */
-export function pickBiomeForMap(mapNumber: number, _totalMaps = 10, rng: () => number = Math.random): BiomeDef {
+export function pickBiomeForMap(
+  mapNumber: number,
+  _totalMaps = 10,
+  rng: () => number = () => runRandom.next('map'),
+): BiomeDef {
   const eligible = BIOMES.filter((b) => mapNumber >= b.minMap && mapNumber <= b.maxMap);
   if (eligible.length === 0) return BIOMES[0];
 

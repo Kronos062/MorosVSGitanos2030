@@ -27,6 +27,10 @@ export interface SaveData {
   pets: Record<string, boolean>;
   /** Currently equipped pet id, or null. Persists between runs. */
   equippedPet: string | null;
+  /** Highest ascension level beaten (0 = not beaten yet). Unlocks higher levels. */
+  highestAscension: number;
+  /** Currently selected ascension level for the next run. */
+  activeAscension: number;
 }
 
 const KEY = 'mvg2030_save_v1';
@@ -47,7 +51,7 @@ export const DEFAULT_BINDINGS: KeyBindings = {
 const DEFAULT_SAVE: SaveData = {
   faction: null,
   gold: 0,
-  armory: { pistol: true },
+  armory: { pulse_pistol: true },
   bestiary: {},
   upgrades: { permHpLevel: 0, permDamageLevel: 0 },
   highScores: [],
@@ -55,6 +59,8 @@ const DEFAULT_SAVE: SaveData = {
   bindings: { ...DEFAULT_BINDINGS },
   pets: {},
   equippedPet: null,
+  highestAscension: 0,
+  activeAscension: 0,
 };
 
 function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
@@ -69,7 +75,7 @@ export function loadSave(): SaveData {
     return {
       faction: parsed.faction ?? null,
       gold: parsed.gold ?? 0,
-      armory: { pistol: true, ...(parsed.armory ?? {}) },
+      armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
       bestiary: parsed.bestiary ?? {},
       upgrades: {
         permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
@@ -80,6 +86,8 @@ export function loadSave(): SaveData {
       bindings: mergeBindings(parsed.bindings),
       pets: parsed.pets ?? {},
       equippedPet: parsed.equippedPet ?? null,
+      highestAscension: parsed.highestAscension ?? 0,
+      activeAscension: parsed.activeAscension ?? 0,
     };
   } catch {
     return structuredClone(DEFAULT_SAVE);
@@ -166,7 +174,7 @@ export function switchFaction(data: SaveData, faction: Faction): SaveData {
   const next: SaveData = {
     faction,
     gold: 0,
-    armory: { pistol: true },
+    armory: { pulse_pistol: true },
     bestiary: {},
     upgrades: { permHpLevel: 0, permDamageLevel: 0 },
     highScores: [],
@@ -174,6 +182,8 @@ export function switchFaction(data: SaveData, faction: Faction): SaveData {
     bindings: { ...data.bindings },
     pets: {},
     equippedPet: null,
+    highestAscension: 0,
+    activeAscension: 0,
   };
   writeSave(next);
   return next;

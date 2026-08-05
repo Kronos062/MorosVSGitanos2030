@@ -15,6 +15,7 @@ import type { LootCategory } from './lootDirector';
 import type { EventDef } from './eventDirector';
 import type { CompositionTemplate } from './enemyDirector';
 import type { BiomeDef } from '../content/biomes';
+import { computeAscensionState, type AscensionState } from '../content/ascension';
 
 
 export type RunMood = 'thriving' | 'stable' | 'struggling';
@@ -40,6 +41,7 @@ export interface RunTelemetry {
   equippedPetId: string | null;
   petElement?: string;
   petTags?: string[];
+  ascensionLevel: number;
 }
 
 const EVENT_MEMORY_MAX = 6;
@@ -50,6 +52,7 @@ export class RunDirector {
   private bossResonance: string | null = null;
   private recentDamageTimer = 0;
   private recentKillTimer = 0;
+  private ascensionState: AscensionState | null = null;
 
   resetRun(): void {
     this.mood = 'stable';
@@ -57,6 +60,15 @@ export class RunDirector {
     this.bossResonance = null;
     this.recentDamageTimer = 0;
     this.recentKillTimer = 0;
+    this.ascensionState = null;
+  }
+
+  setAscensionLevel(level: number): void {
+    this.ascensionState = computeAscensionState(level);
+  }
+
+  getAscensionState(): AscensionState | null {
+    return this.ascensionState;
   }
 
   onNextMap(): void {
@@ -117,35 +129,47 @@ export class RunDirector {
   /* ------------------------------------------------------------------ */
 
   getLootCategoryWeightMult(category: LootCategory, _sourceTableId: string): number {
+    let mult = 1.0;
     if (this.mood === 'struggling') {
-      if (category === 'heal') return 1.4;
-      if (category === 'shield') return 1.25;
-      if (category === 'gold') return 1.2;
-      if (category === 'weapon') return 0.95;
-      if (category === 'equipment') return 0.95;
+      if (category === 'heal') mult *= 1.4;
+      if (category === 'shield') mult *= 1.25;
+      if (category === 'gold') mult *= 1.2;
+      if (category === 'weapon') mult *= 0.95;
+      if (category === 'equipment') mult *= 0.95;
     }
     if (this.mood === 'thriving') {
-      if (category === 'weapon') return 1.25;
-      if (category === 'equipment') return 1.25;
-      if (category === 'heal') return 0.75;
-      if (category === 'shield') return 0.85;
+      if (category === 'weapon') mult *= 1.25;
+      if (category === 'equipment') mult *= 1.25;
+      if (category === 'heal') mult *= 0.75;
+      if (category === 'shield') mult *= 0.85;
     }
-    return 1.0;
+    // Ascension modifiers
+    if (this.ascensionState) {
+      if (category === 'heal') mult *= this.ascensionState.healWeightMult;
+      if (category === 'gold') mult *= this.ascensionState.goldWeightMult;
+    }
+    return mult;
   }
 
   getLootQualityWeightMult(rarity: Rarity, _sourceTableId: string): number {
+    let mult = 1.0;
     if (this.mood === 'thriving') {
-      if (rarity === 'rare') return 1.15;
-      if (rarity === 'epic') return 1.2;
-      if (rarity === 'legendary') return 1.25;
+      if (rarity === 'rare') mult *= 1.15;
+      if (rarity === 'epic') mult *= 1.2;
+      if (rarity === 'legendary') mult *= 1.25;
     }
     if (this.mood === 'struggling') {
-      if (rarity === 'common') return 1.2;
-      if (rarity === 'uncommon') return 1.1;
-      if (rarity === 'epic') return 0.85;
-      if (rarity === 'legendary') return 0.7;
+      if (rarity === 'common') mult *= 1.2;
+      if (rarity === 'uncommon') mult *= 1.1;
+      if (rarity === 'epic') mult *= 0.85;
+      if (rarity === 'legendary') mult *= 0.7;
     }
-    return 1.0;
+    // Ascension modifiers
+    if (this.ascensionState) {
+      const shift = this.ascensionState.lootQualityShift[rarity];
+      if (shift) mult *= shift;
+    }
+    return mult;
   }
 
   getWeaponWeightMult(weaponTags: string[], weaponElement?: string, buildTags?: string[], biome?: BiomeDef): number {
@@ -209,6 +233,11 @@ export class RunDirector {
       if (template.id === 'swarm' || template.id === 'balanced') mult *= 1.3;
       if (template.id === 'nightmare' || template.id === 'siege') mult *= 0.6;
     }
+    // Ascension modifiers (per-composition weight shifts, e.g. more tank_push at higher levels).
+    if (this.ascensionState) {
+      const shift = this.ascensionState.compositionWeightMult[template.id];
+      if (shift) mult *= shift;
+    }
     return mult;
   }
 
@@ -251,6 +280,12 @@ export class RunDirector {
     // Biome event preferences
     if (biome?.eventDefWeights?.[eventDef.id]) {
       mult *= biome.eventDefWeights[eventDef.id];
+    }
+
+    // Ascension event modifiers
+    if (this.ascensionState) {
+      const shift = this.ascensionState.eventWeightMult[eventDef.id];
+      if (shift) mult *= shift;
     }
 
     return Math.max(0.1, mult);

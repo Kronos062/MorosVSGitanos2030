@@ -17,6 +17,7 @@ import {
 } from '../content/enemies';
 import type { RunDirector } from './runDirector';
 import type { BiomeDef } from '../content/biomes';
+import { runRandom } from './random';
 import type { PlayerState } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -369,6 +370,12 @@ export class EnemyDirector {
       this.memory.rememberEnemy(e.id);
     }
 
+    // Safety: NEVER return an empty list — that would soft-lock the room.
+    if (enemies.length === 0) {
+      const fallback = ENEMIES.filter((e) => e.role === 'fodder')[0] ?? ENEMIES[0];
+      enemies.push(this.scaleEnemy(fallback, map));
+    }
+
     return enemies;
   }
 
@@ -467,7 +474,7 @@ export class EnemyDirector {
 
   private weightedPick<T>(items: Array<{ weight: number; [key: string]: T | number }>): T {
     const total = items.reduce((s, i) => s + i.weight, 0);
-    let r = Math.random() * total;
+    let r = runRandom.next('encounter') * total;
     for (const item of items) {
       r -= item.weight;
       if (r <= 0) return Object.values(item)[0] as T;

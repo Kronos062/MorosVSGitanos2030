@@ -7,6 +7,8 @@
    • getWeapon / getGenerated — retrieval helpers
    ====================================================================== */
 
+import { runRandom } from '../game/random';
+
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 /* ------------------------------------------------------------------ */
@@ -233,7 +235,7 @@ function affixCompatible(a: AffixDef, base: WeaponBase): boolean {
 export function pickCompatibleAffix(base: WeaponBase): AffixDef | undefined {
   const pool = AFFIXES.filter((a) => affixCompatible(a, base));
   if (pool.length === 0) return undefined;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[runRandom.int('loot', pool.length)];
 }
 
 /** Probability a weapon of a given quality rolls an affix. */
@@ -326,7 +328,7 @@ export function rollQuality(highTier: boolean, mapNumber = 1, totalMaps = 10): R
   }));
 
   const total = pool.reduce((s, q) => s + q.weight, 0);
-  let r = Math.random() * total;
+  let r = runRandom.next('loot') * total;
   for (const q of pool) {
     r -= q.weight;
     if (r <= 0) return q.rarity;
@@ -456,11 +458,11 @@ export function pickRandomWeaponId(
   const pool = highTier
     ? WEAPON_BASES.filter((b) => ['rare', 'epic', 'legendary'].includes(b.baseRarity))
     : WEAPON_BASES;
-  const base = pool[Math.floor(Math.random() * pool.length)] ?? WEAPON_BASES[0];
+  const base = pool[runRandom.int('loot', pool.length)] ?? WEAPON_BASES[0];
   const quality = rollQuality(highTier, mapNumber, totalMaps);
 
   let affixId: string | null = null;
-  if (Math.random() < (AFFIX_CHANCE[quality] ?? 0)) {
+  if (runRandom.next('loot') < (AFFIX_CHANCE[quality] ?? 0)) {
     const affix = pickCompatibleAffix(base);
     if (affix) affixId = affix.id;
   }

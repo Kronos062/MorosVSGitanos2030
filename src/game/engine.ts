@@ -3,6 +3,7 @@ import {
   getWeapon,
   generateWeapon,
   registerGenerated,
+  getBaseWeapon,
   type GeneratedWeapon,
 } from '../content/weapons';
 import { BOSSES, getEnemy, type EnemyDef } from '../content/enemies';
@@ -51,9 +52,12 @@ import type {
 import { audio } from './audio';
 import { DEFAULT_BINDINGS, type PermanentUpgrades } from './persistence';
 import { EnemyDirector, type DirectorContext } from './enemyDirector';
-import { EventDirector } from './eventDirector';
+import { EventDirector, EVENT_DEFS } from './eventDirector';
 import { RunDirector, type RunTelemetry } from './runDirector';
 import { pickBiomeForMap, type BiomeDef } from '../content/biomes';
+import { getBossPhases } from '../content/bosses';
+import { getAscensionLevel } from '../content/ascension';
+import { createRunSeed, runRandom } from './random';
 
 const ROOM_W = 900;
 const ROOM_H = 700;
@@ -170,8 +174,15 @@ export class GameEngine {
   private enemyDirector = new EnemyDirector();
   private eventDirector = new EventDirector();
   private runDirector = new RunDirector();
+  private ascensionLevel = 0;
   private characterId = 'tariq';
   private pendingSkills: SkillChoice[] | null = null;
+  /** Extra level-ups gained in the same XP grant (e.g. a big boss kill) that
+   *  still need their own skill-choice prompt. Without this, granting enough
+   *  XP to cross two level thresholds at once would fire the level-up
+   *  callback twice synchronously and silently drop one skill reward, since
+   *  only the last call's choices would end up visible. */
+  private queuedLevelUps = 0;
   /** Skills acquired this run — reapplied every recalc so they persist and
    *  flow through the global Stat Balance layer like every other source. */
   private acquiredSkills: SkillDef[] = [];
@@ -260,6 +271,46 @@ export class GameEngine {
    *  we must still reset pointer.down / Mouse0. Otherwise fire input can get stuck. */
   private onWindowPointerUp = (e: PointerEvent) => this.onPointerUp(e);
 
+  /**
+   * Centralized elemental synergy resolver.
+   * Returns an amplification multiplier (>=1) for the given element, derived
+   * from: equipped set synergies + equipped pet synergyTags. Data-driven,
+   * no per-element hardcoding. Non-matching elements always return 1.
+   */
+  private getElementSynergyMult(element: string): number {
+    let mult = 1;
+
+    // 1) Set synergies: a set that favors `element` boosts that element.
+    const setCounts = new Map<string, number>();
+    for (const slot of EQUIP_SLOTS) {
+      const id = this.player.equipment[slot];
+      if (!id) continue;
+      const eq = getEquipment(id);
+      if (eq.setId) setCounts.set(eq.setId, (setCounts.get(eq.setId) ?? 0) + 1);
+    }
+    for (const [setId, count] of setCounts) {
+      if (count < 2) continue;
+      const def = getSetBonusDef(setId);
+      if (def?.synergy?.element === element) {
+        // synergy.element match — soft amplification, stacks over 2 pieces.
+        mult *= 1 + 0.25 * Math.min(3, count - 1);
+      }
+    }
+
+    // 2) Pet synergy tags: if the pet declares this element it amplifies it.
+    const petDef = this.getEquippedPetDef();
+    if (petDef) {
+      for (const eff of petDef.effects) {
+        if (eff.key === element || eff.synergyTags?.includes(element)) {
+          mult *= 1.2;
+          break;
+        }
+      }
+    }
+
+    return Math.min(2.5, mult);
+  }
+
   setTouchMove(x: number, y: number, active: boolean) {
     this.touchMove = { x, y, active };
   }
@@ -307,11 +358,20 @@ export class GameEngine {
     return () => this.onEventInteractCbs.delete(cb);
   }
 
-  start(characterId: string, upgrades: PermanentUpgrades, bindings?: KeyBindings, petId?: string | null) {
+  start(
+    characterId: string,
+    upgrades: PermanentUpgrades,
+    bindings?: KeyBindings,
+    petId?: string | null,
+    seed?: number | string,
+    ascensionLevel = 0,
+  ) {
     this.characterId = characterId;
     this.upgrades = upgrades;
     if (bindings) this.bindings = { ...bindings };
     this.equippedPetId = petId ?? null;
+    this.ascensionLevel = ascensionLevel;
+    this.runSeed = runRandom.setSeed(seed ?? createRunSeed());
     this.resetRun();
     audio.resume();
     this.running = true;
@@ -341,6 +401,17 @@ export class GameEngine {
     return this.running;
   }
 
+  /** True if a skill-choice prompt is still pending (e.g. a queued extra
+   *  level-up from the same XP grant). Callers should not force the screen
+   *  back to 'playing' while this is true. */
+  hasPendingSkillChoice(): boolean {
+    return this.pendingSkills !== null;
+  }
+
+  getRunSeed(): number {
+    return this.runSeed;
+  }
+
   applySkill(skillId: string) {
     const skill = SKILLS.find((s) => s.id === skillId);
     if (!skill) return;
@@ -351,6 +422,16 @@ export class GameEngine {
     this.recalcStats();
     if (grantsMaxHp) this.player.hp = this.player.maxHp;
     this.pendingSkills = null;
+    if (this.queuedLevelUps > 0) {
+      // Another level gained in the same XP grant is still waiting for its
+      // own choice — present it now instead of resuming play.
+      this.queuedLevelUps -= 1;
+      const choices = pickSkillChoices(3);
+      this.pendingSkills = choices;
+      for (const cb of this.onLevelUpCbs) cb(choices);
+      this.pushStats();
+      return;
+    }
     this.resume();
     this.pushStats();
   }
@@ -390,7 +471,11 @@ export class GameEngine {
       multiplier: this.comboMultiplier(),
       weaponName: w.name,
       weaponColor: w.color,
-      boss: boss ? { name: boss.name, hp: boss.hp, maxHp: boss.maxHp } : null,
+      boss: boss ? (() => {
+        const phases = getBossPhases(boss.defId);
+        const idx = Math.max(0, (boss.currentPhase ?? 1) - 1);
+        return { name: boss.name, hp: boss.hp, maxHp: boss.maxHp, phase: phases[idx]?.name };
+      })() : null,
       weaponPrompt: nw ? { name: getWeapon(nw.weaponId ?? 'pulse_pistol').name, color: nw.color } : null,
       chestPrompt: this.nearestChest ? { name: this.nearestChest.name, color: this.nearestChest.color } : null,
       portalPrompt: this.portal?.active ? { kind: this.portal.kind === 'descent' ? 'Descender' : 'Portal final' } : null,
@@ -792,6 +877,7 @@ export class GameEngine {
         discovered: node.id === 0,
         connections: adjacency.get(node.id) ?? [],
         label: node.label,
+        eventId: (node as any).eventId,
       });
     }
 
@@ -841,21 +927,19 @@ export class GameEngine {
   }
 
   private seededRandom(): () => number {
-    // Per-run seed (fresh at run start) combined with per-map offset.
-    // Guarantees a different layout every new run while remaining
-    // deterministic within a given map, so re-computations are stable.
-    let s = ((this.runSeed || 1) ^ (this.mapNumber * 2654435761)) >>> 0;
-    if (s === 0) s = 1;
-    return () => {
-      s = (s * 16807) % 2147483647;
-      return (s - 1) / 2147483646;
-    };
+    return () => runRandom.next('map');
   }
 
   private fullResetPlayer(charId: string) {
     const char = getCharacter(charId);
     const hpBonus = this.upgrades.permHpLevel * 10;
     const dmgBonus = 1 + this.upgrades.permDamageLevel * 0.05;
+    // Resolve through getBaseWeapon so an unrecognised startingWeapon id
+    // (data typo) falls back to the same default it always has, instead of
+    // recording a phantom id that can never appear as "discovered" in the
+    // armory. See CharacterDef.startingWeapon — this was previously ignored
+    // entirely and every character started with the pulse pistol.
+    const startWeaponId = getBaseWeapon(char.startingWeapon).id;
     this.player = {
       x: 0, y: 0,
       hp: char.stats.hp + hpBonus,
@@ -867,7 +951,7 @@ export class GameEngine {
       facingX: 1, facingY: 0,
       isDashing: false, dashTime: 0, dashCooldown: 0, dashCooldownMax: 1.2,
       xp: 0, level: 1, xpToNext: 40,
-      weaponId: 'pulse_pistol',
+      weaponId: startWeaponId,
       fireCooldown: 0, invuln: 0,
       color: char.sprite.color, glow: char.sprite.glow, name: char.name,
       damageMult: dmgBonus,
@@ -877,7 +961,7 @@ export class GameEngine {
       critDamageMult: 2,
     };
     this.recalcStats();
-    for (const cb of this.onWeaponDiscoverCbs) cb('pulse_pistol');
+    for (const cb of this.onWeaponDiscoverCbs) cb(startWeaponId);
   }
 
   private newMapLayout() {
@@ -979,6 +1063,7 @@ export class GameEngine {
       equippedSets: Object.keys(setCounts),
       equippedPetId: this.equippedPetId,
       petElement: petDef?.effects.find((e) => e.key)?.key,
+      ascensionLevel: this.ascensionLevel,
     };
   }
 
@@ -1014,12 +1099,16 @@ export class GameEngine {
     const count = theme.particleDensity ?? 25;
     for (let i = 0; i < count; i++) {
       this.biomeParticles.push({
-        x: Math.random() * (this.worldW || 2000),
-        y: Math.random() * (this.worldH || 2000),
-        vx: (Math.random() - 0.5) * 18,
-        vy: theme.particleType === 'embers' ? -25 - Math.random() * 25 : (Math.random() - 0.5) * 20,
-        size: theme.particleType === 'embers' ? 2 + Math.random() * 3 : 2 + Math.random() * 2,
-        alpha: 0.3 + Math.random() * 0.5,
+        x: runRandom.next('visual') * (this.worldW || 2000),
+        y: runRandom.next('visual') * (this.worldH || 2000),
+        vx: (runRandom.next('visual') - 0.5) * 18,
+        vy: theme.particleType === 'embers'
+          ? -25 - runRandom.next('visual') * 25
+          : (runRandom.next('visual') - 0.5) * 20,
+        size: theme.particleType === 'embers'
+          ? 2 + runRandom.next('visual') * 3
+          : 2 + runRandom.next('visual') * 2,
+        alpha: 0.3 + runRandom.next('visual') * 0.5,
       });
     }
   }
@@ -1034,7 +1123,7 @@ export class GameEngine {
       p.y += p.vy * dt;
       if (theme.particleType === 'embers' && p.y < 0) {
         p.y = wh;
-        p.x = Math.random() * ww;
+        p.x = runRandom.next('visual') * ww;
       } else {
         if (p.x < 0) p.x = ww;
         if (p.x > ww) p.x = 0;
@@ -1046,23 +1135,27 @@ export class GameEngine {
 
   private resetRun() {
     this.mapNumber = 1;
-    // Fresh random seed for this run — every new run gets a distinct layout.
-    this.runSeed = (Math.floor(Math.random() * 2147483646) + 1) >>> 0;
+    // start() initializes the shared PRNG; retain that seed for the full run.
+    this.runSeed = runRandom.getSeed();
     // Fresh Loot Director memory so anti-dup state doesn't leak between runs.
     this.lootMemory.reset();
     // Fresh Enemy Director state so intensity/memory doesn't leak between runs.
     this.enemyDirector.reset();
     this.eventDirector.resetRun();
     this.runDirector.resetRun();
+    this.runDirector.setAscensionLevel(this.ascensionLevel);
     // Fresh skill list for the new run.
     this.acquiredSkills = [];
+    this.queuedLevelUps = 0;
     this.score = 0;
     this.kills = 0;
     this.combo = 0;
     this.comboTimer = 0;
     this.wave = 0;
     this.ended = null;
-    this.goldEarned = 0;
+    // Ascension "starting gold bonus" (per-level perk, was computed but never
+    // granted anywhere — see AscensionLevel.startingGoldBonus).
+    this.goldEarned = getAscensionLevel(this.ascensionLevel).startingGoldBonus;
     this.pendingSkills = null;
     this.pendingItemPickup = null;
     this.fullResetPlayer(this.characterId);
@@ -1222,6 +1315,8 @@ export class GameEngine {
     if (p.isDashing) {
       speed *= 3.2;
       p.dashTime -= dt;
+      // Game feel: dash trail particles.
+      this.burst(p.x, p.y, p.color, 1);
       if (p.dashTime <= 0) p.isDashing = false;
     }
 
@@ -1371,7 +1466,9 @@ export class GameEngine {
     room.discovered = true;
     this.roomCombatActive = false;
     this.roomWave = 0;
-    // Record activation time so the director's context can measure room duration.
+    this.currentEvent = null;
+    this.challengeFailed = false;
+    this.challengeTimer = 0;
     (room as any)._activatedAt = this.worldTime;
     this.enemies = [];
     this.enemiesToSpawn = [];
@@ -1388,9 +1485,29 @@ export class GameEngine {
       return;
     }
     if (room.kind === 'event') {
+      const evId = room.eventId ?? (room as any).eventId;
+      if (!evId) {
+        // Safety fallback: no event ID → treat as a normal combat room.
+        this.roomCombatActive = true;
+        this.roomWaveTotal = COMBAT_WAVES;
+        this.roomWave = 0;
+        this.wave = room.id;
+        this.startNextWave(room);
+        return;
+      }
+      const eventDef = EVENT_DEFS.find((e) => e.id === evId);
+      if (!eventDef) {
+        // Safety fallback: invalid event ID → treat as combat room.
+        this.roomCombatActive = true;
+        this.roomWaveTotal = COMBAT_WAVES;
+        this.roomWave = 0;
+        this.wave = room.id;
+        this.startNextWave(room);
+        return;
+      }
       const rng = this.seededRandom();
       const instance = this.eventDirector.generateInstance(
-        (room as any).eventId,
+        evId,
         {
           mapNumber: this.mapNumber,
           directedWeapon: (t) => this.directedWeapon(t),
@@ -1494,7 +1611,7 @@ export class GameEngine {
       weight: this.currentBiome?.bossWeights?.[b.id] ?? 1,
     }));
     const totalW = bossPool.reduce((s, x) => s + x.weight, 0);
-    let r = Math.random() * totalW;
+    let r = runRandom.next('encounter') * totalW;
     let chosenBoss = BOSSES[Math.min(2, Math.floor(room.id / 2)) % BOSSES.length];
     for (const item of bossPool) {
       r -= item.weight;
@@ -1540,18 +1657,27 @@ export class GameEngine {
     const room = this.rooms.find((r) => r.id === this.currentRoomId);
     if (!room) return;
 
-    if (this.roomCombatActive && room.status === 'active') {
-      if (this.currentEvent?.combatRules?.timeLimit && !this.challengeFailed) {
-        this.challengeTimer -= dt;
-        if (this.challengeTimer <= 0) {
-          this.challengeFailed = true;
+    if (room.status === 'active') {
+      if (this.roomCombatActive) {
+        if (this.currentEvent?.combatRules?.timeLimit && !this.challengeFailed) {
+          this.challengeTimer -= dt;
+          if (this.challengeTimer <= 0) {
+            this.challengeFailed = true;
+          }
         }
-      }
 
-      if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
-        if ((room.kind === 'combat' || room.kind === 'event') && this.roomWave < this.roomWaveTotal) {
-          this.startNextWave(room);
-        } else {
+        if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
+          if ((room.kind === 'combat' || room.kind === 'event') && this.roomWave < this.roomWaveTotal) {
+            this.startNextWave(room);
+          } else {
+            this.clearRoom(room);
+          }
+        }
+      } else {
+        // SAFETY NET: room is 'active' but combat was never started (or crashed).
+        // This catches ANY edge case where activateRoom failed to set up combat
+        // or interactive content. Auto-clear to prevent permanent stuck state.
+        if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
           this.clearRoom(room);
         }
       }
@@ -1715,7 +1841,7 @@ export class GameEngine {
     // chest reward on combat clear
     if (room.kind === 'combat') {
       this.spawnChest('chest_street', room.bounds.x + room.bounds.w / 2, room.bounds.y + room.bounds.h / 2, room.id);
-      if (Math.random() < 0.3) {
+      if (runRandom.next('loot') < 0.3) {
         const eq = this.directedEquipment('reward');
         this.spawnPickup(room.bounds.x + room.bounds.w / 2 + 30, room.bounds.y + room.bounds.h / 2 - 20, 'item', eq.color, 0, undefined, eq.genId);
       }
@@ -1744,8 +1870,8 @@ export class GameEngine {
     const room = this.rooms.find((r) => r.id === this.currentRoomId) ?? this.rooms[0];
     const b = room.bounds;
     const margin = 70;
-    let x = b.x + margin + Math.random() * (b.w - margin * 2);
-    let y = b.y + margin + Math.random() * (b.h - margin * 2);
+    let x = b.x + margin + runRandom.next('encounter') * (b.w - margin * 2);
+    let y = b.y + margin + runRandom.next('encounter') * (b.h - margin * 2);
     if (Math.hypot(x - this.player.x, y - this.player.y) < 160) {
       x = this.player.x < b.x + b.w / 2 ? b.x + b.w - margin : b.x + margin;
       y = this.player.y < b.y + b.h / 2 ? b.y + b.h - margin : b.y + margin;
@@ -1776,6 +1902,8 @@ export class GameEngine {
       hitFlash: 0,
       spawnAnim: 0.4,
       isBoss: isBoss || def.tags.includes('boss'),
+      currentPhase: 0,
+      phaseInvuln: 0,
     });
   }
 
@@ -1791,12 +1919,14 @@ export class GameEngine {
     for (let b = 0; b < burstN; b++) {
       const burstDelay = (b / burstN) * 0.03; // tiny micro-delay for visual burst
       for (let i = 0; i < count; i++) {
-        const spread = (i - half) * w.spread + (Math.random() - 0.5) * w.spread * 0.3;
+        const spread =
+          (i - half) * w.spread +
+          (runRandom.next('combat') - 0.5) * w.spread * 0.3;
         const ang = baseAngle + spread;
-        const crit = Math.random() < p.critChance;
+        const crit = runRandom.next('combat') < p.critChance;
         // "Unstable" affix: erratic damage between -25% and +75%.
-        const unstableMult = w.unstable ? 0.75 + Math.random() * 1.0 : 1;
-        const dmg = w.damage * p.damageMult * (crit ? 2 : 1) * unstableMult;
+        const unstableMult = w.unstable ? 0.75 + runRandom.next('combat') : 1;
+        const dmg = w.damage * p.damageMult * (crit ? p.critDamageMult : 1) * unstableMult;
         const size = (w.projectileSize + p.projectileSizeBonus + (crit ? 2 : 0)) * (w.sizeMult ?? 1);
         this.projectiles.push({
           id: this.nextId++,
@@ -1822,6 +1952,8 @@ export class GameEngine {
         });
       }
     }
+    // Game feel: muzzle flash on fire.
+    this.muzzleFlash(p.x, p.y, Math.atan2(dy, dx), w.color);
     audio.play(w.sound);
   }
 
@@ -1860,34 +1992,43 @@ export class GameEngine {
     this.projectiles = next;
   }
 
-  /** Applies weapon-affix effects when a player projectile hits an enemy. */
+  /** Applies weapon-affix effects when a player projectile hits an enemy.
+   *  Also fires game-feel hit feedback (scaled by damage). */
   private applyProjectileAffix(pr: Projectile, e: EnemyEntity) {
     // Weapon-local lifesteal (independent from item lifesteal).
     if (pr._lifesteal && pr._lifesteal > 0) {
       this.player.hp = Math.min(this.player.maxHp, this.player.hp + pr.damage * pr._lifesteal);
     }
     // Elemental status
-    if (pr._element && (pr._elementChance === undefined || Math.random() < pr._elementChance)) {
+    if (
+      pr._element &&
+      (pr._elementChance === undefined || runRandom.next('combat') < pr._elementChance)
+    ) {
+      const elemSyn = pr._element ? this.getElementSynergyMult(pr._element) : 1;
       switch (pr._element) {
         case 'fire':
         case 'radiant':
-          e.burnTimer = 3;
-          e.burnDps = Math.max(2, pr.damage * 0.2);
+          e.burnTimer = 3 * elemSyn;
+          e.burnDps = Math.max(2, pr.damage * 0.2 * elemSyn);
           break;
         case 'toxic':
         case 'dark':
-          e.poisonTimer = 4;
-          e.poisonDps = Math.max(2, pr.damage * 0.15);
+          e.poisonTimer = 4 * elemSyn;
+          e.poisonDps = Math.max(2, pr.damage * 0.15 * elemSyn);
           break;
         case 'ice':
-          e.slowTimer = 2.5;
+          e.slowTimer = 2.5 * elemSyn;
           break;
         case 'electric':
           break; // chaining handled below
       }
     }
     // Chain lightning
-    if (pr._chain && pr._chain > 0 && (pr._chainChance === undefined || Math.random() < pr._chainChance)) {
+    if (
+      pr._chain &&
+      pr._chain > 0 &&
+      (pr._chainChance === undefined || runRandom.next('combat') < pr._chainChance)
+    ) {
       let remaining = pr._chain;
       const alreadyHit = new Set<number>([e.id]);
       let sourceX = e.x;
@@ -1927,6 +2068,40 @@ export class GameEngine {
     }
   }
 
+  /** Boss phase transition check — data-driven, called once per frame per boss. */
+  private checkBossPhase(e: EnemyEntity): void {
+    const phases = getBossPhases(e.defId);
+    if (phases.length === 0) return;
+    const hpPct = e.hp / e.maxHp;
+    // Walk phases in descending hpThreshold order and activate the first match.
+    for (let i = phases.length - 1; i >= 0; i--) {
+      if (hpPct <= phases[i].hpThreshold && (e.currentPhase ?? 0) < i + 1) {
+        e.currentPhase = i + 1;
+        const ph = phases[i];
+        if (ph.phaseInvuln) e.phaseInvuln = ph.phaseInvuln;
+        if (ph.speedMult) e.speed *= ph.speedMult;
+        if (ph.damageMult) e.damage = Math.floor(e.damage * ph.damageMult);
+        if (ph.attackCooldownMult) e.attackCooldown *= ph.attackCooldownMult;
+        if (ph.colorOverride) e.color = ph.colorOverride;
+        if (ph.glowOverride) e.glow = ph.glowOverride;
+        this.burst(e.x, e.y, e.color, 20);
+        this.camera.shake = Math.min(0.8, this.camera.shake + 0.4);
+        audio.play('explosion');
+        // Spawn adds from data
+        if (ph.adds) {
+          for (const add of ph.adds) {
+            const def = getEnemy(add.defId);
+            if (!def) continue;
+            for (let n = 0; n < add.count; n++) {
+              this.spawnEnemyInRoom(def, def.tags.includes('boss') || def.tags.includes('miniboss'));
+            }
+          }
+        }
+        break;
+      }
+    }
+  }
+
   private updateEnemies(dt: number) {
     const p = this.player;
     const room = this.rooms.find((r) => r.id === this.currentRoomId);
@@ -1934,17 +2109,21 @@ export class GameEngine {
       if (e.spawnAnim > 0) e.spawnAnim -= dt;
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.attackTimer > 0) e.attackTimer -= dt;
+      if (e.phaseInvuln && e.phaseInvuln > 0) e.phaseInvuln -= dt;
+
+      // Boss phase transitions — checked every frame for bosses.
+      if (e.isBoss) this.checkBossPhase(e);
 
       // Affix damage-over-time / control status ticking (engine-generic).
       if (e.burnTimer && e.burnTimer > 0) {
         e.burnTimer -= dt;
         e.hp -= (e.burnDps ?? 0) * dt;
-        if (Math.random() < dt * 6) this.burst(e.x, e.y, '#ff6a00', 1);
+        if (runRandom.next('visual') < dt * 6) this.burst(e.x, e.y, '#ff6a00', 1);
       }
       if (e.poisonTimer && e.poisonTimer > 0) {
         e.poisonTimer -= dt;
         e.hp -= (e.poisonDps ?? 0) * dt;
-        if (Math.random() < dt * 6) this.burst(e.x, e.y, '#9dff00', 1);
+        if (runRandom.next('visual') < dt * 6) this.burst(e.x, e.y, '#9dff00', 1);
       }
       let slowFactor = 1;
       if (e.slowTimer && e.slowTimer > 0) {
@@ -2030,7 +2209,8 @@ const spd = e.speed * slowFactor;
     // Corridors are safe transition zones (also covered by invuln while inside).
     if (this.inCorridor || this.isPlayerInCorridor()) return;
     if (p.invuln > 0 || p.isDashing) return;
-    const dmg = Math.max(1, amount - p.armor);
+    const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
+    const dmg = Math.max(1, amount * ascDmgMult - p.armor);
 
     if (this.currentEvent?.combatRules?.noDamage) {
       this.challengeFailed = true;
@@ -2040,15 +2220,28 @@ const spd = e.speed * slowFactor;
       p.shield -= 1;
       p.invuln = 0.4;
       audio.play('hit');
-      this.burst(p.x, p.y, '#00f0ff', 6);
+      // Game feel: bigger shield-break burst with ring effect.
+      this.burstJuice(p.x, p.y, '#00f0ff', 10, 1.2, 0.1);
+      this.camera.shake = Math.max(this.camera.shake, 0.2);
       return;
     }
+    // Game feel: screen shake scales with damage severity; more burst on heavy hits.
+    const heavy = dmg > 18;
     p.hp -= dmg;
     p.invuln = 0.5;
-    this.camera.shake = 0.35;
+    this.camera.shake = heavy ? 0.55 : 0.35;
     audio.play('hurt');
     this.enemyDirector.onDamageTaken(dmg);
-    this.burst(p.x, p.y, '#ff2a4b', 10);
+    if (heavy) {
+      this.burstJuice(p.x, p.y, '#ff2a4b', 18, 1.3, 0.15);
+    } else {
+      this.burst(p.x, p.y, '#ff2a4b', 10);
+    }
+    // Near-death flash: when player drops below 25% HP.
+    if (p.hp > 0 && p.hp < p.maxHp * 0.25) {
+      this.burstJuice(p.x, p.y, '#ff2a4b', 14, 1.8, 0.2);
+      this.camera.shake = 0.6;
+    }
     if (p.hp <= 0) {
       p.hp = 0;
       this.endRun('defeat');
@@ -2062,11 +2255,20 @@ const spd = e.speed * slowFactor;
         if (pr.pierced.has(e.id)) continue;
         const d = Math.hypot(pr.x - e.x, pr.y - e.y);
         if (d < e.size + pr.size) {
+          // Boss phase invulnerability: reject hit, don't register pierce.
+          if (e.phaseInvuln && e.phaseInvuln > 0) { continue; }
           e.hp -= pr.damage;
           e.hitFlash = 0.1;
           pr.pierced.add(e.id);
           audio.play('hit');
-          this.burst(pr.x, pr.y, pr.color, 4);
+          // Game feel: bigger crit burst and small camera jitter on any hit.
+          const isCrit = pr.color === '#ffe14a';
+          if (isCrit) {
+            this.burstJuice(pr.x, pr.y, '#ffe14a', 10, 1.3, 0.15);
+            this.camera.shake = Math.max(this.camera.shake, 0.15);
+          } else {
+            this.burst(pr.x, pr.y, pr.color, 4);
+          }
           this.applyProjectileAffix(pr, e);
           if (e.hp <= 0) this.killEnemy(e);
           // explosion on first hit if projectile has it
@@ -2111,8 +2313,17 @@ const spd = e.speed * slowFactor;
     this.grantXp(Math.round(e.xp * this.petXpMult()));
 
     audio.play('kill');
-    this.burst(e.x, e.y, e.color, 14);
-    this.camera.shake = Math.min(0.6, this.camera.shake + (e.isBoss ? 0.5 : 0.15));
+    // Game feel: juicier kill burst and combo milestone pulse.
+    if (e.isBoss) {
+      this.burstJuice(e.x, e.y, e.color, 30, 1.5, 0.25);
+      this.camera.shake = 0.7;
+    } else {
+      this.burstJuice(e.x, e.y, e.color, 18, 1.2, 0.1);
+    }
+    if (this.combo > 0 && this.combo % 5 === 0) {
+      this.burstJuice(this.player.x, this.player.y, '#ffe14a', 12, 1.6, 0.2);
+      this.camera.shake = Math.max(this.camera.shake, 0.25);
+    }
     for (const cb of this.onKillCbs) cb(e.defId);
 
     if (this.player.lifesteal > 0) {
@@ -2145,7 +2356,9 @@ const spd = e.speed * slowFactor;
       switch (cat) {
         case 'gold':
         case 'heal':
-          if (Math.random() < 0.85 * luck) this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
+          if (runRandom.next('loot') < 0.85 * luck) {
+            this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
+          }
           break;
         case 'shield':
           this.spawnPickup(e.x - 10, e.y + 8, 'shield', '#00f0ff', 1);
@@ -2165,19 +2378,36 @@ const spd = e.speed * slowFactor;
           break;
       }
       // Small independent chance for bonus coins on top (feels lively).
-      if (Math.random() < 0.12 * luck) this.spawnPickup(e.x + 10, e.y, 'score', '#ffe14a', 50);
+      if (runRandom.next('loot') < 0.12 * luck) {
+        this.spawnPickup(e.x + 10, e.y, 'score', '#ffe14a', 50);
+      }
     }
   }
 
   private grantXp(amount: number) {
     const p = this.player;
-    p.xp += amount;
+    // Ascension "XP multiplier" (was computed but never applied anywhere —
+    // see AscensionLevel.xpMult).
+    const xpMult = this.runDirector.getAscensionState()?.xpMult ?? 1;
+    p.xp += amount * xpMult;
+    let levelsGained = 0;
     while (p.xp >= p.xpToNext) {
       p.xp -= p.xpToNext;
       p.level += 1;
       p.xpToNext = Math.floor(40 + p.level * 25);
       p.hp = Math.min(p.maxHp, p.hp + 15);
+      levelsGained += 1;
       audio.play('levelup');
+      this.burstJuice(p.x, p.y, '#ffe14a', 16, 1.5, 0.15);
+      this.burstJuice(p.x, p.y, '#b04dff', 10, 1.8, 0.1);
+      this.camera.shake = Math.max(this.camera.shake, 0.3);
+    }
+    if (levelsGained > 0) {
+      // Present one skill-choice prompt per level gained, one at a time —
+      // extras are queued and surfaced after the current choice is made
+      // (see applySkill), instead of firing the callback multiple times
+      // synchronously and losing every choice but the last.
+      this.queuedLevelUps += levelsGained - 1;
       const choices = pickSkillChoices(3);
       this.pendingSkills = choices;
       this.running = false;
@@ -2202,7 +2432,7 @@ const spd = e.speed * slowFactor;
     this.pickups.push({
       id: this.nextId++, x, y, kind, color, value,
       weaponId, itemId,
-      bob: Math.random() * Math.PI * 2, life,
+      bob: runRandom.next('visual') * Math.PI * 2, life,
     });
   }
 
@@ -2243,13 +2473,13 @@ const spd = e.speed * slowFactor;
       : chest.defId === 'chest_armory' ? 'chest_rare'
       : 'chest_common';
 
-    if (Math.random() < def.weaponChance) {
+    if (runRandom.next('loot') < def.weaponChance) {
       const w = this.directedWeapon(chestTable);
       this.spawnPickup(chest.x, chest.y - 18, 'weapon', w.color, 0, w.genId);
       for (const cb of this.onWeaponDiscoverCbs) cb(w.baseId);
     }
     // Equipment drop chance from chest
-    if (Math.random() < (def.highTier ? 0.8 : 0.35)) {
+    if (runRandom.next('loot') < (def.highTier ? 0.8 : 0.35)) {
       const eq = this.directedEquipment(chestTable);
       this.spawnPickup(chest.x + 18, chest.y - 6, 'item', eq.color, 0, undefined, eq.genId);
     }
@@ -2306,11 +2536,16 @@ const spd = e.speed * slowFactor;
         continue;
       }
       if (d < 28 && pk.kind !== 'weapon' && pk.kind !== 'item') {
+        // Game feel: instant pickup burst on collect.
         if (pk.kind === 'heal') {
           p.hp = Math.min(p.maxHp, p.hp + pk.value);
+          this.burst(pk.x, pk.y, '#39ff88', 6);
+          this.camera.shake = Math.max(this.camera.shake, 0.06);
         } else if (pk.kind === 'score') {
           this.score += pk.value;
           this.goldEarned += 5;
+          this.burst(pk.x, pk.y, '#ffe14a', 6);
+          this.camera.shake = Math.max(this.camera.shake, 0.06);
         } else if (pk.kind === 'shield') {
           p.shield += pk.value;
         }
@@ -2477,17 +2712,53 @@ const spd = e.speed * slowFactor;
 
   private burst(x: number, y: number, color: string, n: number) {
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const s = 40 + Math.random() * 120;
+      const a = runRandom.next('visual') * Math.PI * 2;
+      const s = 40 + runRandom.next('visual') * 120;
       this.particles.push({
         x,
         y,
         vx: Math.cos(a) * s,
         vy: Math.sin(a) * s,
-        life: 0.25 + Math.random() * 0.4,
+        life: 0.25 + runRandom.next('visual') * 0.4,
         maxLife: 0.6,
         color,
-        size: 2 + Math.random() * 3,
+        size: 2 + runRandom.next('visual') * 3,
+      });
+    }
+  }
+
+  /** Muzzle flash: compact radial particles facing the aim direction. */
+  private muzzleFlash(x: number, y: number, angle: number, color: string) {
+    for (let i = 0; i < 4; i++) {
+      const a = angle + (runRandom.next('visual') - 0.5) * 0.7;
+      const s = 80 + runRandom.next('visual') * 60;
+      this.particles.push({
+        x: x + Math.cos(angle) * 6,
+        y: y + Math.sin(angle) * 6,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life: 0.06 + runRandom.next('visual') * 0.04,
+        maxLife: 0.12,
+        color,
+        size: 4 + runRandom.next('visual') * 3,
+      });
+    }
+  }
+
+  /** Spawn a burst with extra life and size — for impactful moments. */
+  private burstJuice(x: number, y: number, color: string, n: number, speedMult = 1, lifeBonus = 0) {
+    for (let i = 0; i < n; i++) {
+      const a = runRandom.next('visual') * Math.PI * 2;
+      const s = (40 + runRandom.next('visual') * 120) * speedMult;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life: 0.25 + runRandom.next('visual') * 0.4 + lifeBonus,
+        maxLife: 0.6 + lifeBonus,
+        color,
+        size: 2.5 + runRandom.next('visual') * 3.5,
       });
     }
   }
@@ -2570,8 +2841,9 @@ const spd = e.speed * slowFactor;
           if (pet.timers[tk] <= 0) {
             pet.timers[tk] = eff.interval ?? 0.4;
             const radius = eff.radius ?? 160;
+            const elemSyn = this.getElementSynergyMult('ice');
             for (const e of this.enemies) {
-              if (Math.hypot(e.x - pet.x, e.y - pet.y) < radius) e.slowTimer = 0.8;
+              if (Math.hypot(e.x - pet.x, e.y - pet.y) < radius) e.slowTimer = 0.8 * elemSyn;
             }
           }
           break;
@@ -2583,11 +2855,16 @@ const spd = e.speed * slowFactor;
             pet.timers[tk] = eff.interval ?? 0.9;
             const radius = eff.radius ?? 150;
             const dps = eff.value ?? 6;
+            // Elemental synergy amplifies the pet's applied status too.
+            const elemSyn = eff.key ? this.getElementSynergyMult(eff.key) : 1;
             for (const e of this.enemies) {
               if (Math.hypot(e.x - pet.x, e.y - pet.y) >= radius) continue;
-              if (eff.key === 'fire') { e.burnTimer = 3; e.burnDps = dps; }
-              else if (eff.key === 'toxic') { e.poisonTimer = 4; e.poisonDps = dps; }
-              else if (eff.key === 'ice') { e.slowTimer = 2; }
+              const elemColor = eff.key === 'fire' ? '#ff6a00' : eff.key === 'toxic' ? '#9dff00' : '#6ef0ff';
+              if (eff.key === 'fire') { e.burnTimer = 3 * elemSyn; e.burnDps = dps * elemSyn; }
+              else if (eff.key === 'toxic') { e.poisonTimer = 4 * elemSyn; e.poisonDps = dps * elemSyn; }
+              else if (eff.key === 'ice') { e.slowTimer = 2 * elemSyn; }
+              // Game feel: element status visual feedback on pet apply.
+              this.burst(e.x, e.y, elemColor, 3);
             }
           }
           break;
@@ -2668,6 +2945,10 @@ const spd = e.speed * slowFactor;
     if (this.ended) return;
     this.ended = result;
     this.running = false;
+    // Ascension "end-of-run score multiplier" (was computed but never applied
+    // anywhere — see AscensionLevel.scoreMult).
+    const scoreMult = this.runDirector.getAscensionState()?.scoreMult ?? 1;
+    if (scoreMult !== 1) this.score = Math.round(this.score * scoreMult);
     audio.play(result === 'victory' ? 'levelup' : 'death');
     const stats = this.getStats();
     for (const cb of this.onEndCbs) cb(result, stats);
@@ -2682,8 +2963,12 @@ const spd = e.speed * slowFactor;
     const ctx = this.ctx;
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const shakeX = this.camera.shake > 0 ? (Math.random() - 0.5) * this.camera.shake * 14 : 0;
-    const shakeY = this.camera.shake > 0 ? (Math.random() - 0.5) * this.camera.shake * 14 : 0;
+    const shakeX = this.camera.shake > 0
+      ? (runRandom.next('visual') - 0.5) * this.camera.shake * 14
+      : 0;
+    const shakeY = this.camera.shake > 0
+      ? (runRandom.next('visual') - 0.5) * this.camera.shake * 14
+      : 0;
     const camX = this.camera.x - w / 2 + shakeX;
     const camY = this.camera.y - h / 2 + shakeY;
 
