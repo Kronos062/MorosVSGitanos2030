@@ -129,10 +129,17 @@ export function buyUpgrade(data: SaveData, kind: 'hp' | 'damage', cost: number):
   return next;
 }
 
-export function pushHighScore(data: SaveData, entry: HighScore): SaveData {
-  const highScores = [...data.highScores, entry]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+export function upsertHighScore(data: SaveData, entry: HighScore): SaveData {
+  const idx = data.highScores.findIndex((h) => h.date === entry.date);
+  let highScores: HighScore[];
+  if (idx !== -1) {
+    highScores = [...data.highScores];
+    highScores[idx] = entry;
+    highScores.sort((a, b) => b.score - a.score);
+    highScores = highScores.slice(0, 10);
+  } else {
+    highScores = [...data.highScores, entry].sort((a, b) => b.score - a.score).slice(0, 10);
+  }
   const next = { ...data, highScores };
   writeSave(next);
   return next;

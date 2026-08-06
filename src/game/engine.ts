@@ -7,7 +7,7 @@ import {
   type GeneratedWeapon,
 } from '../content/weapons';
 import { BOSSES, getEnemy, type EnemyDef } from '../content/enemies';
-import { pickSkillChoices, SKILLS, type SkillDef } from '../content/skills';
+import { pickSkillChoices, SKILLS, type SkillDef, type SkillContext } from '../content/skills';
 import { getChest, type ChestDef } from '../content/chests';
 import { getPet, petStatBoosts, type PetDef } from '../content/pets';
 import { balanceStat } from '../content/statBalance';
@@ -17,8 +17,10 @@ import {
   rollLootCategory,
   pickDirectedWeapon,
   pickDirectedEquipment,
+  pickDirectedItem,
   type BuildContext,
 } from './lootDirector';
+import { getItem } from '../content/items';
 import {
   getEquipment,
   generateEquipment,
@@ -69,6 +71,13 @@ const TOTAL_MAPS = 10;
 /** Room counts per map (min..max) — tuned for variety without overwhelming. */
 const MAP_ROOMS_MIN = 7;
 const MAP_ROOMS_MAX = 13;
+/**
+ * Guaranteed floor of combat rooms per map. Generation stays fully random;
+ * this is only a post-generation safety net so a run can never end up with
+ * almost no fighting. Automatically clamped when a layout has fewer
+ * convertible (event) rooms available.
+ */
+const MIN_COMBAT_ROOMS = 5;
 
 function rectsOverlap(a: RoomBounds, b: RoomBounds, pad = 0): boolean {
   return !(
@@ -135,6 +144,14 @@ export class GameEngine {
   private nextId = 1;
   private camera = { x: 0, y: 0, shake: 0 };
   private player!: PlayerState;
+  /**
+   * Damage sources are resolved sequentially inside one fixed update. Keep
+   * the immunity decision stable for that whole collision pass, then activate
+   * the existing i-frame duration after every simultaneous hit was resolved.
+   */
+  private damageBatchActive = false;
+  private damageBatchAcceptsHits = false;
+  private pendingDamageInvuln = 0;
   private projectiles: Projectile[] = [];
   private enemies: EnemyEntity[] = [];
   private pickups: PickupEntity[] = [];
@@ -163,6 +180,15 @@ export class GameEngine {
   private ended: 'victory' | 'defeat' | null = null;
   private goldEarned = 0;
   private mapNumber = 1;
+  /**
+   * Endless cycle counter. 1 = first pass through the 10 maps. Completing the
+   * final map awards victory (recorded exactly as before) and the player may
+   * continue into cycle 2, 3, … Biomes repeat (mapNumber resets to 1) while
+   * every director keeps scaling off `effectiveMapNumber()`.
+   */
+  private cycle = 1;
+  /** Guards the ascension score multiplier so it is applied once per run. */
+  private scoreMultApplied = false;
   private runSeed = 0;
   private portal: PortalEntity | null = null;
   private pendingItemPickup: { pk: PickupEntity } | null = null;
@@ -426,7 +452,7 @@ export class GameEngine {
       // Another level gained in the same XP grant is still waiting for its
       // own choice — present it now instead of resuming play.
       this.queuedLevelUps -= 1;
-      const choices = pickSkillChoices(3);
+      const choices = pickSkillChoices(3, this.buildSkillContext());
       this.pendingSkills = choices;
       for (const cb of this.onLevelUpCbs) cb(choices);
       this.pushStats();
@@ -439,7 +465,7 @@ export class GameEngine {
   getStats(): GameStats {
     if (!this.player) {
       return {
-        hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 40, dashPct: 1,
+        hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
         score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
         weaponName: '', weaponColor: '#00f0ff',
         boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
@@ -498,6 +524,7 @@ export class GameEngine {
       roomsTotal: this.rooms.length,
       mapNumber: this.mapNumber,
       totalMaps: TOTAL_MAPS,
+      cycle: this.cycle,
       biomeName: this.currentBiome?.name ?? 'Distrito Neón',
       biomeIcon: this.currentBiome?.icon ?? '🏙️',
       biomeColor: this.currentBiome?.theme?.wallColor ?? '#00f0ff',
@@ -751,8 +778,16 @@ export class GameEngine {
         node.kind = 'portal';
         node.label = 'Sala vacía';
       } else {
-        const buildTags = this.buildLootContext().weaponTags;
-        const evId = this.eventDirector.pickEvent(this.mapNumber, rng, this.runDirector, buildTags, this.currentBiome);
+        // The EventDirector owns the "is this room an event?" decision: it
+        // applies its own per-map cap and map-scaled probability. Only when it
+        // green-lights an event do we consume one from the pool — otherwise
+        // pickEvent() would turn nearly every remaining room into an event
+        // (it only returns null once the pool is exhausted).
+        let evId: string | null = null;
+        if (this.eventDirector.rollRoomIsEvent(this.mapNumber, rng)) {
+          const buildTags = this.buildLootContext().weaponTags;
+          evId = this.eventDirector.pickEvent(this.mapNumber, rng, this.runDirector, buildTags, this.currentBiome);
+        }
         if (evId) {
           node.kind = 'event';
           (node as any).eventId = evId;
@@ -762,6 +797,30 @@ export class GameEngine {
           node.label = `Calle ${node.id}`;
         }
       }
+    }
+
+    // Step 1c — post-generation validation. Randomness stays fully intact, but
+    // a map must never leave the player without a meaningful amount of combat.
+    // Only event rooms are convertible: start / boss / portal / treasure are
+    // mandatory specials and are never touched, so map connectivity and the
+    // "exactly one boss" invariant are preserved by construction.
+    const combatCount = () => nodes.filter((n) => n.kind === 'combat').length;
+    const convertible = nodes.filter((n) => n.kind === 'event');
+    // Clamp to what is actually convertible so small layouts keep their
+    // specials instead of being stripped down to pure combat.
+    const target = Math.min(MIN_COMBAT_ROOMS, combatCount() + convertible.length);
+    // Shuffle the convertible pool with the same seeded rng → deterministic
+    // per seed, still uniformly random among candidates.
+    for (let i = convertible.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [convertible[i], convertible[j]] = [convertible[j], convertible[i]];
+    }
+    for (const node of convertible) {
+      if (combatCount() >= target) break;
+      node.kind = 'combat';
+      node.label = `Calle ${node.id}`;
+      // Drop the reserved event so the room activates as plain combat.
+      delete (node as any).eventId;
     }
 
     // Extra edges for branching — never touch the boss room, so it stays a leaf.
@@ -950,7 +1009,7 @@ export class GameEngine {
       critChance: char.stats.critChance,
       facingX: 1, facingY: 0,
       isDashing: false, dashTime: 0, dashCooldown: 0, dashCooldownMax: 1.2,
-      xp: 0, level: 1, xpToNext: 40,
+      xp: 0, level: 1, xpToNext: 55,
       weaponId: startWeaponId,
       fireCooldown: 0, invuln: 0,
       color: char.sprite.color, glow: char.sprite.glow, name: char.name,
@@ -1008,6 +1067,23 @@ export class GameEngine {
     return this.equippedPetId ? getPet(this.equippedPetId) : undefined;
   }
 
+  /** Snapshot of the current build for skill filtering (data-only). */
+  private buildSkillContext(): SkillContext {
+    const w = getWeapon(this.player.weaponId);
+    const setCounts = new Map<string, number>();
+    for (const slot of EQUIP_SLOTS) {
+      const id = this.player.equipment[slot];
+      if (!id) continue;
+      const eq = getEquipment(id);
+      if (eq.setId) setCounts.set(eq.setId, (setCounts.get(eq.setId) ?? 0) + 1);
+    }
+    return {
+      weaponTags: w.tags ?? [],
+      weaponElement: w.element,
+      equippedSetIds: Array.from(setCounts.keys()),
+    };
+  }
+
   /** Snapshot of the current build for the Loot Director (data-only). */
   private buildLootContext(): BuildContext {
     const w = getWeapon(this.player.weaponId);
@@ -1019,7 +1095,7 @@ export class GameEngine {
       if (eq.setId) setCounts[eq.setId] = (setCounts[eq.setId] ?? 0) + 1;
     }
     return {
-      mapNumber: this.mapNumber,
+      mapNumber: this.effectiveMapNumber(),
       totalMaps: TOTAL_MAPS,
       weaponTags: w.tags ?? [],
       weaponElement: w.element,
@@ -1044,7 +1120,7 @@ export class GameEngine {
       }
     }
     return {
-      mapNumber: this.mapNumber,
+      mapNumber: this.effectiveMapNumber(),
       totalMaps: TOTAL_MAPS,
       roomsCleared: this.rooms.filter((r) => r.status === 'cleared').length,
       totalKills: this.kills,
@@ -1083,6 +1159,14 @@ export class GameEngine {
     const ctx = this.buildLootContext();
     const { baseId, quality } = pickDirectedEquipment(table, ctx, this.lootMemory, this.runDirector, this.currentBiome);
     return generateEquipment(baseId, quality, `eq_${this.nextId++}`);
+  }
+
+  /** Director-driven static relic (content/items.ts) pick for a given loot-table source. */
+  private directedItem(tableId: string) {
+    const table = getLootTable(tableId);
+    const ctx = this.buildLootContext();
+    const { itemId } = pickDirectedItem(table, ctx, this.lootMemory, this.runDirector);
+    return getItem(itemId);
   }
 
   private initPet() {
@@ -1135,6 +1219,8 @@ export class GameEngine {
 
   private resetRun() {
     this.mapNumber = 1;
+    this.cycle = 1;
+    this.scoreMultApplied = false;
     // start() initializes the shared PRNG; retain that seed for the full run.
     this.runSeed = runRandom.getSeed();
     // Fresh Loot Director memory so anti-dup state doesn't leak between runs.
@@ -1162,13 +1248,50 @@ export class GameEngine {
     this.newMapLayout();
   }
 
+  /**
+   * Difficulty position of the run, counting every completed endless cycle.
+   * Cycle 1 map 3 → 3. Cycle 2 map 3 → 13. Every existing director
+   * (enemy / loot / event / run) already scales off "map number", so feeding
+   * them this value is all Endless needs to keep ramping — no new systems.
+   */
+  private effectiveMapNumber(): number {
+    return this.mapNumber + (this.cycle - 1) * TOTAL_MAPS;
+  }
+
+  getCycle(): number {
+    return this.cycle;
+  }
+
+  /**
+   * Continue the SAME run into the next endless cycle. Player state, score,
+   * build, pet and ascension all carry over untouched — only the world is
+   * rebuilt and the cycle counter rises. Biomes reappear because `mapNumber`
+   * restarts at 1 while difficulty keeps climbing via effectiveMapNumber().
+   */
+  continueEndless() {
+    if (this.ended !== 'victory') return;
+    this.cycle += 1;
+    this.mapNumber = 1;
+    this.ended = null;
+    this.pendingItemPickup = null;
+    this.eventDirector.onNextMap();
+    this.runDirector.onNextMap();
+    this.newMapLayout();
+    this.recalcStats();
+    this.running = true;
+    this.last = performance.now();
+    if (!this.raf) this.raf = requestAnimationFrame(this.tick);
+    audio.resume();
+    this.pushStats();
+  }
+
   private advanceToNextMap() {
     if (this.mapNumber >= TOTAL_MAPS) {
       this.endRun('victory');
       return;
     }
     this.mapNumber += 1;
-    this.score += 200 * this.mapNumber;
+    this.score += 200 * this.effectiveMapNumber();
     // Keep player state, rebuild the map. All ground items disappear on descent.
     this.pendingItemPickup = null;
     this.eventDirector.onNextMap();
@@ -1197,11 +1320,16 @@ export class GameEngine {
     }
     this.acc += realDt;
     let steps = 0;
+    // Batch all damage occurring in the up-to-4 fixed steps of this
+    // visual frame. This fixes the simultaneous-hit bug even when hits
+    // are spread across two fixed steps due to a lag spike.
+    this.beginDamageBatch();
     while (this.acc >= this.fixedDt && steps < 4) {
       this.update(this.fixedDt);
       this.acc -= this.fixedDt;
       steps++;
     }
+    this.endDamageBatch();
     this.render();
     this.pushStats();
   };
@@ -1581,7 +1709,7 @@ export class GameEngine {
       ? this.worldTime - (room as any)._activatedAt
       : 0;
     return {
-      mapNumber: this.mapNumber,
+      mapNumber: this.effectiveMapNumber(),
       roomId: this.currentRoomId,
       totalRunTime: this.worldTime,
       roomTime,
@@ -1619,9 +1747,15 @@ export class GameEngine {
     }
 
     const ctx = this.buildDirectorContext();
-    const adds = this.enemyDirector.generateBossAdds(chosenBoss.id, ctx.mapNumber, this.currentBiome);
+    const adds = this.enemyDirector.generateBossAdds(chosenBoss.id, ctx.mapNumber, this.currentBiome, this.runDirector);
+    // Ascension enemyIntensityMult applies to bosses too.
+    const intMult = this.runDirector.getAscensionState()?.enemyIntensityMult ?? 1;
     const list: EnemyDef[] = [
-      { ...chosenBoss, hp: Math.floor(chosenBoss.hp * (1 + room.id * 0.05)) },
+      {
+        ...chosenBoss,
+        hp: Math.floor(chosenBoss.hp * (1 + room.id * 0.05) * intMult),
+        damage: Math.floor(chosenBoss.damage * intMult),
+      },
       ...adds,
     ];
     this.enemiesToSpawn = list;
@@ -1726,6 +1860,17 @@ export class GameEngine {
         }
       }
     };
+
+    // Character passive (data-driven). Reuses addMods so the passive flows
+    // through the same pipeline as skills/equipment/sets/pet, ending in
+    // the global stat balance layer. No active abilities, no separate
+    // code path — just a permanent set of stat tweaks.
+    if (char.passive) {
+      for (const m of char.passive) {
+        const op = m.op === 'add_pct' ? 'mult' : m.op;
+        addMods([{ stat: m.stat, op, val: m.value }]);
+      }
+    }
 
     // Skills acquired this run (persist across recompute, flow through balance).
     for (const skill of this.acquiredSkills) {
@@ -1964,19 +2109,25 @@ export class GameEngine {
       pr.y += pr.vy * dt;
       pr.life -= dt;
 
-      // Bounce off world edges
-      if (pr._bounceCount && pr._bounceCount > 0) {
-        if (pr.x < 30 || pr.x > this.worldW - 30) {
+      const walkables = this.getAccessibleWalkables();
+      const containingRoom = walkables.find((b) => rectsOverlapPoint(b, pr.x, pr.y, 0));
+
+      // Bounce off the walls of the room/corridor the projectile is
+      // currently in, instead of the edges of the whole generated map —
+      // most projectiles never reached those, which made "bounce" builds
+      // barely functional in practice.
+      if (pr._bounceCount && pr._bounceCount > 0 && containingRoom) {
+        const b = containingRoom;
+        if (pr.x < b.x + 30 || pr.x > b.x + b.w - 30) {
           pr.vx = -pr.vx;
-          pr.x = Math.max(30, Math.min(this.worldW - 30, pr.x));
+          pr.x = Math.max(b.x + 30, Math.min(b.x + b.w - 30, pr.x));
           pr._bounceCount -= 1;
         }
-        if (pr.y < 30 || pr.y > this.worldH - 30) {
+        if (pr.y < b.y + 30 || pr.y > b.y + b.h - 30) {
           pr.vy = -pr.vy;
-          pr.y = Math.max(30, Math.min(this.worldH - 30, pr.y));
+          pr.y = Math.max(b.y + 30, Math.min(b.y + b.h - 30, pr.y));
           pr._bounceCount -= 1;
         }
-        // explosion on last bounce or wall exit
         if (pr._bounceCount <= 0) {
           if (pr._explosionRadius && pr._explosionRadius > 0) {
             this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
@@ -1987,6 +2138,17 @@ export class GameEngine {
 
       if (pr.life <= 0) continue;
       if (pr.x < -200 || pr.y < -200 || pr.x > this.worldW + 200 || pr.y > this.worldH + 200) continue;
+      // Cull projectiles that leave the currently walkable area (room the
+      // player is in/cleared rooms + open corridors), so bullets can't pass
+      // through the wall into an unrelated room. Explode on exit if the
+      // weapon has an explosion radius.
+      const insideWalkable = containingRoom !== undefined || walkables.some((b) => rectsOverlapPoint(b, pr.x, pr.y, pr.size));
+      if (!insideWalkable) {
+        if (pr._explosionRadius && pr._explosionRadius > 0) {
+          this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
+        }
+        continue;
+      }
       next.push(pr);
     }
     this.projectiles = next;
@@ -2074,10 +2236,12 @@ export class GameEngine {
     if (phases.length === 0) return;
     const hpPct = e.hp / e.maxHp;
     // Walk phases in descending hpThreshold order and activate the first match.
+    // Skip phases whose minAscensionLevel exceeds the current run's ascension.
     for (let i = phases.length - 1; i >= 0; i--) {
-      if (hpPct <= phases[i].hpThreshold && (e.currentPhase ?? 0) < i + 1) {
+      const ph = phases[i];
+      if ((ph.minAscensionLevel ?? 0) > this.ascensionLevel) continue;
+      if (hpPct <= ph.hpThreshold && (e.currentPhase ?? 0) < i + 1) {
         e.currentPhase = i + 1;
-        const ph = phases[i];
         if (ph.phaseInvuln) e.phaseInvuln = ph.phaseInvuln;
         if (ph.speedMult) e.speed *= ph.speedMult;
         if (ph.damageMult) e.damage = Math.floor(e.damage * ph.damageMult);
@@ -2204,11 +2368,54 @@ const spd = e.speed * slowFactor;
     if (d < r + 14) this.damagePlayer(e.damage);
   }
 
+  /**
+   * Snapshot the player's immunity at the start of this fixed tick's collision
+   * pass. A roll, corridor immunity, or previously active i-frames reject the
+   * entire batch exactly as before. Otherwise every collision found in this
+   * pass is valid before the new i-frames begin.
+   */
+  private beginDamageBatch() {
+    const p = this.player;
+    this.damageBatchActive = true;
+    this.damageBatchAcceptsHits =
+      !this.ended &&
+      !this.inCorridor &&
+      !this.isPlayerInCorridor() &&
+      p.invuln <= 0 &&
+      !p.isDashing;
+    this.pendingDamageInvuln = 0;
+  }
+
+  /** Activate the same existing i-frame duration after all simultaneous hits. */
+  private endDamageBatch() {
+    if (this.pendingDamageInvuln > 0) {
+      this.player.invuln = Math.max(this.player.invuln, this.pendingDamageInvuln);
+    }
+    this.damageBatchActive = false;
+    this.damageBatchAcceptsHits = false;
+    this.pendingDamageInvuln = 0;
+  }
+
+  private activateDamageInvulnerability(duration: number) {
+    if (this.damageBatchActive) {
+      this.pendingDamageInvuln = Math.max(this.pendingDamageInvuln, duration);
+      return;
+    }
+    this.player.invuln = Math.max(this.player.invuln, duration);
+  }
+
   private damagePlayer(amount: number) {
     const p = this.player;
-    // Corridors are safe transition zones (also covered by invuln while inside).
+    if (this.ended) return;
+    // Corridors are safe transition zones — immediate even inside a batch.
     if (this.inCorridor || this.isPlayerInCorridor()) return;
-    if (p.invuln > 0 || p.isDashing) return;
+    // Roll / dash are immediate immunities. invuln is the only one deferred
+    // across the batch so simultaneous hits stack before i-frames begin.
+    if (p.isDashing) return;
+    const immune = this.damageBatchActive
+      ? !this.damageBatchAcceptsHits
+      : p.invuln > 0;
+    if (immune) return;
     const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
     const dmg = Math.max(1, amount * ascDmgMult - p.armor);
 
@@ -2218,7 +2425,7 @@ const spd = e.speed * slowFactor;
 
     if (p.shield > 0) {
       p.shield -= 1;
-      p.invuln = 0.4;
+      this.activateDamageInvulnerability(0.4);
       audio.play('hit');
       // Game feel: bigger shield-break burst with ring effect.
       this.burstJuice(p.x, p.y, '#00f0ff', 10, 1.2, 0.1);
@@ -2228,7 +2435,7 @@ const spd = e.speed * slowFactor;
     // Game feel: screen shake scales with damage severity; more burst on heavy hits.
     const heavy = dmg > 18;
     p.hp -= dmg;
-    p.invuln = 0.5;
+    this.activateDamageInvulnerability(0.5);
     this.camera.shake = heavy ? 0.55 : 0.35;
     audio.play('hurt');
     this.enemyDirector.onDamageTaken(dmg);
@@ -2347,6 +2554,8 @@ const spd = e.speed * slowFactor;
       for (const cb of this.onWeaponDiscoverCbs) cb(w.baseId);
       this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
       this.spawnPickup(e.x - 10, e.y + 8, 'shield', '#00f0ff', 1);
+      const relic = this.directedItem('enemy_boss');
+      this.spawnPickup(e.x - 20, e.y - 20, 'relic', relic.color, 0, undefined, relic.id);
     } else {
       const def = getEnemy(e.defId);
       const isMiniboss = def?.tags.includes('miniboss') ?? false;
@@ -2374,6 +2583,11 @@ const spd = e.speed * slowFactor;
           this.spawnPickup(e.x + 12, e.y - 12, 'item', eq.color, 0, undefined, eq.genId);
           break;
         }
+        case 'relic': {
+          const it = this.directedItem(table.id);
+          this.spawnPickup(e.x - 12, e.y - 12, 'relic', it.color, 0, undefined, it.id);
+          break;
+        }
         default:
           break;
       }
@@ -2394,7 +2608,7 @@ const spd = e.speed * slowFactor;
     while (p.xp >= p.xpToNext) {
       p.xp -= p.xpToNext;
       p.level += 1;
-      p.xpToNext = Math.floor(40 + p.level * 25);
+      p.xpToNext = Math.floor(55 + p.level * 38);
       p.hp = Math.min(p.maxHp, p.hp + 15);
       levelsGained += 1;
       audio.play('levelup');
@@ -2408,7 +2622,7 @@ const spd = e.speed * slowFactor;
       // (see applySkill), instead of firing the callback multiple times
       // synchronously and losing every choice but the last.
       this.queuedLevelUps += levelsGained - 1;
-      const choices = pickSkillChoices(3);
+      const choices = pickSkillChoices(3, this.buildSkillContext());
       this.pendingSkills = choices;
       this.running = false;
       for (const cb of this.onLevelUpCbs) cb(choices);
@@ -2483,6 +2697,12 @@ const spd = e.speed * slowFactor;
       const eq = this.directedEquipment(chestTable);
       this.spawnPickup(chest.x + 18, chest.y - 6, 'item', eq.color, 0, undefined, eq.genId);
     }
+    // Relic (static content/items.ts) drop chance from chest — reuses the
+    // same Loot Director quality roll and anti-dup memory as everything else.
+    if (runRandom.next('loot') < (def.highTier ? 0.45 : 0.2)) {
+      const relic = this.directedItem(chestTable);
+      this.spawnPickup(chest.x - 18, chest.y - 6, 'relic', relic.color, 0, undefined, relic.id);
+    }
   }
 
   private updatePickups(dt: number) {
@@ -2548,24 +2768,37 @@ const spd = e.speed * slowFactor;
           this.camera.shake = Math.max(this.camera.shake, 0.06);
         } else if (pk.kind === 'shield') {
           p.shield += pk.value;
+        } else if (pk.kind === 'relic' && pk.itemId) {
+          // Static relics (content/items.ts) apply their mods permanently
+          // for the run, reusing the exact same generic pipeline as event
+          // stat_mod rewards: push a synthetic mod entry and recompute.
+          const item = getItem(pk.itemId);
+          this.acquiredSkills.push({
+            id: item.id, name: item.name, description: item.description, icon: item.icon, rarity: item.rarity,
+            mods: item.mods.map((m) => ({ stat: m.stat, op: m.op, value: m.value })),
+          });
+          this.recalcStats();
+          this.camera.shake = Math.max(this.camera.shake, 0.1);
         }
         pk.life = 0;
         audio.play('pickup');
         this.burst(pk.x, pk.y, pk.color, 6);
       }
     }
-    if (this.nearestWeapon && input.interact && !this.nearestChest) {
-      const old = p.weaponId;
-      p.weaponId = this.nearestWeapon.weaponId ?? old;
-      const ow = getWeapon(old);
-      this.spawnPickup(p.x - 20, p.y, 'weapon', ow.color, 0, old);
-      this.nearestWeapon.life = 0;
-      this.nearestWeapon = null;
-      audio.play('pickup');
-      // Re-evaluate stats so set→weapon synergies update to the new weapon.
-      this.recalcStats();
-      for (const cb of this.onWeaponDiscoverCbs) cb(p.weaponId);
-    }
+      if (this.nearestWeapon && input.interact && !this.nearestChest) {
+        const old = p.weaponId;
+        const genId = this.nearestWeapon.weaponId ?? old;
+        // Resolve to baseId for the armory (never store internal gen_ ids).
+        const baseId = getWeapon(genId).baseId ?? genId;
+        p.weaponId = genId;
+        const ow = getWeapon(old);
+        this.spawnPickup(p.x - 20, p.y, 'weapon', ow.color, 0, old);
+        this.nearestWeapon.life = 0;
+        this.nearestWeapon = null;
+        audio.play('pickup');
+        this.recalcStats();
+        for (const cb of this.onWeaponDiscoverCbs) cb(baseId);
+      }
   }
 
   resolveItemPickup(itemId: string, slot: EquipSlot | null) {
@@ -2947,8 +3180,14 @@ const spd = e.speed * slowFactor;
     this.running = false;
     // Ascension "end-of-run score multiplier" (was computed but never applied
     // anywhere — see AscensionLevel.scoreMult).
+    // Applied at most ONCE per run: an endless run can reach endRun() several
+    // times (one victory per completed cycle, then a final defeat), and the
+    // multiplier must not compound on an already-multiplied score.
     const scoreMult = this.runDirector.getAscensionState()?.scoreMult ?? 1;
-    if (scoreMult !== 1) this.score = Math.round(this.score * scoreMult);
+    if (scoreMult !== 1 && !this.scoreMultApplied) {
+      this.score = Math.round(this.score * scoreMult);
+      this.scoreMultApplied = true;
+    }
     audio.play(result === 'victory' ? 'levelup' : 'death');
     const stats = this.getStats();
     for (const cb of this.onEndCbs) cb(result, stats);

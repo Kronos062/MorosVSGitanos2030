@@ -22,6 +22,7 @@ import {
   type AffixDef,
 } from '../content/weapons';
 import { SET_DEFS, type EquipSlot } from '../content/equipment';
+import { ITEMS } from '../content/items';
 import type { RunDirector } from './runDirector';
 import type { BiomeDef } from '../content/biomes';
 import { runRandom } from './random';
@@ -31,7 +32,7 @@ import { runRandom } from './random';
 /*  weights are relative; add new sources by adding new entries.      */
 /* ------------------------------------------------------------------ */
 
-export type LootCategory = 'gold' | 'heal' | 'shield' | 'weapon' | 'equipment' | 'nothing';
+export type LootCategory = 'gold' | 'heal' | 'shield' | 'weapon' | 'equipment' | 'relic' | 'nothing';
 
 export interface LootTableDef {
   id: string;
@@ -46,43 +47,43 @@ export interface LootTableDef {
 export const LOOT_TABLES: LootTableDef[] = [
   {
     id: 'enemy_normal',
-    categories: { gold: 70, heal: 14, shield: 6, weapon: 2, equipment: 2, nothing: 6 },
+    categories: { gold: 70, heal: 14, shield: 6, weapon: 2, equipment: 2, relic: 3, nothing: 6 },
     qualityBias: { common: 1.3, uncommon: 1, rare: 0.7, epic: 0.3, legendary: 0 },
     allowLegendary: false,
   },
   {
     id: 'enemy_miniboss',
-    categories: { gold: 40, heal: 15, shield: 10, weapon: 18, equipment: 15, nothing: 2 },
+    categories: { gold: 40, heal: 15, shield: 10, weapon: 18, equipment: 15, relic: 8, nothing: 2 },
     qualityBias: { common: 0.6, uncommon: 1, rare: 1.2, epic: 0.8, legendary: 0.15 },
     allowLegendary: true,
   },
   {
     id: 'enemy_boss',
-    categories: { gold: 20, heal: 15, shield: 12, weapon: 26, equipment: 24, nothing: 3 },
+    categories: { gold: 20, heal: 15, shield: 12, weapon: 26, equipment: 24, relic: 10, nothing: 3 },
     qualityBias: { common: 0.2, uncommon: 0.8, rare: 1.3, epic: 1.4, legendary: 1.0 },
     allowLegendary: true,
   },
   {
     id: 'chest_common',
-    categories: { gold: 20, heal: 20, shield: 10, weapon: 25, equipment: 25 },
+    categories: { gold: 20, heal: 20, shield: 10, weapon: 25, equipment: 25, relic: 10 },
     qualityBias: { common: 1, uncommon: 1.1, rare: 0.9, epic: 0.4, legendary: 0.1 },
     allowLegendary: false,
   },
   {
     id: 'chest_rare',
-    categories: { heal: 10, shield: 10, weapon: 35, equipment: 45 },
+    categories: { heal: 10, shield: 10, weapon: 35, equipment: 45, relic: 15 },
     qualityBias: { common: 0.4, uncommon: 1, rare: 1.3, epic: 0.9, legendary: 0.3 },
     allowLegendary: true,
   },
   {
     id: 'chest_legendary',
-    categories: { weapon: 45, equipment: 55 },
+    categories: { weapon: 45, equipment: 55, relic: 20 },
     qualityBias: { common: 0, uncommon: 0.4, rare: 1, epic: 1.5, legendary: 1.2 },
     allowLegendary: true,
   },
   {
     id: 'reward',
-    categories: { weapon: 50, equipment: 50 },
+    categories: { weapon: 50, equipment: 50, relic: 15 },
     qualityBias: { common: 0.3, uncommon: 1, rare: 1.2, epic: 1, legendary: 0.5 },
     allowLegendary: true,
   },
@@ -175,11 +176,13 @@ export class LootMemory {
   private recentBases: string[] = [];
   private recentSets: string[] = [];
   private recentAffixes: string[] = [];
+  private recentItems: string[] = [];
 
   reset() {
     this.recentBases = [];
     this.recentSets = [];
     this.recentAffixes = [];
+    this.recentItems = [];
   }
 
   private penalty(list: string[], id: string): number {
@@ -193,10 +196,12 @@ export class LootMemory {
   baseWeight(id: string) { return this.penalty(this.recentBases, id); }
   setWeight(id: string) { return this.penalty(this.recentSets, id); }
   affixWeight(id: string) { return this.penalty(this.recentAffixes, id); }
+  itemWeight(id: string) { return this.penalty(this.recentItems, id); }
 
   rememberBase(id: string) { this.push(this.recentBases, id); }
   rememberSet(id: string) { this.push(this.recentSets, id); }
   rememberAffix(id: string) { this.push(this.recentAffixes, id); }
+  rememberItem(id: string) { this.push(this.recentItems, id); }
 
   private push(list: string[], id: string) {
     list.push(id);
@@ -372,6 +377,40 @@ export function pickDirectedEquipment(
 
   mem.rememberSet(chosen.setId);
   return { baseId: `${chosen.setId}_${slot}`, quality };
+}
+
+/* ------------------------------------------------------------------ */
+/*  RELIC (STATIC ITEM) SELECTION (directed) — reuses content/items.ts */
+/*  Items have a fixed, intrinsic rarity (unlike weapons/equipment,    */
+/*  which scale via a quality tier), so the Director rolls a rarity   */
+/*  first (same map curve / ascension / mood weighting as everything  */
+/*  else) and then picks an item that matches it, with anti-dup decay. */
+/* ------------------------------------------------------------------ */
+
+export function pickDirectedItem(
+  table: LootTableDef,
+  ctx: BuildContext,
+  mem: LootMemory,
+  runDirector?: RunDirector,
+): { itemId: string; rarity: Rarity } {
+  const rarity = rollDirectedQuality(table, ctx, runDirector);
+
+  // Prefer items matching the rolled rarity; fall back to the closest
+  // available tier so a sparsely populated rarity never breaks the roll.
+  let pool = ITEMS.filter((it) => it.rarity === rarity);
+  if (pool.length === 0) pool = ITEMS;
+
+  const weighted = pool.map((it) => ({ item: it, weight: Math.max(0.05, mem.itemWeight(it.id)) }));
+  const total = weighted.reduce((s, p) => s + p.weight, 0);
+  let r = runRandom.next('loot') * total;
+  let chosen = weighted[0].item;
+  for (const p of weighted) {
+    r -= p.weight;
+    if (r <= 0) { chosen = p.item; break; }
+  }
+
+  mem.rememberItem(chosen.id);
+  return { itemId: chosen.id, rarity: chosen.rarity };
 }
 
 /* ------------------------------------------------------------------ */

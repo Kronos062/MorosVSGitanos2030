@@ -351,7 +351,19 @@ export class EnemyDirector {
       this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
     }
 
-    const intensity = this.intensityTracker.getBand();
+    // ── enemyIntensityMult: scales the intensity band used for composition picking.
+    //   The raw intensity comes from the tracker; ascension multiplies it so that
+    //   higher levels push compositions toward harder templates earlier.
+    let effectiveIntensity = this.intensityTracker.getIntensity();
+    const ascState = runDirector?.getAscensionState();
+    if (ascState) {
+      effectiveIntensity *= ascState.enemyIntensityMult;
+    }
+    // Run mood: nudge intensity when the player is stomping ("thriving")
+    // or barely surviving ("struggling"). RunDirector already computes this
+    // delta, it just wasn't being applied anywhere.
+    effectiveIntensity += runDirector?.getEnemyIntensityDelta() ?? 0;
+    const intensity = effectiveIntensity < 30 ? 'low' : effectiveIntensity < 70 ? 'mid' : 'high';
     const map = ctx.mapNumber;
 
     // Pick composition template
@@ -361,7 +373,7 @@ export class EnemyDirector {
     // Build enemy list from template slots
     const enemies: EnemyDef[] = [];
     for (const slot of template.slots) {
-      const picked = this.pickEnemiesForRole(slot.role, slot.count, map, biome);
+      const picked = this.pickEnemiesForRole(slot.role, slot.count, map, biome, runDirector);
       enemies.push(...picked);
     }
 
@@ -379,14 +391,14 @@ export class EnemyDirector {
     return enemies;
   }
 
-  generateBossAdds(_bossId: string, mapNumber: number, biome?: BiomeDef): EnemyDef[] {
+  generateBossAdds(_bossId: string, mapNumber: number, biome?: BiomeDef, runDirector?: RunDirector): EnemyDef[] {
     // Data-driven adds for boss encounters
     const adds: EnemyDef[] = [];
     const addBudget = Math.min(6, 2 + Math.floor(mapNumber / 2));
     const pool = ENEMIES.filter((e) => !e.tags.includes('boss') && !e.tags.includes('miniboss'));
 
     for (let i = 0; i < addBudget; i++) {
-      const def = this.pickEnemyByWeight(pool, mapNumber, biome);
+      const def = this.pickEnemyByWeight(pool, mapNumber, biome, runDirector);
       if (def) adds.push(this.scaleEnemy(def, mapNumber));
     }
 
@@ -419,20 +431,25 @@ export class EnemyDirector {
     return this.weightedPick(weighted);
   }
 
-  private pickEnemiesForRole(role: EnemyDef['role'], count: number, map: number, biome?: BiomeDef): EnemyDef[] {
+  private pickEnemiesForRole(role: EnemyDef['role'], count: number, map: number, biome?: BiomeDef, runDirector?: RunDirector): EnemyDef[] {
     const pool = ENEMIES.filter((e) => e.role === role);
     if (pool.length === 0) return [];
 
     const result: EnemyDef[] = [];
     for (let i = 0; i < count; i++) {
-      const def = this.pickEnemyByWeight(pool, map, biome);
+      const def = this.pickEnemyByWeight(pool, map, biome, runDirector);
       if (def) result.push(this.scaleEnemy(def, map));
     }
     return result;
   }
 
-  private pickEnemyByWeight(pool: EnemyDef[], map: number, biome?: BiomeDef): EnemyDef | null {
+  private pickEnemyByWeight(pool: EnemyDef[], map: number, biome?: BiomeDef, runDirector?: RunDirector): EnemyDef | null {
     if (pool.length === 0) return null;
+
+    // Ascension elite weight: enemies with threat >= 3 (not miniboss/boss)
+    // get a weight multiplier. Normal enemies (threat 1-2) are unaffected.
+    const eliteMult = runDirector?.getAscensionState()?.eliteWeightMult ?? 1;
+    const hasElite = eliteMult > 1;
 
     const weighted = pool.map((e) => {
       let w = 1;
@@ -452,6 +469,11 @@ export class EnemyDirector {
             if (biome.enemyTagWeights[t]) w *= biome.enemyTagWeights[t];
           }
         }
+      }
+
+      // Ascension: boost elite enemies (threat >= 3, not boss/miniboss)
+      if (hasElite && e.threat >= 3 && !e.tags.includes('boss') && !e.tags.includes('miniboss')) {
+        w *= eliteMult;
       }
 
       return { enemy: e, weight: Math.max(0.05, w) };

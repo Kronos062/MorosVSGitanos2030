@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName } from './content/characters';
+import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
 import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
 import { ASCENSION_LEVELS } from './content/ascension';
@@ -17,7 +17,7 @@ import {
   recordKill,
   addGold,
   buyUpgrade,
-  pushHighScore,
+  upsertHighScore,
   setVolume,
   setBinding,
   resetBindings,
@@ -33,7 +33,7 @@ import {
 } from './game/persistence';
 
 const emptyStats: GameStats = {
-  hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 40, dashPct: 1,
+  hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
   score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
   weaponName: '', weaponColor: '#00f0ff',
   boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
@@ -107,10 +107,33 @@ function MinimapView({ data, large = false }: { data: MinimapData; large?: boole
 function BuildPanel({ build }: { build: BuildStats }) {
   type SlotKey = 'helm' | 'chest' | 'pants' | 'boots';
   return (
-    <div style={{ textAlign: 'left', fontSize: '0.85rem' }}>
-      <h3 style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp}/{build.xpToNext}</h3>
+    <div className="build-panel" style={{ textAlign: 'left', fontSize: '0.85rem' }}>
+      <div className="build-layout">
+        <div className="build-column build-player-column">
+          <h3 className="build-player-heading" style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp}/{build.xpToNext}</h3>
 
-      <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
+          <div className="build-section build-stats-section" style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 800, color: '#ffe14a', marginBottom: 8, letterSpacing: '0.1em' }}>ESTADÍSTICAS FINALES</div>
+            <div className="build-grid">
+              <div className="build-cell"><span className="build-cell-label">Vida</span><span className="build-cell-value" style={{ color: '#ff2a4b' }}>{Math.ceil(build.hp)}/{build.maxHp}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Escudo</span><span className="build-cell-value" style={{ color: '#00f0ff' }}>{build.shield}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Armadura</span><span className="build-cell-value">{build.armor}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Velocidad</span><span className="build-cell-value" style={{ color: '#39ff88' }}>{build.speed}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Crítico</span><span className="build-cell-value" style={{ color: '#ffe14a' }}>{Math.round(build.critChance * 100)}%</span></div>
+              <div className="build-cell"><span className="build-cell-label">Robo vida</span><span className="build-cell-value" style={{ color: '#ff2bd6' }}>{Math.round(build.lifesteal * 100)}%</span></div>
+              <div className="build-cell"><span className="build-cell-label">Daño ×</span><span className="build-cell-value" style={{ color: '#ff8800' }}>×{build.damageMult.toFixed(2)}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Cadencia ×</span><span className="build-cell-value" style={{ color: '#00c8ff' }}>×{build.fireRateMult.toFixed(2)}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Perforación +</span><span className="build-cell-value">+{build.pierceBonus}</span></div>
+              <div className="build-cell"><span className="build-cell-label">Proyectiles +</span><span className="build-cell-value">+{build.countBonus}</span></div>
+              {build.bounceBonus > 0 && <div className="build-cell"><span className="build-cell-label">Rebotes +</span><span className="build-cell-value">+{build.bounceBonus}</span></div>}
+              {build.explosionBonus > 0 && <div className="build-cell"><span className="build-cell-label">Explosión +</span><span className="build-cell-value">+{build.explosionBonus}</span></div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="build-column build-loadout-column">
+
+      <div className="build-section build-weapon-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
         <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
         <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
         {build.weaponAffixName && (
@@ -132,14 +155,14 @@ function BuildPanel({ build }: { build: BuildStats }) {
       </div>
 
       {build.hasNearbyWeapon && (
-        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 4 }}>
+        <div className="build-section build-nearby-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 4 }}>
           <div style={{ fontWeight: 800, color: '#00c8ff', marginBottom: 4 }}>🔀 Arma cercana</div>
           <div>{build.nearbyWeaponName}</div>
         </div>
       )}
 
       {/* Equipment slots */}
-      <div style={{ marginBottom: 14 }}>
+      <div className="build-section build-equipment-section" style={{ marginBottom: 14 }}>
         <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>EQUIPO</div>
         {(['helm','chest','pants','boots'] as SlotKey[]).map((slot) => {
           const eq = build.equippedItems.find((e) => e.slot === slot);
@@ -173,7 +196,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
 
       {/* Set synergies */}
       {build.activeSets.length > 0 && (
-        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
+        <div className="build-section build-sets-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
           <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>SINERGIAS DE CONJUNTO</div>
           {build.activeSets.map((s) => {
             const slotKeys: SlotKey[] = ['helm', 'chest', 'pants', 'boots'];
@@ -236,27 +259,11 @@ function BuildPanel({ build }: { build: BuildStats }) {
       )}
 
       {build.equippedItems.length === 0 && (
-        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.05)', border: '1px dashed rgba(176,77,255,0.2)', borderRadius: 4, textAlign: 'center', color: '#94a3b8' }}>
+        <div className="build-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.05)', border: '1px dashed rgba(176,77,255,0.2)', borderRadius: 4, textAlign: 'center', color: '#94a3b8' }}>
           Sin equipo. ¡Ábrelos en cofres o derrota jefes!
         </div>
       )}
-
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontWeight: 800, color: '#ffe14a', marginBottom: 8, letterSpacing: '0.1em' }}>ESTADÍSTICAS FINALES</div>
-        <div className="build-grid">
-          <div className="build-cell"><span className="build-cell-label">Vida</span><span className="build-cell-value" style={{ color: '#ff2a4b' }}>{Math.ceil(build.hp)}/{build.maxHp}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Escudo</span><span className="build-cell-value" style={{ color: '#00f0ff' }}>{build.shield}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Armadura</span><span className="build-cell-value">{build.armor}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Velocidad</span><span className="build-cell-value" style={{ color: '#39ff88' }}>{build.speed}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Crítico</span><span className="build-cell-value" style={{ color: '#ffe14a' }}>{Math.round(build.critChance * 100)}%</span></div>
-          <div className="build-cell"><span className="build-cell-label">Robo vida</span><span className="build-cell-value" style={{ color: '#ff2bd6' }}>{Math.round(build.lifesteal * 100)}%</span></div>
-          <div className="build-cell"><span className="build-cell-label">Daño ×</span><span className="build-cell-value" style={{ color: '#ff8800' }}>×{build.damageMult.toFixed(2)}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Cadencia ×</span><span className="build-cell-value" style={{ color: '#00c8ff' }}>×{build.fireRateMult.toFixed(2)}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Perforación +</span><span className="build-cell-value">+{build.pierceBonus}</span></div>
-          <div className="build-cell"><span className="build-cell-label">Proyectiles +</span><span className="build-cell-value">+{build.countBonus}</span></div>
-          {build.bounceBonus > 0 && <div className="build-cell"><span className="build-cell-label">Rebotes +</span><span className="build-cell-value">+{build.bounceBonus}</span></div>}
-          {build.explosionBonus > 0 && <div className="build-cell"><span className="build-cell-label">Explosión +</span><span className="build-cell-value">+{build.explosionBonus}</span></div>}
-        </div>
+      </div>
       </div>
     </div>
   );
@@ -275,7 +282,22 @@ export default function App() {
   const [factionConfirm, setFactionConfirm] = useState(false);
   const [itemPickup, setItemPickup] = useState<{ item: ItemPickupData; equipped: BuildItemEntry[]; resolve: (slot: EquipSlot | null) => void } | null>(null);
   const [eventData, setEventData] = useState<{ instance: any; resolve: (idx: number | null) => void } | null>(null);
+  // End-of-run unlock summary (computed purely from already-stored save data).
+  const [runUnlocks, setRunUnlocks] = useState<{
+    weapons: string[];
+    bestiary: string[];
+    ascension: number | null;
+    newHighScore: boolean;
+  }>({ weapons: [], bestiary: [], ascension: null, newHighScore: false });
   const joyThumbRef = useRef<HTMLDivElement>(null);
+  // Snapshot of the save taken when a run starts, so the end screen can diff
+  // it against the final save to list only THIS run's unlocks. Reuses the
+  // exact data already persisted (armory / bestiary / ascension / scores).
+  const runStartRef = useRef<{ armory: Record<string, boolean>; bestiary: Record<string, number>; highestAscension: number; topScore: number }>({
+    armory: {}, bestiary: {}, highestAscension: 0, topScore: 0,
+  });
+  const goldAwardedRef = useRef(0);
+  const runIdRef = useRef<string | null>(null);
   const selectedCharRef = useRef(selectedChar);
   selectedCharRef.current = selectedChar;
 
@@ -311,8 +333,20 @@ export default function App() {
       setEndResult(result); setStats(s);
       setScreen(result === 'victory' ? 'victory' : 'gameover');
       setSave((prev) => {
-        let next = addGold(prev, s.goldEarned);
-        next = pushHighScore(next, { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: new Date().toISOString() });
+        // Endless: onEnd fires once per completed cycle + final defeat.
+        // goldEarned is cumulative for the whole run, so only add the delta
+        // since the last onEnd to avoid duplicating rewards.
+        const deltaGold = Math.max(0, s.goldEarned - goldAwardedRef.current);
+        let next = deltaGold > 0 ? addGold(prev, deltaGold) : prev;
+        goldAwardedRef.current = s.goldEarned;
+
+        // High score: one row per run that gets updated each cycle,
+        // instead of pushing a new row per cycle.
+        const runId = runIdRef.current ?? new Date().toISOString();
+        if (!runIdRef.current) runIdRef.current = runId;
+        const entry = { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: runId };
+        next = upsertHighScore(next, entry);
+
         // Unlock next ascension level on victory
         if (result === 'victory') {
           const maxUnlocked = Math.min(prev.activeAscension + 1, 9);
@@ -320,6 +354,16 @@ export default function App() {
             next = { ...next, highestAscension: maxUnlocked };
           }
         }
+        // --- Compute THIS run's unlocks by diffing against the start snapshot.
+        // All data is already persisted; nothing new is stored here. `prev`
+        // already contains every weapon/enemy discovered mid-run (callbacks
+        // updated it), so it's the authoritative final state.
+        const start = runStartRef.current;
+        const newWeapons = Object.keys(prev.armory).filter((id) => prev.armory[id] && !start.armory[id]);
+        const newBestiary = Object.keys(prev.bestiary).filter((id) => (prev.bestiary[id] ?? 0) > 0 && (start.bestiary[id] ?? 0) === 0);
+        const newAscension = next.highestAscension > start.highestAscension ? next.highestAscension : null;
+        const newHighScore = s.score > start.topScore;
+        setRunUnlocks({ weapons: newWeapons, bestiary: newBestiary, ascension: newAscension, newHighScore });
         return next;
       });
     });
@@ -357,6 +401,18 @@ export default function App() {
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('map'); }
         else { engineRef.current?.resume(); setScreen('playing'); }
       }
+      // Hardcoded B key always toggles the build panel.
+      if (e.code === 'KeyB' && (screen === 'playing' || screen === 'build')) {
+        e.preventDefault();
+        if (screen === 'playing') { engineRef.current?.pause(); setScreen('build'); }
+        else { engineRef.current?.resume(); setScreen('playing'); }
+      }
+      // Hardcoded M key is an alternative way to open the map.
+      if (e.code === 'KeyM' && (screen === 'playing' || screen === 'map')) {
+        e.preventDefault();
+        if (screen === 'playing') { engineRef.current?.pause(); setScreen('map'); }
+        else { engineRef.current?.resume(); setScreen('playing'); }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -364,9 +420,18 @@ export default function App() {
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
+    // Snapshot current unlock state so the end screen can diff it after the run.
+    runStartRef.current = {
+      armory: { ...save.armory },
+      bestiary: { ...save.bestiary },
+      highestAscension: save.highestAscension,
+      topScore: save.highScores[0]?.score ?? 0,
+    };
+    goldAwardedRef.current = 0;
+    runIdRef.current = new Date().toISOString();
     engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet, undefined, save.activeAscension);
     setEndResult(null); setSkillChoices([]); setScreen('playing');
-  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension]);
+  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.armory, save.bestiary, save.highestAscension, save.highScores]);
 
   const onBuyPet = (petId: string, cost: number) => {
     const next = buyPet(save, petId, cost);
@@ -445,8 +510,9 @@ export default function App() {
           <div className="hud-top">
             <div className="hud-panel">
               <div className="stat-row"><span className="stat-label">Bioma</span><span className="stat-value" style={{ color: stats.biomeColor, fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
-              <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}</span></div>
+              <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
+              <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
               <div className="stat-row"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
             </div>
@@ -583,6 +649,15 @@ export default function App() {
                 <span style={{ color: '#8891b8' }}> · {selected.faction === 'bando_moros' ? 'Moros' : 'Gitanos'}</span>
                 <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>
                 <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>HP {selected.stats.hp} · SPD {selected.stats.speed} · ARM {selected.stats.armor} · CRIT {Math.round(selected.stats.critChance * 100)}%</p>
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#8891b8', letterSpacing: '0.1em' }}>PASIVA</div>
+                  <div style={{ marginTop: 4, fontWeight: 800, color: selected.sprite.color }}>
+                    {selected.passiveIcon} {selected.passiveName}
+                  </div>
+                  <div style={{ marginTop: 2, fontSize: '0.78rem', color: '#94a3b8' }}>
+                    {selected.passive.map(formatPassiveMod).join(' · ')}
+                  </div>
+                </div>
               </div>
               <div style={{ marginBottom: 10 }}>
                 <div className="menu-grid">
@@ -896,7 +971,7 @@ export default function App() {
 
         {screen === 'build' && stats.build && (
           <div className="screen">
-            <div className="screen-content">
+            <div className="screen-content build-screen-content">
               <h2 className="section-title" style={{ color: '#b04dff' }}>BUILD</h2>
               <BuildPanel build={stats.build} />
               <div className="menu-grid" style={{ marginTop: 16 }}>
@@ -1064,7 +1139,82 @@ export default function App() {
                 <div className="stat-row"><span>Bajas</span><span className="stat-value">{stats.kills}</span></div>
                 <div className="stat-row"><span>Monedas ganadas</span><span className="stat-value">🪙 {stats.goldEarned}</span></div>
               </div>
+
+              {(() => {
+                const hasUnlocks =
+                  runUnlocks.weapons.length > 0 ||
+                  runUnlocks.bestiary.length > 0 ||
+                  runUnlocks.ascension !== null ||
+                  runUnlocks.newHighScore;
+                if (!hasUnlocks) return null;
+                return (
+                  <div className="detail-box" style={{ borderColor: 'rgba(255,204,0,0.4)' }}>
+                    <div style={{ fontWeight: 800, color: '#ffe14a', letterSpacing: '0.12em', marginBottom: 8 }}>
+                      ✨ DESBLOQUEOS DE ESTA PARTIDA
+                    </div>
+                    {runUnlocks.newHighScore && (
+                      <div style={{ fontSize: '0.85rem', color: '#39ff88', marginBottom: 6 }}>🏆 ¡Nuevo récord de puntuación!</div>
+                    )}
+                    {runUnlocks.ascension !== null && (() => {
+                      const al = ASCENSION_LEVELS.find((l) => l.level === runUnlocks.ascension);
+                      return (
+                        <div style={{ fontSize: '0.85rem', color: '#00c8ff', marginBottom: 6 }}>
+                          ⬆️ Ascensión desbloqueada: {al ? `${al.icon} ${al.name} (Nivel ${al.level})` : `Nivel ${runUnlocks.ascension}`}
+                        </div>
+                      );
+                    })()}
+                    {runUnlocks.weapons.length > 0 && (
+                      <div style={{ marginBottom: 6 }}>
+                        <div style={{ fontSize: '0.72rem', color: '#8891b8', letterSpacing: '0.1em' }}>ARMAS NUEVAS (ARMERÍA)</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                          {runUnlocks.weapons.map((id) => {
+                            const w = WEAPON_BASES.find((b) => b.id === id);
+                            return (
+                              <span key={id} style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 3, border: `1px solid ${w?.color ?? '#888'}55`, color: w?.color ?? '#e2e8f0' }}>
+                                ⚔️ {w?.name ?? id}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {runUnlocks.bestiary.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: '#8891b8', letterSpacing: '0.1em' }}>ENEMIGOS DESCUBIERTOS (BESTIARIO)</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                          {runUnlocks.bestiary.map((id) => {
+                            const info = BESTIARY_LORE[id];
+                            return (
+                              <span key={id} style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 3, border: '1px solid rgba(255,59,92,0.3)', color: '#ff3b5c' }}>
+                                👹 {info?.name ?? id}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="menu-grid">
+                {endResult === 'victory' && (
+                  <button
+                    type="button"
+                    className="menu-btn primary full-width"
+                    style={{ borderColor: '#b04dff' }}
+                    onClick={() => {
+                      audio.play('levelup');
+                      // Same run continues into the next endless cycle:
+                      // build, score, pet and ascension all carry over.
+                      engineRef.current?.continueEndless();
+                      setEndResult(null);
+                      setScreen('playing');
+                    }}
+                  >
+                    ♾️ Continuar · Ciclo {(stats.cycle ?? 1) + 1}
+                  </button>
+                )}
                 <button type="button" className="menu-btn primary" onClick={startGame}>Reintentar</button>
                 <button type="button" className="menu-btn" onClick={backToMenu}>Menú</button>
               </div>

@@ -66,7 +66,7 @@ export interface PickupEntity {
   id: number;
   x: number;
   y: number;
-  kind: 'heal' | 'score' | 'weapon' | 'shield' | 'item';
+  kind: 'heal' | 'score' | 'weapon' | 'shield' | 'item' | 'relic';
   color: string;
   value: number;
   weaponId?: string;
@@ -279,6 +279,8 @@ export interface GameStats {
   roomsTotal: number;
   mapNumber: number;
   totalMaps: number;
+  /** Endless cycle (1 = first pass through the maps). */
+  cycle?: number;
   biomeName: string;
   biomeIcon: string;
   biomeColor: string;

@@ -27,6 +27,13 @@ export interface BossPhase {
   glowOverride?: string;
   /** If true, boss becomes invulnerable briefly when entering this phase. */
   phaseInvuln?: number;
+  /**
+   * Minimum ascension level required for this phase to ever activate.
+   * 0 (default) = always eligible. Higher values gate the phase behind
+   * harder difficulty runs, so low-ascension players never see it while
+   * veterans get fresh, punishing patterns on familiar bosses.
+   */
+  minAscensionLevel?: number;
 }
 
 export interface BossDef {
@@ -71,6 +78,40 @@ export const BOSS_DEFS: BossDef[] = [
         glowOverride: '#ff3b5c',
         phaseInvuln: 1.0,
       },
+      // ── Ascension variants (only activate at higher ascension levels) ──
+      {
+        hpThreshold: 0.12,
+        name: 'Llamarada Final',
+        description: 'Fase de ascensión: el dragón arde. Invoca más drones, cadencia extrema.',
+        speedMult: 1.3,
+        damageMult: 1.15,
+        attackCooldownMult: 0.6,
+        adds: [
+          { defId: 'cyber_hound', count: 2 },
+          { defId: 'plasma_sentry', count: 1 },
+        ],
+        colorOverride: '#ff3b5c',
+        glowOverride: '#ff5500',
+        phaseInvuln: 1.0,
+        minAscensionLevel: 3,
+      },
+      {
+        hpThreshold: 0.04,
+        name: 'Apocalipsis Mecánico',
+        description: 'Fase suprema de ascensión: todo a la vez. Sin tregua.',
+        speedMult: 1.5,
+        damageMult: 1.25,
+        attackCooldownMult: 0.5,
+        adds: [
+          { defId: 'assassin', count: 2 },
+          { defId: 'pulse_orb', count: 3 },
+          { defId: 'warp_stalker', count: 1 },
+        ],
+        colorOverride: '#ff3b5c',
+        glowOverride: '#ff2a4b',
+        phaseInvuln: 1.5,
+        minAscensionLevel: 6,
+      },
     ],
   },
   {
@@ -106,6 +147,40 @@ export const BOSS_DEFS: BossDef[] = [
         colorOverride: '#00f0ff',
         glowOverride: '#b04dff',
         phaseInvuln: 1.0,
+      },
+      // ── Ascension variants ──
+      {
+        hpThreshold: 0.12,
+        name: 'Abismo Tóxico',
+        description: 'Fase de ascensión: el kraken envenena las aguas. Más tentáculos, más presión.',
+        speedMult: 1.3,
+        damageMult: 1.15,
+        attackCooldownMult: 0.65,
+        adds: [
+          { defId: 'bio_fiend', count: 2 },
+          { defId: 'summoner', count: 1 },
+        ],
+        colorOverride: '#6ef0ff',
+        glowOverride: '#9dff00',
+        phaseInvuln: 1.0,
+        minAscensionLevel: 3,
+      },
+      {
+        hpThreshold: 0.04,
+        name: 'Leviatán del Vacío',
+        description: 'Fase suprema de ascensión: invoca desde las profundidades sin control.',
+        speedMult: 1.5,
+        damageMult: 1.3,
+        attackCooldownMult: 0.5,
+        adds: [
+          { defId: 'mortar_turret', count: 1 },
+          { defId: 'plasma_sentry', count: 2 },
+          { defId: 'nano_construct', count: 2 },
+        ],
+        colorOverride: '#b04dff',
+        glowOverride: '#ff3b5c',
+        phaseInvuln: 1.5,
+        minAscensionLevel: 6,
       },
     ],
   },
@@ -144,6 +219,40 @@ export const BOSS_DEFS: BossDef[] = [
         colorOverride: '#ffe14a',
         glowOverride: '#ff5500',
         phaseInvuln: 1.0,
+      },
+      // ── Ascension variants ──
+      {
+        hpThreshold: 0.12,
+        name: 'Coloso Despiadado',
+        description: 'Fase de ascensión: el titán golpea con furia renovada. Refuerzos pesados.',
+        speedMult: 1.6,
+        damageMult: 1.2,
+        attackCooldownMult: 0.6,
+        adds: [
+          { defId: 'tank', count: 2 },
+          { defId: 'shield_bearer', count: 1 },
+        ],
+        colorOverride: '#ff5500',
+        glowOverride: '#ff8800',
+        phaseInvuln: 1.0,
+        minAscensionLevel: 3,
+      },
+      {
+        hpThreshold: 0.04,
+        name: 'Tierra en Llamas',
+        description: 'Fase suprema de ascensión: el titán arde. Todo a la vez, sin piedad.',
+        speedMult: 1.8,
+        damageMult: 1.3,
+        attackCooldownMult: 0.5,
+        adds: [
+          { defId: 'dread_mech', count: 1 },
+          { defId: 'assassin', count: 2 },
+          { defId: 'bio_fiend', count: 2 },
+        ],
+        colorOverride: '#ff5500',
+        glowOverride: '#ff2a4b',
+        phaseInvuln: 1.5,
+        minAscensionLevel: 6,
       },
     ],
   },
