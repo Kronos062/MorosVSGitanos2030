@@ -69,7 +69,8 @@ canvas.game-canvas {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* fallback si el navegador no soporta "safe" */
+  align-items: safe center;
   justify-content: center;
   background: radial-gradient(ellipse at center, rgba(18, 21, 32, 0.92) 0%, rgba(10, 12, 16, 0.98) 80%);
   backdrop-filter: blur(8px);

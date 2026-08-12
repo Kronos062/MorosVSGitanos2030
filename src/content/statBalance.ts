@@ -67,7 +67,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
   /* ---------------- OFFENSIVE ---------------- */
   // Multiplier applied to raw bonus above +0% (stored as factor around 1).
   {
-    stat: 'damageMult', category: 'offensive', softCap: 0.6,
+    stat: 'damageMult', category: 'offensive', softCap: 0.6, hardCap: 3.0,
     curve: [
       { upTo: 0.9, efficiency: 0.7 },
       { upTo: 1.8, efficiency: 0.45 },
@@ -76,7 +76,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     note: 'Damage keeps scaling but stacking a single source gives less.',
   },
   {
-    stat: 'fireRateMult', category: 'offensive', softCap: 0.5,
+    stat: 'fireRateMult', category: 'offensive', softCap: 0.5, hardCap: 2.0,
     curve: [
       { upTo: 0.8, efficiency: 0.6 },
       { upTo: 1.6, efficiency: 0.35 },
@@ -101,7 +101,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     note: 'Crit multiplier stored as factor; base 2.0 = +1.0 bonus.',
   },
   {
-    stat: 'pierceBonus', category: 'offensive', softCap: 4,
+    stat: 'pierceBonus', category: 'offensive', softCap: 4, hardCap: 8,
     curve: [
       { upTo: 4, efficiency: 0.6 },
       { upTo: 8, efficiency: 0.4 },
@@ -109,7 +109,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     ],
   },
   {
-    stat: 'countBonus', category: 'offensive', softCap: 3,
+    stat: 'countBonus', category: 'offensive', softCap: 3, hardCap: 4,
     curve: [
       { upTo: 3, efficiency: 0.6 },
       { upTo: 6, efficiency: 0.4 },
@@ -118,7 +118,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     note: 'Extra projectiles diminish to avoid bullet-hell overload.',
   },
   {
-    stat: 'bounceBonus', category: 'offensive', softCap: 4,
+    stat: 'bounceBonus', category: 'offensive', softCap: 4, hardCap: 4,
     curve: [
       { upTo: 4, efficiency: 0.6 },
       { upTo: Infinity, efficiency: 0.35 },
@@ -132,7 +132,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     ],
   },
   {
-    stat: 'projectileSizeBonus', category: 'offensive', softCap: 6,
+    stat: 'projectileSizeBonus', category: 'offensive', softCap: 6, hardCap: 10,
     curve: [
       { upTo: 6, efficiency: 0.6 },
       { upTo: Infinity, efficiency: 0.35 },

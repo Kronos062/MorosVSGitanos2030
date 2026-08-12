@@ -7,8 +7,9 @@ import { BESTIARY_LORE } from './content/enemies';
 import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
 import { GameEngine } from './game/engine';
 import { audio } from './game/audio';
+import { music, MENU_TRACKS } from './game/music';
 import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, BuildItemEntry, EquipSlot } from './game/types';
-import { EQUIP_SLOT_LABELS, EQUIP_SLOT_ICONS, RARITY_COLORS as EQ_COLORS } from './content/equipment';
+import { EQUIP_SLOT_LABELS, EQUIP_SLOT_ICONS, RARITY_COLORS as EQ_COLORS, SET_DEFS } from './content/equipment';
 
 import {
   loadSave,
@@ -29,13 +30,15 @@ import {
   codeLabel,
   factionLabel,
   DEFAULT_BINDINGS,
+  exportSaveToJson,
+  importSaveFromJson,
   type SaveData,
 } from './game/persistence';
 
 const emptyStats: GameStats = {
-  hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
+  hp: 0, maxHp: 1, shield: 0, maxShield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
   score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
-  weaponName: '', weaponColor: '#00f0ff',
+  weaponName: '', weaponColor: '#00f0ff', stackedPickupCount: 0,
   boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
   ended: null, goldEarned: 0,
   currentRoomLabel: '', roomsCleared: 0, roomsTotal: 0,
@@ -110,7 +113,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
     <div className="build-panel" style={{ textAlign: 'left', fontSize: '0.85rem' }}>
       <div className="build-layout">
         <div className="build-column build-player-column">
-          <h3 className="build-player-heading" style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp}/{build.xpToNext}</h3>
+          <h3 className="build-player-heading" style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp.toFixed(2)}/{build.xpToNext}</h3>
 
           <div className="build-section build-stats-section" style={{ marginBottom: 14 }}>
             <div style={{ fontWeight: 800, color: '#ffe14a', marginBottom: 8, letterSpacing: '0.1em' }}>ESTADÍSTICAS FINALES</div>
@@ -298,9 +301,16 @@ export default function App() {
   });
   const goldAwardedRef = useRef(0);
   const runIdRef = useRef<string | null>(null);
+  const [seedInput, setSeedInput] = useState('');
+  const [showCodex, setShowCodex] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showModifierChoice, setShowModifierChoice] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const selectedCharRef = useRef(selectedChar);
   selectedCharRef.current = selectedChar;
 
+  const inGame = screen === 'playing' || screen === 'paused' || screen === 'levelup' || screen === 'build' || screen === 'map';
   const hasFaction = save.faction !== null;
   const availableChars = useMemo(
     () => (hasFaction ? getCharactersByFaction(save.faction!) : CHARACTERS),
@@ -318,6 +328,28 @@ export default function App() {
   }, [hasFaction, availableChars, selectedChar]);
 
   useEffect(() => { audio.setVolume(save.volume); }, [save.volume]);
+  useEffect(() => { music.setVolume(save.volume); }, [save.volume]);
+  useEffect(() => {
+    const runScreens: GameScreen[] = ['playing', 'paused', 'build', 'map', 'levelup', 'itempickup', 'event'];
+    if (runScreens.includes(screen)) {
+      music.playContext(stats.boss ? 'boss' : 'run');
+      return;
+    }
+    music.playContext('menu');
+  }, [screen, stats.boss]);
+  useEffect(() => {
+    const unlockMusic = () => {
+      music.resume();
+      window.removeEventListener('pointerdown', unlockMusic);
+      window.removeEventListener('keydown', unlockMusic);
+    };
+    window.addEventListener('pointerdown', unlockMusic);
+    window.addEventListener('keydown', unlockMusic);
+    return () => {
+      window.removeEventListener('pointerdown', unlockMusic);
+      window.removeEventListener('keydown', unlockMusic);
+    };
+  }, []);
   useEffect(() => { engineRef.current?.setBindings(save.bindings); }, [save.bindings]);
 
   useEffect(() => {
@@ -364,6 +396,7 @@ export default function App() {
         const newAscension = next.highestAscension > start.highestAscension ? next.highestAscension : null;
         const newHighScore = s.score > start.topScore;
         setRunUnlocks({ weapons: newWeapons, bestiary: newBestiary, ascension: newAscension, newHighScore });
+        writeSave(next);
         return next;
       });
     });
@@ -391,7 +424,8 @@ export default function App() {
       }
       if (e.code === 'Enter' && screen === 'menu') { setScreen('chars'); audio.play('button'); }
       const pauseCode = save.bindings.pause; const mapCode = save.bindings.openMap;
-      if ((e.code === pauseCode || e.code === 'Escape') && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
+      if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
+      if ((e.code === pauseCode || e.code === 'Escape') && !showQuitConfirm && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
         e.preventDefault();
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('paused'); }
         else { engineRef.current?.resume(); setScreen('playing'); }
@@ -416,10 +450,11 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, save.bindings, rebinding]);
+  }, [screen, save.bindings, rebinding, showQuitConfirm]);
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
+    music.resume();
     // Snapshot current unlock state so the end screen can diff it after the run.
     runStartRef.current = {
       armory: { ...save.armory },
@@ -429,9 +464,10 @@ export default function App() {
     };
     goldAwardedRef.current = 0;
     runIdRef.current = new Date().toISOString();
-    engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet, undefined, save.activeAscension);
+    engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet, seedInput.trim() || undefined, save.activeAscension, save.assistMode);
+    setSeedInput('');
     setEndResult(null); setSkillChoices([]); setScreen('playing');
-  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.armory, save.bestiary, save.highestAscension, save.highScores]);
+  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.armory, save.bestiary, save.highestAscension, save.highScores, seedInput]);
 
   const onBuyPet = (petId: string, cost: number) => {
     const next = buyPet(save, petId, cost);
@@ -498,7 +534,6 @@ export default function App() {
     engineRef.current?.setTouchMove(dx / max, dy / max, true);
   };
 
-  const inGame = screen === 'playing' || screen === 'paused' || screen === 'levelup' || screen === 'build' || screen === 'map';
   const interactLabel = codeLabel(save.bindings.interact);
 
   return (
@@ -548,6 +583,11 @@ export default function App() {
           {!stats.portalPrompt && stats.eventPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.eventPrompt.color }}>[{interactLabel}] {stats.eventPrompt.name}</div>)}
           {!stats.portalPrompt && !stats.eventPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
           {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
+          {stats.stackedPickupCount > 1 && (
+            <div className="weapon-prompt" style={{ borderColor: '#ffe14a', bottom: 142 }}>
+              {stats.stackedPickupCount} objetos aquí — acércate a uno para elegir
+            </div>
+          )}
           {stats.activeChallenge && (
             <div className="boss-bar" style={{ borderColor: stats.activeChallenge.failed ? 'rgba(255,42,75,0.6)' : 'rgba(255,204,0,0.5)' }}>
               <div className="name" style={{ color: stats.activeChallenge.failed ? 'var(--hazard-red)' : 'var(--street-yellow)' }}>
@@ -602,6 +642,32 @@ export default function App() {
           </div>
         )}
 
+        {(showTutorial || (!save.tutorialSeen && screen === 'menu' && hasFaction)) && (
+          <div className="screen" style={{ zIndex: 20 }}>
+            <div className="screen-content">
+              <h2 className="section-title" style={{ color: '#ffe14a' }}>CÓMO JUGAR</h2>
+              <div style={{ textAlign: 'left', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.8, marginBottom: 16 }}>
+                <p style={{ marginBottom: 8 }}>🎯 <strong style={{ color: '#e2e8f0' }}>Objetivo:</strong> Sobrevive a 10 mapas de salas procedurales, derrota al jefe de cada mapa y desciende al siguiente.</p>
+                <p style={{ marginBottom: 8 }}>⌨ <strong style={{ color: '#e2e8f0' }}>Controles:</strong> {BINDING_ROWS.filter((r) => ['moveUp','moveDown','moveLeft','moveRight','attack','dash','interact'].includes(r.action)).map((r) => `${r.label}: ${codeLabel(save.bindings[r.action])}`).join(' · ')}</p>
+                <p style={{ marginBottom: 8 }}>📦 <strong style={{ color: '#e2e8f0' }}>Cofres y eventos:</strong> Las salas pueden contener cofres con armas y equipo, eventos interactivos con decisiones de riesgo/recompensa, o combates con oleadas de enemigos.</p>
+                <p style={{ marginBottom: 8 }}>⚔️ <strong style={{ color: '#e2e8f0' }}>Build:</strong> Al subir de nivel eliges mejoras. Equipa armaduras de set para desbloquear sinergias. Consulta tu build con la tecla B.</p>
+                <p>♾️ <strong style={{ color: '#e2e8f0' }}>Endless:</strong> Tras la victoria puedes continuar con dificultad creciente. Tu puntuación y build se conservan.</p>
+              </div>
+              <button type="button" className="menu-btn primary full-width" onClick={() => {
+                audio.play('button');
+                setShowTutorial(false);
+                if (!save.tutorialSeen) {
+                  setSave((prev) => {
+                    const next = { ...prev, tutorialSeen: true };
+                    writeSave(next);
+                    return next;
+                  });
+                }
+              }}>Entendido</button>
+            </div>
+          </div>
+        )}
+
         {screen === 'menu' && hasFaction && (
           <div className="screen">
             <div className="screen-content">
@@ -623,6 +689,7 @@ export default function App() {
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('controls'); }}>Controles</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('scores'); }}>Puntuaciones</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('options'); }}>Opciones</button>
+                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setShowCodex(true); }}>Códice</button>
               </div>
               <div className="footer-text">
                 <p>ROGUELIKE DE ACCIÓN · DATA-DRIVEN · CALLES 2030</p>
@@ -669,6 +736,13 @@ export default function App() {
                   </button>
                 </div>
               </div>
+              <input
+                type="text"
+                placeholder="Semilla (opcional)"
+                value={seedInput}
+                onChange={(e) => setSeedInput(e.target.value)}
+                style={{ width: '100%', textAlign: 'center', marginBottom: 8, padding: '10px 18px', background: 'rgba(26,30,46,0.85)', border: '1px solid rgba(255,204,0,0.4)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2 }}
+              />
               <div className="menu-grid">
                 <button type="button" className="menu-btn primary" onClick={startGame}>Combatir</button>
                 <button type="button" className="menu-btn" onClick={backToMenu}>Volver</button>
@@ -918,6 +992,20 @@ export default function App() {
               <div className="volume-row">
                 <span>🔊</span><input type="range" min={0} max={1} step={0.05} value={save.volume} onChange={(e) => onVolume(Number(e.target.value))} /><span>{Math.round(save.volume * 100)}%</span>
               </div>
+              <div className="volume-row" style={{ marginTop: 0 }}>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música de menú:</span>
+                <select
+                  className="menu-btn"
+                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  value={save.menuMusicId}
+                  onChange={(e) => {
+                    music.setMenuTrack(e.target.value);
+                    setSave((prev) => ({ ...prev, menuMusicId: e.target.value }));
+                  }}
+                >
+                  {MENU_TRACKS.map((t) => (<option key={t.id} value={t.id} style={{ background: '#0a0c10' }}>{t.label}</option>))}
+                </select>
+              </div>
               <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '8px 0 12px' }}>CONFIGURAR CONTROLES</h3>
               {rebinding && (<p style={{ color: '#00f0ff', marginBottom: 10 }}>Pulsa una tecla para «{BINDING_ROWS.find((r) => r.action === rebinding)?.label}» (ESC cancela)</p>)}
               <div className="bindings-list">
@@ -947,10 +1035,88 @@ export default function App() {
 
               <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
                 audio.play('button');
-                const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0 };
+                const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0, tutorialSeen: false, assistMode: false, menuMusicId: 'menu1' };
                 writeSave(fresh); setSave(fresh); setRebinding(null);
               }}>Borrar progreso</button>
+
+              <h3 style={{ color: '#00f0ff', letterSpacing: '0.12em', margin: '16px 0 10px' }}>RESPALDO</h3>
+              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
+                audio.play('button');
+                const json = exportSaveToJson(save);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `moros-vs-gitanos-2030-save-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>⬇️ Exportar partida</button>
+
+              <input
+                type="file"
+                accept="application/json"
+                id="import-save-input"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const imported = importSaveFromJson(String(reader.result));
+                    if (!imported) {
+                      setImportError('El archivo no es una partida válida.');
+                      return;
+                    }
+                    writeSave(imported);
+                    setSave(imported);
+                    setImportError(null);
+                  };
+                  reader.readAsText(file);
+                  e.target.value = '';
+                }}
+              />
+              <button type="button" className="menu-btn" style={{ marginBottom: 6, width: '100%' }} onClick={() => {
+                audio.play('button');
+                document.getElementById('import-save-input')?.click();
+              }}>⬆️ Importar partida</button>
+              {importError && (<p style={{ color: '#ff2a4b', fontSize: '0.8rem', marginBottom: 10 }}>{importError}</p>)}
+
+              <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '16px 0 10px' }}>ACCESIBILIDAD</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '10px 12px', background: 'rgba(57,255,136,0.08)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 4 }}>
+                <input type="checkbox" checked={save.assistMode} onChange={(e) => {
+                  const next = { ...save, assistMode: e.target.checked };
+                  writeSave(next); setSave(next);
+                }} style={{ accentColor: '#39ff88', width: 18, height: 18 }} />
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modo asistido (-25% daño recibido) — pensado para quienes quieren disfrutar el contenido con menos presión de combate.</span>
+              </div>
+
+              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setShowTutorial(true); }}>Ver tutorial</button>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+            </div>
+          </div>
+        )}
+
+        {showCodex && (
+          <div className="screen">
+            <div className="screen-content">
+              <h2 className="section-title" style={{ color: '#b04dff' }}>CÓDICE DE SINERGIAS</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 12 }}>
+                Sets de equipo y sus bonificaciones por piezas equipadas.
+              </p>
+              <div className="list-scroll" style={{ maxHeight: 420 }}>
+                {SET_DEFS.map((set) => (
+                  <div key={set.setId} style={{ marginBottom: 14, padding: '10px 12px', border: `1px solid ${set.color}55`, borderRadius: 4 }}>
+                    <div style={{ color: set.color, fontWeight: 'bold', marginBottom: 4 }}>{set.name}</div>
+                    <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: 6 }}>{set.identity} — {set.playstyle}</div>
+                    {set.bonuses.map((b) => (
+                      <div key={b.pieces} style={{ fontSize: '0.78rem', color: '#e2e8f0', marginBottom: 2 }}>
+                        ({b.pieces}) {b.description}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="menu-btn full-width" style={{ marginTop: 12 }} onClick={() => { audio.play('button'); setShowCodex(false); }}>Volver</button>
             </div>
           </div>
         )}
@@ -959,12 +1125,55 @@ export default function App() {
           <div className="screen">
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>PAUSA</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 4, marginBottom: 12 }}>
+                Semilla: {String(engineRef.current?.getRunSeed())}
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(String(engineRef.current?.getRunSeed()))}
+                  style={{ marginLeft: 8, background: 'none', border: 'none', color: '#00f0ff', cursor: 'pointer' }}
+                >
+                  📋 Copiar
+                </button>
+              </p>
               <div className="menu-grid">
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); engineRef.current?.resume(); setScreen('playing'); }}>Continuar</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('build'); }}>Build</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('map'); }}>Mapa</button>
-                <button type="button" className="menu-btn full-width" onClick={backToMenu}>Menú principal</button>
+                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setShowQuitConfirm(true); }}>Menú principal</button>
               </div>
+
+              {showQuitConfirm && (
+                <div className="screen" style={{ zIndex: 20 }}>
+                  <div className="screen-content">
+                    <h2 className="section-title" style={{ color: '#ff2a4b' }}>¿SALIR AL MENÚ?</h2>
+                    <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 16 }}>
+                      Se guardará el oro y el progreso ganados hasta ahora en esta partida.
+                    </p>
+                    <div className="menu-grid">
+                      <button
+                        type="button"
+                        className="menu-btn primary full-width"
+                        style={{ borderColor: '#ff2a4b' }}
+                        onClick={() => {
+                          audio.play('button');
+                          engineRef.current?.abandonRun();
+                          setShowQuitConfirm(false);
+                          setScreen('menu');
+                        }}
+                      >
+                        Sí, salir
+                      </button>
+                      <button
+                        type="button"
+                        className="menu-btn full-width"
+                        onClick={() => { audio.play('button'); setShowQuitConfirm(false); }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1197,20 +1406,58 @@ export default function App() {
                 );
               })()}
 
+              {showModifierChoice && (
+                <div className="screen" style={{ zIndex: 20 }}>
+                  <div className="screen-content">
+                    <h2 className="section-title" style={{ color: '#b04dff' }}>ELIGE UN MODIFICADOR</h2>
+                    <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 12 }}>
+                      Se acumula con los que ya tengas activos en esta partida.
+                    </p>
+                    <div className="menu-grid">
+                      {engineRef.current?.getEndlessModifierChoices().map((mod) => (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          className="menu-btn full-width"
+                          style={{ textAlign: 'left' }}
+                          onClick={() => {
+                            audio.play('levelup');
+                            engineRef.current?.applyEndlessModifier(mod.id);
+                            engineRef.current?.continueEndless();
+                            setShowModifierChoice(false);
+                            setEndResult(null);
+                            setScreen('playing');
+                          }}
+                        >
+                          {mod.icon} <strong>{mod.label}</strong><br />
+                          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{mod.description}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="menu-btn primary full-width"
+                        onClick={() => {
+                          audio.play('button');
+                          engineRef.current?.continueEndless();
+                          setShowModifierChoice(false);
+                          setEndResult(null);
+                          setScreen('playing');
+                        }}
+                      >
+                        Sin modificador, continuar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="menu-grid">
                 {endResult === 'victory' && (
                   <button
                     type="button"
                     className="menu-btn primary full-width"
                     style={{ borderColor: '#b04dff' }}
-                    onClick={() => {
-                      audio.play('levelup');
-                      // Same run continues into the next endless cycle:
-                      // build, score, pet and ascension all carry over.
-                      engineRef.current?.continueEndless();
-                      setEndResult(null);
-                      setScreen('playing');
-                    }}
+                    onClick={() => { audio.play('button'); setShowModifierChoice(true); }}
                   >
                     ♾️ Continuar · Ciclo {(stats.cycle ?? 1) + 1}
                   </button>

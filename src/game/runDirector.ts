@@ -15,7 +15,7 @@ import type { LootCategory } from './lootDirector';
 import type { EventDef } from './eventDirector';
 import type { CompositionTemplate } from './enemyDirector';
 import type { BiomeDef } from '../content/biomes';
-import { computeAscensionState, type AscensionState } from '../content/ascension';
+import { computeAscensionState, ENDLESS_MODIFIERS, type AscensionModifier, type AscensionState } from '../content/ascension';
 
 
 export type RunMood = 'thriving' | 'stable' | 'struggling';
@@ -53,6 +53,7 @@ export class RunDirector {
   private recentDamageTimer = 0;
   private recentKillTimer = 0;
   private ascensionState: AscensionState | null = null;
+  private activeEndlessModifierIds: string[] = [];
 
   resetRun(): void {
     this.mood = 'stable';
@@ -61,6 +62,7 @@ export class RunDirector {
     this.recentDamageTimer = 0;
     this.recentKillTimer = 0;
     this.ascensionState = null;
+    this.activeEndlessModifierIds = [];
   }
 
   setAscensionLevel(level: number): void {
@@ -69,6 +71,40 @@ export class RunDirector {
 
   getAscensionState(): AscensionState | null {
     return this.ascensionState;
+  }
+
+  /** Choices offered when continuing an endless cycle: modifiers not
+   *  already active, capped to 3. */
+  getEndlessModifierChoices(): AscensionModifier[] {
+    return ENDLESS_MODIFIERS.filter((m) => !this.activeEndlessModifierIds.includes(m.id)).slice(0, 3);
+  }
+
+  getActiveEndlessModifiers(): AscensionModifier[] {
+    return ENDLESS_MODIFIERS.filter((m) => this.activeEndlessModifierIds.includes(m.id));
+  }
+
+  /** Multiplies the chosen modifier into the CURRENT ascensionState in
+   *  place, reusing the exact same per-field pattern computeAscensionState
+   *  already uses for AscensionLevel.modifiers — so every existing
+   *  consumer (enemyDamageMult, xpMult, scoreMult, goldWeightMult, ...)
+   *  picks it up automatically with zero new call sites. */
+  applyEndlessModifier(modId: string): void {
+    const mod = ENDLESS_MODIFIERS.find((m) => m.id === modId);
+    if (!mod || !this.ascensionState || this.activeEndlessModifierIds.includes(modId)) return;
+    this.activeEndlessModifierIds.push(modId);
+    const s = this.ascensionState;
+    if (mod.enemyIntensityMult) s.enemyIntensityMult *= mod.enemyIntensityMult;
+    if (mod.eliteWeightMult) s.eliteWeightMult *= mod.eliteWeightMult;
+    if (mod.goldWeightMult) s.goldWeightMult *= mod.goldWeightMult;
+    if (mod.healWeightMult) s.healWeightMult *= mod.healWeightMult;
+    if (mod.enemyDamageMult) s.enemyDamageMult *= mod.enemyDamageMult;
+    if (mod.scoreMult) s.scoreMult *= mod.scoreMult;
+    if (mod.xpMult) s.xpMult *= mod.xpMult;
+    if (mod.lootQualityShift) {
+      for (const [k, v] of Object.entries(mod.lootQualityShift)) {
+        s.lootQualityShift[k] = (s.lootQualityShift[k] ?? 1) * (v ?? 1);
+      }
+    }
   }
 
   onNextMap(): void {

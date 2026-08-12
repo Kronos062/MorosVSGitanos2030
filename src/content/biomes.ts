@@ -83,7 +83,7 @@ export const BIOMES: BiomeDef[] = [
     lootTagWeights: { kinetic: 1.2, pistol: 1.2, smg: 1.2 },
     lootElementWeights: { electric: 1.2 },
     eventDefWeights: { merchant_bot: 1.3, mystery_roulette: 1.2 },
-    bossWeights: { boss_dragon_2030: 1.2 },
+    bossWeights: { boss_dragon_2030: 1.2, boss_duende_neon: 1.3 },
   },
   {
     id: 'biome_synth_lab',
@@ -112,7 +112,7 @@ export const BIOMES: BiomeDef[] = [
     lootTagWeights: { energy: 1.35, precision: 1.25, electric: 1.3 },
     lootElementWeights: { electric: 1.35, radiant: 1.2 },
     eventDefWeights: { merchant_bot: 1.4, shrine_light: 1.3 },
-    bossWeights: { boss_dragon_2030: 1.3 },
+    bossWeights: { boss_dragon_2030: 1.3, boss_ojo_zoco: 1.4 },
   },
   {
     id: 'biome_toxic_slum',
@@ -141,7 +141,7 @@ export const BIOMES: BiomeDef[] = [
     lootTagWeights: { bio: 1.5, toxic: 1.5, lifesteal: 1.3 },
     lootElementWeights: { toxic: 1.5, dark: 1.2 },
     eventDefWeights: { altar_sangre: 1.4, cursed_arena: 1.3 },
-    bossWeights: { boss_cyber_kraken: 1.3 },
+    bossWeights: { boss_cyber_kraken: 1.3, boss_duende_neon: 1.4 },
   },
   {
     id: 'biome_volcano_core',
@@ -228,7 +228,7 @@ export const BIOMES: BiomeDef[] = [
     lootTagWeights: { heavy: 1.35, precision: 1.3, shield: 1.4 },
     lootElementWeights: { radiant: 1.4 },
     eventDefWeights: { shrine_light: 1.5, altar_sangre: 1.3 },
-    bossWeights: { boss_golem_prime: 1.6 },
+    bossWeights: { boss_golem_prime: 1.6, boss_ojo_zoco: 1.3 },
   },
 ];
 

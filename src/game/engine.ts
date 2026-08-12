@@ -160,6 +160,7 @@ export class GameEngine {
   private rooms: RoomNode[] = [];
   private corridors: CorridorNode[] = [];
   private currentRoomId = 0;
+  private activeCombatRoomId: number | null = null;
   private roomCombatActive = false;
   private roomWave = 0;
   private roomWaveTotal = COMBAT_WAVES;
@@ -201,6 +202,7 @@ export class GameEngine {
   private eventDirector = new EventDirector();
   private runDirector = new RunDirector();
   private ascensionLevel = 0;
+  private assistMode = false;
   private characterId = 'tariq';
   private pendingSkills: SkillChoice[] | null = null;
   /** Extra level-ups gained in the same XP grant (e.g. a big boss kill) that
@@ -220,6 +222,8 @@ export class GameEngine {
   private upgrades: PermanentUpgrades = { permHpLevel: 0, permDamageLevel: 0 };
   private worldTime = 0;
   private nearestWeapon: PickupEntity | null = null;
+  private nearestItem: PickupEntity | null = null;
+  private stackedPickupCount = 0;
   private nearestChest: ChestEntity | null = null;
   private eventEntities: InteractiveEventEntity[] = [];
   private nearestEvent: InteractiveEventEntity | null = null;
@@ -391,9 +395,11 @@ export class GameEngine {
     petId?: string | null,
     seed?: number | string,
     ascensionLevel = 0,
+    assistMode = false,
   ) {
     this.characterId = characterId;
     this.upgrades = upgrades;
+    this.assistMode = assistMode;
     if (bindings) this.bindings = { ...bindings };
     this.equippedPetId = petId ?? null;
     this.ascensionLevel = ascensionLevel;
@@ -465,9 +471,9 @@ export class GameEngine {
   getStats(): GameStats {
     if (!this.player) {
       return {
-        hp: 0, maxHp: 1, shield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
+        hp: 0, maxHp: 1, shield: 0, maxShield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
         score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
-        weaponName: '', weaponColor: '#00f0ff',
+        weaponName: '', weaponColor: '#00f0ff', stackedPickupCount: 0,
         boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
         eventPrompt: null, activeChallenge: null,
         ended: null, goldEarned: 0,
@@ -486,6 +492,7 @@ export class GameEngine {
       hp: this.player.hp,
       maxHp: this.player.maxHp,
       shield: this.player.shield,
+      maxShield: this.player.maxShield,
       level: this.player.level,
       xp: this.player.xp,
       xpToNext: this.player.xpToNext,
@@ -497,6 +504,7 @@ export class GameEngine {
       multiplier: this.comboMultiplier(),
       weaponName: w.name,
       weaponColor: w.color,
+      stackedPickupCount: this.stackedPickupCount,
       boss: boss ? (() => {
         const phases = getBossPhases(boss.defId);
         const idx = Math.max(0, (boss.currentPhase ?? 1) - 1);
@@ -719,6 +727,7 @@ export class GameEngine {
       edges.push([parent, id]);
       connected.add(id);
     }
+    const treeEdgeCount = edges.length; // edges[0..treeEdgeCount) are the spanning tree (indispensable); edges[treeEdgeCount..] are extra (optional)
 
     // Step 1b — choose the boss: farthest leaf from start in the spanning tree.
     // "Leaf" = degree 1 in the tree. If none exists (very small map), pick the
@@ -851,14 +860,6 @@ export class GameEngine {
     placed.set(0, { gx: 0, gy: 0 });
     occupied.add(key(0, 0));
 
-    const adjacency = new Map<number, number[]>();
-    for (const [a, b] of edges) {
-      if (!adjacency.has(a)) adjacency.set(a, []);
-      if (!adjacency.has(b)) adjacency.set(b, []);
-      adjacency.get(a)!.push(b);
-      adjacency.get(b)!.push(a);
-    }
-
     const queue = [0];
     const visited = new Set<number>([0]);
     const deltas = [[0, -1], [0, 1], [-1, 0], [1, 0]];
@@ -866,9 +867,15 @@ export class GameEngine {
     while (queue.length > 0) {
       const current = queue.shift()!;
       const pos = placed.get(current)!;
-      const neighbors = adjacency.get(current) ?? [];
-      for (const nb of neighbors) {
-        if (visited.has(nb)) continue;
+      for (let ei = 0; ei < edges.length; ei++) {
+        const [a, b] = edges[ei];
+        const nb = a === current ? b : b === current ? a : -1;
+        if (nb === -1 || visited.has(nb)) continue;
+        // Extra edges are optional cross-links, not placement parents. Letting
+        // one claim an unvisited node before its tree edge can place the two
+        // indispensable tree endpoints diagonally, making a straight corridor
+        // impossible. The spanning tree alone is guaranteed to visit all rooms.
+        if (ei >= treeEdgeCount) continue;
         visited.add(nb);
         // try cardinal directions
         let bestGx = pos.gx;
@@ -885,14 +892,71 @@ export class GameEngine {
           }
         }
         if (!found) {
-          // try one step further
-          for (const [dx, dy] of deltas) {
-            const ngx = pos.gx + dx * 2;
-            const ngy = pos.gy + dy * 2;
-            if (!occupied.has(key(ngx, ngy))) {
-              bestGx = ngx;
-              bestGy = ngy;
-              break;
+          // Find the nearest free cardinal cell. Before accepting the jump,
+          // verify the straight-line path to it also crosses only free cells,
+          // otherwise the corridor built below would physically tunnel
+          // straight through another placed room.
+          for (let distance = 2; distance <= total && !found; distance++) {
+            for (const [dx, dy] of deltas) {
+              const ngx = pos.gx + dx * distance;
+              const ngy = pos.gy + dy * distance;
+              if (occupied.has(key(ngx, ngy))) continue;
+              // The corridor spans the rectangle between origin and target
+              // on ONE axis (dx xor dy is always 0 with cardinal deltas),
+              // so it can only tunnel through cells on that ray. Check all
+              // intermediate steps are free before placing here.
+              let pathClear = true;
+              for (let step = 1; step < distance; step++) {
+                if (occupied.has(key(pos.gx + dx * step, pos.gy + dy * step))) {
+                  pathClear = false;
+                  break;
+                }
+              }
+              if (pathClear) {
+                bestGx = ngx;
+                bestGy = ngy;
+                found = true;
+                break;
+              }
+            }
+          }
+          // PASO 1 — expand in concentric rings around parent, without requiring row/col alignment.
+          // Spanning-tree edges (ei < treeEdgeCount) must always be placed, so if cardinal is full,
+          // find the geometrically closest free cell in any direction.
+          if (!found && ei < treeEdgeCount) {
+            outerRing: for (let r = 1; r <= total; r++) {
+              // Iterate the perimeter of the square of radius r around pos (Chebyshev distance).
+              for (let dx = -r; dx <= r; dx++) {
+                for (let dy = -r; dy <= r; dy++) {
+                  if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; // not on perimeter
+                  const ngx = pos.gx + dx;
+                  const ngy = pos.gy + dy;
+                  if (!occupied.has(key(ngx, ngy))) {
+                    bestGx = ngx;
+                    bestGy = ngy;
+                    found = true;
+                    break outerRing;
+                  }
+                }
+              }
+            }
+          }
+        }
+        // Last resort: any free cell on the grid, never on top of another room.
+        if (!found && ei < treeEdgeCount) {
+          console.warn(
+            `[buildMapLayout] tree edge could not be placed: parent ${current} (${pos.gx},${pos.gy}) → nb ${nb}, all cardinal cells already occupied`,
+          );
+        }
+        if (!found) {
+          outer: for (let gy = 0; gy <= total * 2; gy++) {
+            for (let gx = 0; gx <= total * 2; gx++) {
+              if (!occupied.has(key(gx, gy))) {
+                bestGx = gx;
+                bestGy = gy;
+                found = true;
+                break outer;
+              }
             }
           }
         }
@@ -900,6 +964,16 @@ export class GameEngine {
         occupied.add(key(bestGx, bestGy));
         queue.push(nb);
       }
+    }
+
+    // Build final adjacency after placement because an indispensable tree edge
+    // may have been re-anchored above to preserve a physical connection.
+    const adjacency = new Map<number, number[]>();
+    for (const [a, b] of edges) {
+      if (!adjacency.has(a)) adjacency.set(a, []);
+      if (!adjacency.has(b)) adjacency.set(b, []);
+      adjacency.get(a)!.push(b);
+      adjacency.get(b)!.push(a);
     }
 
 // BFS placement can produce negative grid coordinates (rooms to the
@@ -942,35 +1016,168 @@ export class GameEngine {
 
     // Build corridors from edges
     let corridorId = 1000;
-    for (const [aId, bId] of edges) {
-      const a = this.rooms.find((r) => r.id === aId)!;
-      const b = this.rooms.find((r) => r.id === bId)!;
+    for (let ei = 0; ei < edges.length; ei++) {
+      const [aId, bId] = edges[ei];
+      const isTreeEdge = ei < treeEdgeCount;
+      const a = this.rooms.find((r) => r.id === aId);
+      const b = this.rooms.find((r) => r.id === bId);
 
-      const pa = placed.get(aId)!;
-      const pb = placed.get(bId)!;
-
-      let bounds: RoomBounds;
-      if (pa.gx === pb.gx && pa.gy !== pb.gy) {
-        const top = pa.gy < pb.gy ? a : b;
-        bounds = {
-          x: top.bounds.x + (ROOM_W - CORRIDOR_THICK) / 2,
-          y: top.bounds.y + ROOM_H,
-          w: CORRIDOR_THICK, h: CORRIDOR_LEN,
-        };
-      } else if (pa.gy === pb.gy && pa.gx !== pb.gx) {
-        const left = pa.gx < pb.gx ? a : b;
-        bounds = {
-          x: left.bounds.x + ROOM_W,
-          y: left.bounds.y + (ROOM_H - CORRIDOR_THICK) / 2,
-          w: CORRIDOR_LEN, h: CORRIDOR_THICK,
-        };
-      } else {
+      const pa = placed.get(aId);
+      const pb = placed.get(bId);
+      if (!a || !b || !pa || !pb) {
+        if (isTreeEdge) {
+          console.warn(`[buildMapLayout] tree corridor skipped (missing placed cell): rooms ${aId} and ${bId} unreachable — map may be disconnected`);
+        }
         continue;
       }
 
+      let bounds: RoomBounds;
+      const thick = CORRIDOR_THICK;
+      if (pa.gx === pb.gx && pa.gy !== pb.gy) {
+        const top = pa.gy < pb.gy ? a : b;
+        const bottom = pa.gy < pb.gy ? b : a;
+        bounds = {
+          x: top.bounds.x + (ROOM_W - thick) / 2,
+          y: top.bounds.y + ROOM_H,
+          w: thick,
+          h: bottom.bounds.y - (top.bounds.y + ROOM_H),
+        };
+      } else if (pa.gy === pb.gy && pa.gx !== pb.gx) {
+        const left = pa.gx < pb.gx ? a : b;
+        const right = pa.gx < pb.gx ? b : a;
+        bounds = {
+          x: left.bounds.x + ROOM_W,
+          y: left.bounds.y + (ROOM_H - thick) / 2,
+          w: right.bounds.x - (left.bounds.x + ROOM_W),
+          h: thick,
+        };
+      } else {
+        // PASO 2 — L-shaped corridors for diagonally placed rooms.
+        // Two straight strips meeting at a virtual elbow. Strip thickness = thick.
+        // Two elbow candidates: (A's column, B's row) and (B's column, A's row).
+        // Each strip is built with Math.min/Math.max over the REAL edges of the
+        // rooms / elbow square, which mathematically guarantees positive w/h and
+        // guarantees the two strips overlap in a thick×thick square at the elbow.
+        const elbowCells = [
+          { gx: pa.gx, gy: pb.gy }, // elbow at A's column, B's row
+          { gx: pb.gx, gy: pa.gy }, // elbow at B's column, A's row
+        ];
+
+        // Build the two strips for a given elbow cell + thickness. Returns null
+        // when the geometry is degenerate or (when respectOverlap) it collides
+        // with another room. Math.min/Math.max over real edges guarantee the
+        // returned rectangles always have positive w/h and overlap each other.
+        const buildElbow = (corner: { gx: number; gy: number }, wThick: number, respectOverlap: boolean): [RoomBounds, RoomBounds] | null => {
+          const ex = originX + (corner.gx - minGx) * cellW;
+          const ey = originY + (corner.gy - minGy) * cellH;
+          const vx = ex + (ROOM_W - wThick) / 2;
+          const hy = ey + (ROOM_H - wThick) / 2;
+
+          const vTopEdge = Math.min(a.bounds.y, hy);
+          const vBottomEdge = Math.max(a.bounds.y + ROOM_H, hy + wThick);
+          const v_bounds: RoomBounds = { x: vx, y: vTopEdge, w: wThick, h: vBottomEdge - vTopEdge };
+
+          const hLeftEdge = Math.min(vx, b.bounds.x);
+          const hRightEdge = Math.max(vx + wThick, b.bounds.x + ROOM_W);
+          const h_bounds: RoomBounds = { x: hLeftEdge, y: hy, w: hRightEdge - hLeftEdge, h: wThick };
+
+          // SAFETY: never emit a degenerate (non-positive) rectangle.
+          if (v_bounds.w <= 0 || v_bounds.h <= 0 || h_bounds.w <= 0 || h_bounds.h <= 0) return null;
+
+          if (respectOverlap) {
+            for (const room of this.rooms) {
+              if (room.id === aId || room.id === bId) continue;
+              if (rectsOverlap(v_bounds, room.bounds, 1) || rectsOverlap(h_bounds, room.bounds, 1)) {
+                return null;
+              }
+            }
+          }
+          return [v_bounds, h_bounds];
+        };
+
+        let elbowBuilt = false;
+        // 1) Prefer clean elbows (no overlap) at full, then half, thickness.
+        const thicknesses: number[] = [CORRIDOR_THICK];
+        if (isTreeEdge) thicknesses.push(Math.max(40, CORRIDOR_THICK / 2));
+        outerElbow: for (const wThick of thicknesses) {
+          for (const corner of elbowCells) {
+            const segs = buildElbow(corner, wThick, true);
+            if (segs) {
+              this.corridors.push({ id: corridorId++, from: aId, to: bId, bounds: segs[0] });
+              this.corridors.push({ id: corridorId++, from: aId, to: bId, bounds: segs[1] });
+              elbowBuilt = true;
+              break outerElbow;
+            }
+          }
+        }
+
+        // 2) Guaranteed-connectivity fallback for indispensable tree edges:
+        // every tree edge must be represented by a corridor, so if both clean
+        // elbows are obstructed we still build one (accepting that it may pass
+        // through a room) rather than leaving the child room unreachable.
+        if (!elbowBuilt && isTreeEdge) {
+          const segs = buildElbow(elbowCells[0], CORRIDOR_THICK, false);
+          if (segs) {
+            this.corridors.push({ id: corridorId++, from: aId, to: bId, bounds: segs[0] });
+            this.corridors.push({ id: corridorId++, from: aId, to: bId, bounds: segs[1] });
+            elbowBuilt = true;
+          }
+        }
+
+        if (!elbowBuilt && isTreeEdge) {
+          console.warn(`[buildMapLayout] tree corridor skipped (both elbow options blocked): rooms ${aId} and ${bId} unreachable — map may be disconnected`);
+        }
+        continue;
+      }
+
+      // Omit this corridor if its rectangle would physically tunnel through
+      // any room other than a/b. Placement already guarantees the straight
+      // path is free, but the margin math can still leak a sliver across a
+      // neighbour's edge — better to skip than to draw an unreachable wall.
+      let blocked = false;
       for (const room of this.rooms) {
         if (room.id === aId || room.id === bId) continue;
-        if (rectsOverlap(bounds, room.bounds, -1)) continue; // just skip, don't crash
+        if (rectsOverlap(bounds, room.bounds, 1)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) {
+        if (!isTreeEdge) continue; // Extra edges remain optional — skip as before.
+        // Tree edges are indispensable. Try a narrower corridor before
+        // giving up, so the connection survives even in a crowded layout.
+        const halfThick = Math.max(40, CORRIDOR_THICK / 2);
+        if (pa.gx === pb.gx && pa.gy !== pb.gy) {
+          const top = pa.gy < pb.gy ? a : b;
+          const bottom = pa.gy < pb.gy ? b : a;
+          bounds = {
+            x: top.bounds.x + (ROOM_W - halfThick) / 2,
+            y: top.bounds.y + ROOM_H,
+            w: halfThick,
+            h: bottom.bounds.y - (top.bounds.y + ROOM_H),
+          };
+        } else if (pa.gy === pb.gy && pa.gx !== pb.gx) {
+          const left = pa.gx < pb.gx ? a : b;
+          const right = pa.gx < pb.gx ? b : a;
+          bounds = {
+            x: left.bounds.x + ROOM_W,
+            y: left.bounds.y + (ROOM_H - halfThick) / 2,
+            w: right.bounds.x - (left.bounds.x + ROOM_W),
+            h: halfThick,
+          };
+        }
+        let blockedByNarrow = false;
+        for (const room of this.rooms) {
+          if (room.id === aId || room.id === bId) continue;
+          if (rectsOverlap(bounds, room.bounds, 1)) {
+            blockedByNarrow = true;
+            break;
+          }
+        }
+        if (blockedByNarrow) {
+          console.warn(`[buildMapLayout] tree corridor skipped (narrow still blocked): rooms ${aId} and ${bId} unreachable — map may be disconnected`);
+          continue;
+        }
       }
 
       this.corridors.push({ id: corridorId++, from: aId, to: bId, bounds });
@@ -983,6 +1190,60 @@ export class GameEngine {
     }
     this.worldW = maxX + 80;
     this.worldH = maxY + 80;
+
+    // PASO 4 — safety validation: verify every room is physically reachable
+    // from the start (id 0) using ONLY the real corridors just built. If any
+    // room is unreachable, warn so we can detect layouts that still leak
+    // disconnected rooms (should be rare after the fixes above).
+    {
+      const corridorAdj = new Map<number, number[]>();
+      for (const c of this.corridors) {
+        if (!corridorAdj.has(c.from)) corridorAdj.set(c.from, []);
+        if (!corridorAdj.has(c.to)) corridorAdj.set(c.to, []);
+        corridorAdj.get(c.from)!.push(c.to);
+        corridorAdj.get(c.to)!.push(c.from);
+      }
+      const reachable = new Set<number>([0]);
+      const stack = [0];
+      while (stack.length > 0) {
+        const cur = stack.pop()!;
+        for (const nb of corridorAdj.get(cur) ?? []) {
+          if (!reachable.has(nb)) {
+            reachable.add(nb);
+            stack.push(nb);
+          }
+        }
+      }
+      for (const r of this.rooms) {
+        if (!reachable.has(r.id)) {
+          console.warn(`[buildMapLayout] room ${r.id} is NOT reachable from start (id 0) — map may be disconnected`);
+        }
+      }
+
+      // PASO 3 — safety check: for every L-shaped connection (a from/to pair that
+      // produced exactly two corridor segments), verify the two segments really
+      // overlap in both X and Y. A pair with zero overlap in either axis is a
+      // broken elbow that would strand the player even though reachability says OK.
+      const byPair = new Map<string, RoomBounds[]>();
+      for (const c of this.corridors) {
+        const k = `${Math.min(c.from, c.to)}-${Math.max(c.from, c.to)}`;
+        if (!byPair.has(k)) byPair.set(k, []);
+        byPair.get(k)!.push(c.bounds);
+      }
+      for (const [k, segs] of byPair) {
+        if (segs.length !== 2) continue; // straight corridors have exactly 1
+        const [s1, s2] = segs;
+        const overlapX = Math.min(s1.x + s1.w, s2.x + s2.w) - Math.max(s1.x, s2.x);
+        const overlapY = Math.min(s1.y + s1.h, s2.y + s2.h) - Math.max(s1.y, s2.y);
+        if (overlapX <= 0 || overlapY <= 0) {
+          console.warn(
+            `[buildMapLayout] L-corridor for rooms ${k} has no real overlap ` +
+            `(overlapX=${overlapX}, overlapY=${overlapY}); ` +
+            `seg1=${JSON.stringify(s1)} seg2=${JSON.stringify(s2)}`
+          );
+        }
+      }
+    }
   }
 
   private seededRandom(): () => number {
@@ -1004,6 +1265,7 @@ export class GameEngine {
       hp: char.stats.hp + hpBonus,
       maxHp: char.stats.hp + hpBonus,
       shield: 0,
+      maxShield: 0,
       speed: char.stats.speed,
       armor: char.stats.armor,
       critChance: char.stats.critChance,
@@ -1018,6 +1280,8 @@ export class GameEngine {
       fireRateMult: 1, projectileSizeBonus: 0, bounceBonus: 0, explosionBonus: 0,
       equipment: { helm: null, chest: null, pants: null, boots: null },
       critDamageMult: 2,
+      burnDpsMult: 1,
+      poisonDpsMult: 1,
     };
     this.recalcStats();
     for (const cb of this.onWeaponDiscoverCbs) cb(startWeaponId);
@@ -1285,6 +1549,27 @@ export class GameEngine {
     this.pushStats();
   }
 
+  getEndlessModifierChoices() {
+    return this.runDirector.getEndlessModifierChoices();
+  }
+
+  getActiveEndlessModifiers() {
+    return this.runDirector.getActiveEndlessModifiers();
+  }
+
+  applyEndlessModifier(modId: string) {
+    this.runDirector.applyEndlessModifier(modId);
+  }
+
+  /** Voluntary exit mid-run (e.g. "Menú principal" desde pausa):
+   *  banca el oro/puntuación ganados hasta ahora reutilizando
+   *  exactamente el mismo camino que una derrota real, solo que sin
+   *  el sonido de muerte — porque no es una muerte, es una salida. */
+  abandonRun() {
+    if (!this.player || this.ended) return;
+    this.endRun('defeat', true);
+  }
+
   private advanceToNextMap() {
     if (this.mapNumber >= TOTAL_MAPS) {
       this.endRun('victory');
@@ -1298,11 +1583,20 @@ export class GameEngine {
     this.runDirector.onNextMap();
     this.newMapLayout();
     this.recalcStats();
-    if (!this.running) {
-      this.running = true;
-      this.last = performance.now();
-    }
-    this.pushStats();
+    // PASO 2: the important skill choice is offered once per map, right after
+    // the new map is generated and before the player starts playing it. Reuses
+    // the exact same pick/pendingSkills/onLevelUpCbs mechanism as before.
+    this.presentSkillChoice();
+  }
+
+  /** Shared mechanism for offering a skill choice: pick 3 options (respecting
+   *  the current build context), pause the run, and fire the level-up
+   *  callbacks. applySkill() resumes the run once the player picks. */
+  private presentSkillChoice() {
+    const choices = pickSkillChoices(3, this.buildSkillContext());
+    this.pendingSkills = choices;
+    this.running = false;
+    for (const cb of this.onLevelUpCbs) cb(choices);
   }
 
   private comboMultiplier() {
@@ -1565,9 +1859,12 @@ export class GameEngine {
 
   private syncCurrentRoom() {
     const p = this.player;
-    // Corridors are not rooms — do not start combat there.
-    if (this.isPlayerInCorridor()) return;
-
+    // Room entry takes precedence over corridor transit. The previous order
+    // ran the corridor check first, which let the player "enter" the room
+    // spawned *by an event* (uses status 'active' on the old room while
+    // standing in a gap that a corridor rectangle also covers) be treated
+    // as still inside the corridor. Check rooms first with the same -20
+    // margin: if we're inside any, handle it normally and exit there.
     for (const r of this.rooms) {
       if (rectsOverlapPoint(r.bounds, p.x, p.y, -20)) {
         if (this.currentRoomId !== r.id) {
@@ -1587,9 +1884,11 @@ export class GameEngine {
         return;
       }
     }
+    // Not inside any room → we're in corridor/transit. Don't warp currentRoomId.
   }
 
   private activateRoom(room: RoomNode) {
+    this.activeCombatRoomId = room.id;
     room.status = 'active';
     room.discovered = true;
     this.roomCombatActive = false;
@@ -1788,7 +2087,11 @@ export class GameEngine {
       }
     }
 
-    const room = this.rooms.find((r) => r.id === this.currentRoomId);
+    // updateRoomFlow decides when a room is considered cleared (and thus when
+    // its chest spawns). We must evaluate the room where the combat actually
+    // started, not the room the player happens to be in right now — otherwise
+    // killing the last enemy mid-transition leaves the old room active.
+    const room = this.rooms.find((r) => r.id === this.activeCombatRoomId);
     if (!room) return;
 
     if (room.status === 'active') {
@@ -1838,6 +2141,9 @@ export class GameEngine {
     this.player.projectileSizeBonus = 0;
     this.player.bounceBonus = 0;
     this.player.explosionBonus = 0;
+    this.player.maxShield = 0;
+    this.player.burnDpsMult = 1;
+    this.player.poisonDpsMult = 1;
 
     const addMods = (mods: Array<{ stat: string; op: string; val: number }>) => {
       for (const m of mods) {
@@ -1855,8 +2161,11 @@ export class GameEngine {
           case 'bounce': this.player.bounceBonus += m.val; break;
           case 'lifesteal': this.player.lifesteal += m.val; break;
           case 'dashCooldown': this.player.dashCooldownMax = Math.max(0.4, 1.2 + m.val); break;
-          case 'shield': this.player.shield += m.val; break;
+          case 'shield': this.player.maxShield += m.val; break;
           case 'explosionRadius': this.player.explosionBonus += m.val; break;
+          case 'critDamageMult': this.player.critDamageMult += m.val; break;
+          case 'burnDpsMult': this.player.burnDpsMult *= (1 + m.val); break;
+          case 'poisonDpsMult': this.player.poisonDpsMult *= (1 + m.val); break;
         }
       }
     };
@@ -1899,7 +2208,7 @@ export class GameEngine {
       for (const bonus of def.bonuses) {
         if (count >= bonus.pieces) {
           addMods(bonus.mods.map((m) => ({ stat: m.stat, op: m.op, val: m.value })));
-          if (bonus.special === 'lethalStrike') this.player.critDamageMult = 3;
+          if (bonus.special === 'lethalStrike') this.player.critDamageMult = Math.max(this.player.critDamageMult, 3);
         }
       }
       // Weapon synergy: if the equipped weapon matches the set's synergy
@@ -1955,7 +2264,8 @@ export class GameEngine {
     const p = this.player;
     p.maxHp = Math.round(balanceStat('maxHp', p.maxHp));
     p.armor = balanceStat('armor', p.armor);
-    p.shield = Math.round(balanceStat('shield', p.shield));
+    p.maxShield = Math.round(balanceStat('shield', p.maxShield));
+    p.shield = Math.min(p.shield, p.maxShield);
     p.critChance = balanceStat('critChance', p.critChance);
     p.critDamageMult = balanceStat('critDamageMult', p.critDamageMult);
     p.damageMult = balanceStat('damageMult', p.damageMult);
@@ -1979,6 +2289,7 @@ export class GameEngine {
   }
 
   private clearRoom(room: RoomNode) {
+    if (this.activeCombatRoomId === room.id) this.activeCombatRoomId = null;
     this.enemyDirector.onRoomCleared();
     room.status = 'cleared';
     this.roomCombatActive = false;
@@ -2094,6 +2405,7 @@ export class GameEngine {
           _elementChance: w.elementChance,
           _chain: w.chain,
           _chainChance: w.chainChance,
+          _isCrit: crit,
         });
       }
     }
@@ -2112,21 +2424,22 @@ export class GameEngine {
       const walkables = this.getAccessibleWalkables();
       const containingRoom = walkables.find((b) => rectsOverlapPoint(b, pr.x, pr.y, 0));
 
-      // Bounce off the walls of the room/corridor the projectile is
-      // currently in, instead of the edges of the whole generated map —
-      // most projectiles never reached those, which made "bounce" builds
-      // barely functional in practice.
-      if (pr._bounceCount && pr._bounceCount > 0 && containingRoom) {
-        const b = containingRoom;
-        if (pr.x < b.x + 30 || pr.x > b.x + b.w - 30) {
-          pr.vx = -pr.vx;
-          pr.x = Math.max(b.x + 30, Math.min(b.x + b.w - 30, pr.x));
-          pr._bounceCount -= 1;
-        }
-        if (pr.y < b.y + 30 || pr.y > b.y + b.h - 30) {
-          pr.vy = -pr.vy;
-          pr.y = Math.max(b.y + 30, Math.min(b.y + b.h - 30, pr.y));
-          pr._bounceCount -= 1;
+      // Bounce off the current room/corridor bounds (not the whole map —
+      // rooms are usually far from the map's outer edge, so this affix
+      // barely ever triggered before).
+      if (pr._bounceCount && pr._bounceCount > 0) {
+        const bounds = this.getAccessibleWalkables().find((b) => rectsOverlapPoint(b, pr.x, pr.y, pr.size + 40));
+        if (bounds) {
+          if (pr.x < bounds.x + 30 || pr.x > bounds.x + bounds.w - 30) {
+            pr.vx = -pr.vx;
+            pr.x = Math.max(bounds.x + 30, Math.min(bounds.x + bounds.w - 30, pr.x));
+            pr._bounceCount -= 1;
+          }
+          if (pr.y < bounds.y + 30 || pr.y > bounds.y + bounds.h - 30) {
+            pr.vy = -pr.vy;
+            pr.y = Math.max(bounds.y + 30, Math.min(bounds.y + bounds.h - 30, pr.y));
+            pr._bounceCount -= 1;
+          }
         }
         if (pr._bounceCount <= 0) {
           if (pr._explosionRadius && pr._explosionRadius > 0) {
@@ -2171,12 +2484,16 @@ export class GameEngine {
         case 'fire':
         case 'radiant':
           e.burnTimer = 3 * elemSyn;
-          e.burnDps = Math.max(2, pr.damage * 0.2 * elemSyn);
+          e.burnDps = Math.max(2, pr.damage * 0.2 * elemSyn) * (1 + (this.player?.burnDpsMult ?? 1) - 1);
           break;
         case 'toxic':
         case 'dark':
           e.poisonTimer = 4 * elemSyn;
-          e.poisonDps = Math.max(2, pr.damage * 0.15 * elemSyn);
+          e.poisonDps = Math.max(2, pr.damage * 0.15 * elemSyn) * (1 + (this.player?.poisonDpsMult ?? 1) - 1);
+          break;
+        case 'bleed':
+          e.bleedTimer = 3 * elemSyn;
+          e.bleedDps = Math.max(2, pr.damage * 0.12 * elemSyn);
           break;
         case 'ice':
           e.slowTimer = 2.5 * elemSyn;
@@ -2184,6 +2501,11 @@ export class GameEngine {
         case 'electric':
           break; // chaining handled below
       }
+    }
+    // Bleed on critical hit — only active if the player has the bleed skill.
+    if (pr._isCrit && this.acquiredSkills.some((s) => s.id === 'skill_bleed_crit')) {
+      e.bleedTimer = 3;
+      e.bleedDps = Math.max(2, pr.damage * 0.12) * (this.player?.burnDpsMult ?? 1);
     }
     // Chain lightning
     if (
@@ -2248,6 +2570,13 @@ export class GameEngine {
         if (ph.attackCooldownMult) e.attackCooldown *= ph.attackCooldownMult;
         if (ph.colorOverride) e.color = ph.colorOverride;
         if (ph.glowOverride) e.glow = ph.glowOverride;
+        if (ph.extraProjectile && e.projectile) {
+          e.projectile = {
+            speed: e.projectile.speed * (ph.extraProjectile.speed ?? 1),
+            size: e.projectile.size * (ph.extraProjectile.size ?? 1),
+            color: ph.extraProjectile.color ?? e.projectile.color,
+          };
+        }
         this.burst(e.x, e.y, e.color, 20);
         this.camera.shake = Math.min(0.8, this.camera.shake + 0.4);
         audio.play('explosion');
@@ -2288,6 +2617,11 @@ export class GameEngine {
         e.poisonTimer -= dt;
         e.hp -= (e.poisonDps ?? 0) * dt;
         if (runRandom.next('visual') < dt * 6) this.burst(e.x, e.y, '#9dff00', 1);
+      }
+      if (e.bleedTimer && e.bleedTimer > 0) {
+        e.bleedTimer -= dt;
+        e.hp -= (e.bleedDps ?? 0) * dt;
+        if (runRandom.next('visual') < dt * 6) this.burst(e.x, e.y, '#ff2a4b', 1);
       }
       let slowFactor = 1;
       if (e.slowTimer && e.slowTimer > 0) {
@@ -2417,7 +2751,7 @@ const spd = e.speed * slowFactor;
       : p.invuln > 0;
     if (immune) return;
     const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
-    const dmg = Math.max(1, amount * ascDmgMult - p.armor);
+    const dmg = Math.max(1, amount * ascDmgMult - p.armor) * (this.assistMode ? 0.75 : 1);
 
     if (this.currentEvent?.combatRules?.noDamage) {
       this.challengeFailed = true;
@@ -2604,28 +2938,22 @@ const spd = e.speed * slowFactor;
     // see AscensionLevel.xpMult).
     const xpMult = this.runDirector.getAscensionState()?.xpMult ?? 1;
     p.xp += amount * xpMult;
-    let levelsGained = 0;
     while (p.xp >= p.xpToNext) {
       p.xp -= p.xpToNext;
       p.level += 1;
       p.xpToNext = Math.floor(55 + p.level * 38);
-      p.hp = Math.min(p.maxHp, p.hp + 15);
-      levelsGained += 1;
+      // PASO 1: leveling up INSIDE a map now grants a minor reward instead of
+      // opening the skill-choice screen — heal 15% of max HP plus a small
+      // amount of gold (proportional to level, same magnitude family as the
+      // `this.goldEarned += ...` line in killEnemy). The important skill
+      // choice is offered once per map in advanceToNextMap (PASO 2).
+      const heal = Math.floor(p.maxHp * 0.15);
+      p.hp = Math.min(p.maxHp, p.hp + heal);
+      this.goldEarned += Math.max(1, Math.floor((p.level * 8) * this.petGoldMult()));
       audio.play('levelup');
       this.burstJuice(p.x, p.y, '#ffe14a', 16, 1.5, 0.15);
       this.burstJuice(p.x, p.y, '#b04dff', 10, 1.8, 0.1);
       this.camera.shake = Math.max(this.camera.shake, 0.3);
-    }
-    if (levelsGained > 0) {
-      // Present one skill-choice prompt per level gained, one at a time —
-      // extras are queued and surfaced after the current choice is made
-      // (see applySkill), instead of firing the callback multiple times
-      // synchronously and losing every choice but the last.
-      this.queuedLevelUps += levelsGained - 1;
-      const choices = pickSkillChoices(3, this.buildSkillContext());
-      this.pendingSkills = choices;
-      this.running = false;
-      for (const cb of this.onLevelUpCbs) cb(choices);
     }
   }
 
@@ -2718,41 +3046,22 @@ const spd = e.speed * slowFactor;
   private handlePickups(input: InputState) {
     const p = this.player;
     this.nearestWeapon = null;
+    this.nearestItem = null;
     let bestDist = 48;
+    let bestItemDist = 28;
+    let stackedCount = 0;
     for (const pk of this.pickups) {
       if (pk.life <= 0) continue;
       const d = Math.hypot(pk.x - p.x, pk.y - p.y);
+      if (pk.kind === 'weapon' && d < 48) stackedCount++;
+      if (pk.kind === 'item' && d < 28) stackedCount++;
       if (pk.kind === 'weapon' && d < bestDist) {
         bestDist = d;
         this.nearestWeapon = pk;
       }
-      if (d < 28 && pk.kind === 'item') {
-        if (input.interact && !this.nearestChest && !this.pendingItemPickup) {
-          const equipId = pk.itemId ?? EQUIP_SLOTS[0];
-          const eq = getEquipment(equipId);
-          const equipped = this.buildEquippedItemEntries();
-          // Do NOT destroy the pickup here: the user may cancel, in which case
-          // the item must remain on the ground. Store a reference so the
-          // resolver knows what to swap / discard.
-          this.pendingItemPickup = { pk };
-          this.running = false;
-          const lb = this.statLabelMap();
-          for (const cb of this.onItemPickupCbs) {
-            cb(
-              {
-                id: equipId, name: eq.name, icon: eq.icon,
-                description: eq.description, color: eq.color, rarity: eq.rarity,
-                slot: eq.slot, setId: eq.setId,
-                mods: eq.mods.map((m) => ({
-                  stat: m.stat, op: m.op, value: m.value,
-                  label: `${lb[m.stat] ?? m.stat} ${m.op === 'add' ? (m.value >= 0 ? '+' : '') + m.value : (m.value >= 0 ? '+' : '') + Math.round(m.value * 100) + '%'}`,
-                })),
-              },
-              equipped,
-              (slot: EquipSlot | null) => this.resolveItemPickup(equipId, slot),
-            );
-          }
-        }
+      if (pk.kind === 'item' && d < bestItemDist) {
+        bestItemDist = d;
+        this.nearestItem = pk;
         continue;
       }
       if (d < 28 && pk.kind !== 'weapon' && pk.kind !== 'item') {
@@ -2767,7 +3076,7 @@ const spd = e.speed * slowFactor;
           this.burst(pk.x, pk.y, '#ffe14a', 6);
           this.camera.shake = Math.max(this.camera.shake, 0.06);
         } else if (pk.kind === 'shield') {
-          p.shield += pk.value;
+          if (p.maxShield > 0) p.shield = Math.min(p.maxShield, p.shield + pk.value);
         } else if (pk.kind === 'relic' && pk.itemId) {
           // Static relics (content/items.ts) apply their mods permanently
           // for the run, reusing the exact same generic pipeline as event
@@ -2785,6 +3094,32 @@ const spd = e.speed * slowFactor;
         this.burst(pk.x, pk.y, pk.color, 6);
       }
     }
+    this.stackedPickupCount = stackedCount;
+
+    if (this.nearestItem && input.interact && !this.nearestChest && !this.pendingItemPickup) {
+      const equipId = this.nearestItem.itemId ?? EQUIP_SLOTS[0];
+      const eq = getEquipment(equipId);
+      const equipped = this.buildEquippedItemEntries();
+      this.pendingItemPickup = { pk: this.nearestItem };
+      this.running = false;
+      const lb = this.statLabelMap();
+      for (const cb of this.onItemPickupCbs) {
+        cb(
+          {
+            id: equipId, name: eq.name, icon: eq.icon,
+            description: eq.description, color: eq.color, rarity: eq.rarity,
+            slot: eq.slot, setId: eq.setId,
+            mods: eq.mods.map((m) => ({
+              stat: m.stat, op: m.op, value: m.value,
+              label: `${lb[m.stat] ?? m.stat} ${m.op === 'add' ? (m.value >= 0 ? '+' : '') + m.value : (m.value >= 0 ? '+' : '') + Math.round(m.value * 100) + '%'}`,
+            })),
+          },
+          equipped,
+          (slot: EquipSlot | null) => this.resolveItemPickup(equipId, slot),
+        );
+      }
+    }
+
       if (this.nearestWeapon && input.interact && !this.nearestChest) {
         const old = p.weaponId;
         const genId = this.nearestWeapon.weaponId ?? old;
@@ -3174,7 +3509,7 @@ const spd = e.speed * slowFactor;
     return best;
   }
 
-  private endRun(result: 'victory' | 'defeat') {
+  private endRun(result: 'victory' | 'defeat', silent = false) {
     if (this.ended) return;
     this.ended = result;
     this.running = false;
@@ -3188,7 +3523,7 @@ const spd = e.speed * slowFactor;
       this.score = Math.round(this.score * scoreMult);
       this.scoreMultApplied = true;
     }
-    audio.play(result === 'victory' ? 'levelup' : 'death');
+    if (!silent) audio.play(result === 'victory' ? 'levelup' : 'death');
     const stats = this.getStats();
     for (const cb of this.onEndCbs) cb(result, stats);
   }

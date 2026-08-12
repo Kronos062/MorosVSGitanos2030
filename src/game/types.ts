@@ -20,10 +20,12 @@ export interface Projectile {
   _explosionRadius?: number;
   /** Affix carry-over so hit resolution can apply effects generically. */
   _lifesteal?: number;
-  _element?: 'fire' | 'ice' | 'electric' | 'toxic' | 'radiant' | 'dark';
+  _element?: 'fire' | 'ice' | 'electric' | 'toxic' | 'radiant' | 'dark' | 'bleed';
   _elementChance?: number;
   _chain?: number;
   _chainChance?: number;
+  /** Set when this projectile is a critical hit — used by the bleed skill. */
+  _isCrit?: boolean;
 }
 
 export interface EnemyEntity {
@@ -56,6 +58,8 @@ export interface EnemyEntity {
   burnDps?: number;
   poisonTimer?: number;
   poisonDps?: number;
+  bleedTimer?: number;
+  bleedDps?: number;
   slowTimer?: number;
   /** Boss phase tracking (set by engine, data-driven). */
   currentPhase?: number;
@@ -213,6 +217,7 @@ export interface PlayerState {
   hp: number;
   maxHp: number;
   shield: number;
+  maxShield: number;
   speed: number;
   armor: number;
   critChance: number;
@@ -244,6 +249,10 @@ export interface PlayerState {
   equipment: Record<EquipSlot, string | null>;
   /** Crit damage multiplier (default 2, can be boosted by sets) */
   critDamageMult: number;
+  /** Multiplies the DPS of burn/poison applied by weapons with those
+   *  elemental affixes (set by skills like "+30% burn damage"). */
+  burnDpsMult: number;
+  poisonDpsMult: number;
 }
 
 export interface PortalEntity {
@@ -257,6 +266,7 @@ export interface GameStats {
   hp: number;
   maxHp: number;
   shield: number;
+  maxShield: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -268,6 +278,7 @@ export interface GameStats {
   multiplier: number;
   weaponName: string;
   weaponColor: string;
+  stackedPickupCount: number;
   boss?: { name: string; hp: number; maxHp: number; phase?: string } | null;
   weaponPrompt?: { name: string; color: string } | null;
   chestPrompt?: { name: string; color: string } | null;

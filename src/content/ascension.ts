@@ -31,6 +31,8 @@ export interface AscensionModifier {
   eventWeightMult?: Partial<Record<string, number>>;
   /** Extra damage multiplier applied to ALL enemies (gentle scaling). */
   enemyDamageMult?: number;
+  /** XP multiplier applied to gains. */
+  xpMult?: number;
   /** Score multiplier applied at end of run. */
   scoreMult?: number;
 }
@@ -199,6 +201,26 @@ export const ASCENSION_LEVELS: AscensionLevel[] = [
     xpMult: 2.0,
     scoreMult: 2.5,
   },
+];
+
+/**
+ * Optional risk/reward modifiers offered when continuing an endless cycle.
+ * Reuses the existing AscensionModifier type; each field is multiplied into
+ * the run's AscensionState exactly like the ascension-level modifiers.
+ */
+export const ENDLESS_MODIFIERS: AscensionModifier[] = [
+  { id: 'endless_brutal', label: 'Oleada Brutal', icon: '💀',
+    description: 'Enemigos +20% daño. A cambio, +15% oro.',
+    enemyDamageMult: 1.20, goldWeightMult: 1.15 },
+  { id: 'endless_swift', label: 'Marabunta', icon: '⚡',
+    description: 'Enemigos +15% velocidad e intensidad. A cambio, +10% XP.',
+    enemyIntensityMult: 1.15, xpMult: 1.10 },
+  { id: 'endless_scarce', label: 'Escasez', icon: '🩸',
+    description: '-30% probabilidad de curación. A cambio, +25% probabilidad de objeto raro.',
+    healWeightMult: 0.70, lootQualityShift: { rare: 1.25, epic: 1.15 } },
+  { id: 'endless_elite', label: 'Vanguardia', icon: '⚔️',
+    description: 'Más enemigos de élite. A cambio, +20% puntuación.',
+    eliteWeightMult: 1.30, scoreMult: 1.20 },
 ];
 
 export function getAscensionLevel(level: number): AscensionLevel {

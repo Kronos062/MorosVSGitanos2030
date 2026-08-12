@@ -31,6 +31,12 @@ export interface SaveData {
   highestAscension: number;
   /** Currently selected ascension level for the next run. */
   activeAscension: number;
+  /** Whether the first-time tutorial overlay has been dismissed. */
+  tutorialSeen: boolean;
+  /** Accessibility: reduces incoming damage by 25%. */
+  assistMode: boolean;
+  /** Chosen menu background music track ID. */
+  menuMusicId: string;
 }
 
 const KEY = 'mvg2030_save_v1';
@@ -61,34 +67,43 @@ const DEFAULT_SAVE: SaveData = {
   equippedPet: null,
   highestAscension: 0,
   activeAscension: 0,
+  tutorialSeen: false,
+  assistMode: false,
+  menuMusicId: 'menu1',
 };
 
 function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
   return { ...DEFAULT_BINDINGS, ...(raw ?? {}) };
 }
 
+function normalizeSave(parsed: Partial<SaveData>): SaveData {
+  return {
+    faction: parsed.faction ?? null,
+    gold: parsed.gold ?? 0,
+    armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
+    bestiary: parsed.bestiary ?? {},
+    upgrades: {
+      permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
+      permDamageLevel: parsed.upgrades?.permDamageLevel ?? 0,
+    },
+    highScores: parsed.highScores ?? [],
+    volume: parsed.volume ?? 0.7,
+    bindings: mergeBindings(parsed.bindings),
+    pets: parsed.pets ?? {},
+    equippedPet: parsed.equippedPet ?? null,
+    highestAscension: parsed.highestAscension ?? 0,
+    activeAscension: parsed.activeAscension ?? 0,
+    tutorialSeen: parsed.tutorialSeen ?? false,
+    assistMode: parsed.assistMode ?? false,
+    menuMusicId: parsed.menuMusicId ?? 'menu1',
+  };
+}
+
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return structuredClone(DEFAULT_SAVE);
-    const parsed = JSON.parse(raw) as Partial<SaveData>;
-    return {
-      faction: parsed.faction ?? null,
-      gold: parsed.gold ?? 0,
-      armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
-      bestiary: parsed.bestiary ?? {},
-      upgrades: {
-        permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
-        permDamageLevel: parsed.upgrades?.permDamageLevel ?? 0,
-      },
-      highScores: parsed.highScores ?? [],
-      volume: parsed.volume ?? 0.7,
-      bindings: mergeBindings(parsed.bindings),
-      pets: parsed.pets ?? {},
-      equippedPet: parsed.equippedPet ?? null,
-      highestAscension: parsed.highestAscension ?? 0,
-      activeAscension: parsed.activeAscension ?? 0,
-    };
+    return normalizeSave(JSON.parse(raw) as Partial<SaveData>);
   } catch {
     return structuredClone(DEFAULT_SAVE);
   }
@@ -96,6 +111,20 @@ export function loadSave(): SaveData {
 
 export function writeSave(data: SaveData): void {
   localStorage.setItem(KEY, JSON.stringify(data));
+}
+
+export function exportSaveToJson(data: SaveData): string {
+  return JSON.stringify(data, null, 2);
+}
+
+/** Returns null if the JSON is malformed — caller shows an error. */
+export function importSaveFromJson(json: string): SaveData | null {
+  try {
+    const parsed = JSON.parse(json) as Partial<SaveData>;
+    return normalizeSave(parsed);
+  } catch {
+    return null;
+  }
 }
 
 export function discoverWeapon(data: SaveData, weaponId: string): SaveData {
@@ -191,6 +220,9 @@ export function switchFaction(data: SaveData, faction: Faction): SaveData {
     equippedPet: null,
     highestAscension: 0,
     activeAscension: 0,
+    tutorialSeen: data.tutorialSeen,
+    assistMode: data.assistMode,
+    menuMusicId: data.menuMusicId,
   };
   writeSave(next);
   return next;
