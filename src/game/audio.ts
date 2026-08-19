@@ -41,13 +41,11 @@ export class AudioManager {
 
   play(id: string) {
     if (!this.enabled || this.volume <= 0) return;
-
     const file = (SOUND_FILES as Record<string, string>)[id];
     if (!file) {
       // Clave aún sin archivo asignado o no mapeada — preparada para futuro.
       return;
     }
-
     try {
       const el = new Audio(`/assets/sounds/${file}`);
       el.volume = this.volume;

@@ -37,6 +37,8 @@ export interface SaveData {
   assistMode: boolean;
   /** Chosen menu background music track ID. */
   menuMusicId: string;
+  /** Volume for sound effects (separate from music volume). */
+  sfxVolume: number;
 }
 
 const KEY = 'mvg2030_save_v1';
@@ -62,6 +64,7 @@ const DEFAULT_SAVE: SaveData = {
   upgrades: { permHpLevel: 0, permDamageLevel: 0 },
   highScores: [],
   volume: 0.7,
+  sfxVolume: 0.7,
   bindings: { ...DEFAULT_BINDINGS },
   pets: {},
   equippedPet: null,
@@ -88,6 +91,7 @@ function normalizeSave(parsed: Partial<SaveData>): SaveData {
     },
     highScores: parsed.highScores ?? [],
     volume: parsed.volume ?? 0.7,
+    sfxVolume: parsed.sfxVolume ?? parsed.volume ?? 0.7,
     bindings: mergeBindings(parsed.bindings),
     pets: parsed.pets ?? {},
     equippedPet: parsed.equippedPet ?? null,
@@ -180,6 +184,12 @@ export function setVolume(data: SaveData, volume: number): SaveData {
   return next;
 }
 
+export function setSfxVolume(data: SaveData, sfxVolume: number): SaveData {
+  const next = { ...data, sfxVolume };
+  writeSave(next);
+  return next;
+}
+
 export function setBindings(data: SaveData, bindings: KeyBindings): SaveData {
   const next = { ...data, bindings: { ...bindings } };
   writeSave(next);
@@ -215,6 +225,7 @@ export function switchFaction(data: SaveData, faction: Faction): SaveData {
     upgrades: { permHpLevel: 0, permDamageLevel: 0 },
     highScores: [],
     volume: data.volume,
+    sfxVolume: data.sfxVolume,
     bindings: { ...data.bindings },
     pets: {},
     equippedPet: null,
@@ -276,4 +287,3 @@ export function codeLabel(code: string): string {
   if (code.startsWith('Digit')) return code.slice(5);
   return code;
 }
-

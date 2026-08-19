@@ -794,6 +794,24 @@ canvas.game-canvas {
   font-weight: 800;
 }
 
+/* Options screen */
+.options-screen-content {
+  width: calc(100% - 32px);
+  max-width: 1000px;
+}
+
+.options-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  text-align: left;
+}
+
+.options-column {
+  min-width: 0;
+}
+
 @media (max-width: 560px) {
   .menu-grid {
     grid-template-columns: 1fr;
@@ -822,5 +840,16 @@ canvas.game-canvas {
     max-height: none;
     overflow: visible;
     padding-right: 0;
+  }
+
+  .options-screen-content {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .options-layout {
+    grid-template-columns: 1fr;
+    height: auto;
   }
 }

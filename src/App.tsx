@@ -20,6 +20,7 @@ import {
   buyUpgrade,
   upsertHighScore,
   setVolume,
+  setSfxVolume,
   setBinding,
   resetBindings,
   setFaction,
@@ -327,7 +328,7 @@ export default function App() {
     }
   }, [hasFaction, availableChars, selectedChar]);
 
-  useEffect(() => { audio.setVolume(save.volume); }, [save.volume]);
+  useEffect(() => { audio.setVolume(save.sfxVolume); }, [save.sfxVolume]);
   useEffect(() => { music.setVolume(save.volume); }, [save.volume]);
   useEffect(() => {
     const runScreens: GameScreen[] = ['playing', 'paused', 'build', 'map', 'levelup', 'itempickup', 'event'];
@@ -496,6 +497,7 @@ export default function App() {
     if (next) { audio.play('pickup'); setSave(next); } else { audio.play('hurt'); }
   };
   const onVolume = (v: number) => { audio.setVolume(v); setSave((prev) => setVolume(prev, v)); };
+  const onSfxVolume = (v: number) => { audio.setVolume(v); setSave((prev) => setSfxVolume(prev, v)); };
 
   const pickFaction = (f: Faction) => {
     audio.play('button');
@@ -987,111 +989,110 @@ export default function App() {
 
         {screen === 'options' && (
           <div className="screen">
-            <div className="screen-content">
-              <h2 className="section-title" style={{ color: '#00f0ff' }}>OPCIONES</h2>
-              <div className="volume-row">
-                <span>🔊</span><input type="range" min={0} max={1} step={0.05} value={save.volume} onChange={(e) => onVolume(Number(e.target.value))} /><span>{Math.round(save.volume * 100)}%</span>
-              </div>
-              <div className="volume-row" style={{ marginTop: 0 }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música de menú:</span>
-                <select
-                  className="menu-btn"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  value={save.menuMusicId}
-                  onChange={(e) => {
-                    music.setMenuTrack(e.target.value);
-                    setSave((prev) => ({ ...prev, menuMusicId: e.target.value }));
-                  }}
-                >
-                  {MENU_TRACKS.map((t) => (<option key={t.id} value={t.id} style={{ background: '#0a0c10' }}>{t.label}</option>))}
-                </select>
-              </div>
-              <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '8px 0 12px' }}>CONFIGURAR CONTROLES</h3>
-              {rebinding && (<p style={{ color: '#00f0ff', marginBottom: 10 }}>Pulsa una tecla para «{BINDING_ROWS.find((r) => r.action === rebinding)?.label}» (ESC cancela)</p>)}
-              <div className="bindings-list">
-                {BINDING_ROWS.map((row) => (
-                  <div key={row.action} className="binding-row"><span>{row.label}</span><button type="button" className={`menu-btn binding-btn ${rebinding === row.action ? 'primary' : ''}`} onClick={() => { audio.play('button'); setRebinding(row.action); }}>{codeLabel(save.bindings[row.action])}</button></div>
-                ))}
-              </div>
-              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setSave((prev) => resetBindings(prev)); setRebinding(null); }}>Restablecer controles</button>
-
-              <h3 style={{ color: '#ff2bd6', letterSpacing: '0.12em', margin: '16px 0 10px' }}>BANDO</h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 8 }}>
-                Bando actual: <strong style={{ color: factionColor(save.faction!) }}>{factionLabel(save.faction!)}</strong>
-              </p>
-              {!factionConfirm ? (
-                <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%', borderColor: '#ff2a4b', color: '#ff2a4b' }} onClick={() => { audio.play('button'); setFactionConfirm(true); }}>
-                  Cambiar bando (reinicia progreso)
-                </button>
-              ) : (
-                <div style={{ marginBottom: 10, padding: '10px 12px', background: 'rgba(255,42,75,0.15)', border: '1px solid rgba(255,42,75,0.5)', borderRadius: 4 }}>
-                  <p style={{ color: '#ff2a4b', fontSize: '0.85rem', marginBottom: 8 }}>⚠️ Esto borrará TODO tu progreso (oro, mejoras, puntuaciones). ¿Confirmas?</p>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                    <button type="button" className="menu-btn" onClick={doSwitchFaction} style={{ borderColor: '#ff2a4b', color: '#ff2a4b' }}>Sí, reiniciar</button>
-                    <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setFactionConfirm(false); }}>Cancelar</button>
+            <div className="options-screen-content">
+              <h2 className="section-title" style={{ color: '#00f0ff', textAlign: 'center', marginBottom: 16 }}>OPCIONES</h2>
+              <div className="options-layout">
+                {/* Columna izquierda: CONTROLES */}
+                <div className="options-column">
+                  <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 12px', fontSize: '1rem' }}>CONFIGURAR CONTROLES</h3>
+                  {rebinding && (<p style={{ color: '#00f0ff', marginBottom: 10 }}>Pulsa una tecla para «{BINDING_ROWS.find((r) => r.action === rebinding)?.label}» (ESC cancela)</p>)}
+                  <div className="bindings-list">
+                    {BINDING_ROWS.map((row) => (
+                      <div key={row.action} className="binding-row"><span>{row.label}</span><button type="button" className={`menu-btn binding-btn ${rebinding === row.action ? 'primary' : ''}`} onClick={() => { audio.play('button'); setRebinding(row.action); }}>{codeLabel(save.bindings[row.action])}</button></div>
+                    ))}
                   </div>
+                  <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setSave((prev) => resetBindings(prev)); setRebinding(null); }}>Restablecer controles</button>
                 </div>
-              )}
 
-              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
-                audio.play('button');
-                const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0, tutorialSeen: false, assistMode: false, menuMusicId: 'menu1' };
-                writeSave(fresh); setSave(fresh); setRebinding(null);
-              }}>Borrar progreso</button>
+                {/* Columna derecha: AUDIO, BANDO, BORRAR, RESPALDO, ACCESIBILIDAD */}
+                <div className="options-column">
+                  <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 10px', fontSize: '1rem' }}>AUDIO</h3>
+                  <div className="volume-row">
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música:</span>
+                    <span>🔊</span><input type="range" min={0} max={1} step={0.05} value={save.volume} onChange={(e) => onVolume(Number(e.target.value))} /><span>{Math.round(save.volume * 100)}%</span>
+                  </div>
+                  <div className="volume-row" style={{ marginTop: 0 }}>
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Efectos:</span>
+                    <span>🔉</span><input type="range" min={0} max={1} step={0.05} value={save.sfxVolume} onChange={(e) => onSfxVolume(Number(e.target.value))} /><span>{Math.round(save.sfxVolume * 100)}%</span>
+                  </div>
+                  <div className="volume-row" style={{ marginTop: 0 }}>
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música de menú:</span>
+                    <select
+                      className="menu-btn"
+                      style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                      value={save.menuMusicId}
+                      onChange={(e) => {
+                        music.setMenuTrack(e.target.value);
+                        setSave((prev) => ({ ...prev, menuMusicId: e.target.value }));
+                      }}
+                    >
+                      {MENU_TRACKS.map((t) => (<option key={t.id} value={t.id} style={{ background: '#0a0c10' }}>{t.label}</option>))}
+                    </select>
+                  </div>
 
-              <h3 style={{ color: '#00f0ff', letterSpacing: '0.12em', margin: '16px 0 10px' }}>RESPALDO</h3>
-              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
-                audio.play('button');
-                const json = exportSaveToJson(save);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `moros-vs-gitanos-2030-save-${Date.now()}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}>⬇️ Exportar partida</button>
+                  <h3 style={{ color: '#ff2bd6', letterSpacing: '0.12em', margin: '16px 0 10px', fontSize: '1rem' }}>BANDO</h3>
+                  <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 8 }}>
+                    Bando actual: <strong style={{ color: factionColor(save.faction!) }}>{factionLabel(save.faction!)}</strong>
+                  </p>
+                  {!factionConfirm ? (
+                    <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%', borderColor: '#ff2a4b', color: '#ff2a4b' }} onClick={() => { audio.play('button'); setFactionConfirm(true); }}>
+                      Cambiar bando (reinicia progreso)
+                    </button>
+                  ) : (
+                    <div style={{ marginBottom: 10, padding: '10px 12px', background: 'rgba(255,42,75,0.15)', border: '1px solid rgba(255,42,75,0.5)', borderRadius: 4 }}>
+                      <p style={{ color: '#ff2a4b', fontSize: '0.85rem', marginBottom: 8 }}>⚠️ Esto borrará TODO tu progreso (oro, mejoras, puntuaciones). ¿Confirmas?</p>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                        <button type="button" className="menu-btn" onClick={doSwitchFaction} style={{ borderColor: '#ff2a4b', color: '#ff2a4b' }}>Sí, reiniciar</button>
+                        <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setFactionConfirm(false); }}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
 
-              <input
-                type="file"
-                accept="application/json"
-                id="import-save-input"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const imported = importSaveFromJson(String(reader.result));
-                    if (!imported) {
-                      setImportError('El archivo no es una partida válida.');
-                      return;
-                    }
-                    writeSave(imported);
-                    setSave(imported);
-                    setImportError(null);
-                  };
-                  reader.readAsText(file);
-                  e.target.value = '';
-                }}
-              />
-              <button type="button" className="menu-btn" style={{ marginBottom: 6, width: '100%' }} onClick={() => {
-                audio.play('button');
-                document.getElementById('import-save-input')?.click();
-              }}>⬆️ Importar partida</button>
-              {importError && (<p style={{ color: '#ff2a4b', fontSize: '0.8rem', marginBottom: 10 }}>{importError}</p>)}
+                  <h3 style={{ color: '#00f0ff', letterSpacing: '0.12em', margin: '12px 0 10px', fontSize: '1rem' }}>RESPALDO</h3>
+                  <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
+                    audio.play('button');
+                    const json = exportSaveToJson(save);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `moros-vs-gitanos-2030-save-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}>⬇️ Exportar partida</button>
+                  <input type="file" accept="application/json" id="import-save-input" style={{ display: 'none' }} onChange={(e) => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const imported = importSaveFromJson(String(reader.result));
+                      if (!imported) { setImportError('El archivo no es una partida válida.'); return; }
+                      writeSave(imported); setSave(imported); setImportError(null);
+                    };
+                    reader.readAsText(file); e.target.value = '';
+                  }} />
+                  <button type="button" className="menu-btn" style={{ marginBottom: 6, width: '100%' }} onClick={() => { audio.play('button'); document.getElementById('import-save-input')?.click(); }}>⬆️ Importar partida</button>
+                  {importError && (<p style={{ color: '#ff2a4b', fontSize: '0.8rem', marginBottom: 10 }}>{importError}</p>)}
 
-              <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '16px 0 10px' }}>ACCESIBILIDAD</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '10px 12px', background: 'rgba(57,255,136,0.08)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 4 }}>
-                <input type="checkbox" checked={save.assistMode} onChange={(e) => {
-                  const next = { ...save, assistMode: e.target.checked };
-                  writeSave(next); setSave(next);
-                }} style={{ accentColor: '#39ff88', width: 18, height: 18 }} />
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modo asistido (-25% daño recibido) — pensado para quienes quieren disfrutar el contenido con menos presión de combate.</span>
+                  <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
+                    audio.play('button');
+                    const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, sfxVolume: save.sfxVolume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0, tutorialSeen: false, assistMode: false, menuMusicId: 'menu1' };
+                    writeSave(fresh); setSave(fresh); setRebinding(null);
+                  }}>Borrar progreso</button>
+
+                  <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '12px 0 10px', fontSize: '1rem' }}>ACCESIBILIDAD</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '10px 12px', background: 'rgba(57,255,136,0.08)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 4 }}>
+                    <input type="checkbox" checked={save.assistMode} onChange={(e) => {
+                      const next = { ...save, assistMode: e.target.checked };
+                      writeSave(next); setSave(next);
+                    }} style={{ accentColor: '#39ff88', width: 18, height: 18 }} />
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modo asistido (-25% daño recibido) — pensado para quienes quieren disfrutar el contenido con menos presión de combate.</span>
+                  </div>
+
+                  <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setShowTutorial(true); }}>Ver tutorial</button>
+                </div>
               </div>
 
-              <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setShowTutorial(true); }}>Ver tutorial</button>
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" style={{ marginTop: 8 }} onClick={backToMenu}>Volver</button>
             </div>
           </div>
         )}

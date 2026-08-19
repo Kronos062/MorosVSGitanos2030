@@ -1,11 +1,2 @@
-# Directorio de Sprites Urbanos
-
-Coloca aquí las imágenes PNG o JPG de los personajes, enemigos y elementos tácticos.
-
-Ejemplos:
-- `tariq.png`
-- `bailaor_furia.png`
-- `grunt.png`
-- `boss_dragon.png`
-
-Ruta accesible: `/assets/sprites/nombre_archivo.png`
+Sprites de personajes, enemigos y armas.
+Cualquier archivo `mi_sprite.png` queda accesible en `/assets/sprites/mi_sprite.png`.

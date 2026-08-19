@@ -1073,12 +1073,21 @@ export class GameEngine {
           const vx = ex + (ROOM_W - wThick) / 2;
           const hy = ey + (ROOM_H - wThick) / 2;
 
-          const vTopEdge = Math.min(a.bounds.y, hy);
-          const vBottomEdge = Math.max(a.bounds.y + ROOM_H, hy + wThick);
+          // El tramo vertical recorre la columna de la esquina, así que debe
+          // dirigirse hacia la sala que comparte esa columna con ella — no
+          // siempre es A. El tramo horizontal recorre la fila de la esquina,
+          // así que debe dirigirse hacia la sala que comparte esa fila — no
+          // siempre es B. Antes esto estaba fijo (vertical->A, horizontal->B),
+          // lo cual solo era correcto para una de las dos esquinas candidatas.
+          const vRoom = corner.gx === pa.gx ? a : b;
+          const hRoom = corner.gy === pa.gy ? a : b;
+
+          const vTopEdge = Math.min(vRoom.bounds.y, hy);
+          const vBottomEdge = Math.max(vRoom.bounds.y + ROOM_H, hy + wThick);
           const v_bounds: RoomBounds = { x: vx, y: vTopEdge, w: wThick, h: vBottomEdge - vTopEdge };
 
-          const hLeftEdge = Math.min(vx, b.bounds.x);
-          const hRightEdge = Math.max(vx + wThick, b.bounds.x + ROOM_W);
+          const hLeftEdge = Math.min(vx, hRoom.bounds.x);
+          const hRightEdge = Math.max(vx + wThick, hRoom.bounds.x + ROOM_W);
           const h_bounds: RoomBounds = { x: hLeftEdge, y: hy, w: hRightEdge - hLeftEdge, h: wThick };
 
           // SAFETY: never emit a degenerate (non-positive) rectangle.
