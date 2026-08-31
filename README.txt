@@ -1,4 +1,3 @@
-
 # ☠️ Moros VS Gitanos 2030
 
 > **Un roguelike de acción. Dos bandos. Una ciudad en guerra. Ninguna partida sale igual.**
@@ -9,61 +8,61 @@ Entra en combate, explora salas generadas proceduralmente, consigue armas y obje
 
 ---
 
-## 🎮 ¿Qué encontrarás?
+## 🎮 Características
 
-🗡️ **Combate rápido**
+### 🗡️ Combate
 
-Enfréntate a enemigos cuerpo a cuerpo y a distancia utilizando diferentes armas y habilidades.
+Enfréntate a enemigos cuerpo a cuerpo y a distancia utilizando diferentes armas, habilidades y estilos de juego.
 
-💨 **Movimiento y esquivas**
+### 💨 Movimiento
 
 Muévete por el escenario con libertad y utiliza el dash para esquivar ataques y reposicionarte durante los combates.
 
-🧟 **Enemigos diferentes**
+### 👹 Enemigos
 
-Cada enemigo tiene su propio comportamiento, estadísticas y función dentro del combate.
+Cada enemigo cuenta con estadísticas y comportamientos diferentes, desde enemigos básicos hasta unidades especializadas y amenazas mucho más peligrosas.
 
-👑 **Jefes**
+### 👑 Jefes
 
-Al final de determinados recorridos te esperan enemigos especiales con varias fases y patrones de combate propios.
+Enfréntate a enemigos especiales con patrones de combate propios y diferentes fases.
 
-🗺️ **Mapas procedurales**
+### 🗺️ Mapas procedurales
 
 Cada partida genera una distribución diferente de salas, enemigos, eventos y recompensas.
 
-🎁 **Loot y recompensas**
+### 🎁 Loot
 
-Explora las salas, derrota enemigos y encuentra cofres, armas, objetos y mejoras que cambian tu partida.
+Explora, combate y encuentra armas, objetos, cofres y mejoras que pueden cambiar completamente tu partida.
 
-⬆️ **Progresión durante la partida**
+### ⬆️ Progresión
 
-Cada nivel te permite escoger nuevas habilidades y construir una combinación diferente para tu personaje.
+Sube de nivel durante la partida y elige nuevas habilidades para construir tu personaje.
 
-🧩 **Builds diferentes**
+### 🧩 Builds
 
-Las decisiones que tomas durante una partida determinan cómo evoluciona tu personaje y qué estrategia puedes utilizar.
+Cada combinación de armas, habilidades y mejoras permite desarrollar una estrategia diferente.
 
 ---
 
-## ⚔️ Una partida
+## 🎮 Cómo se juega
 
 ```text
-        🏚️
-         │
-    ┌────┴────┐
-    │         │
-   ⚔️        🎁
-    │         │
-    └────┬────┘
-         │
-        👹
-         │
-       👑 BOSS
-         │
+        🏚️ SALA
+           │
+      ┌────┴────┐
+      │         │
+     ⚔️        🎁
+      │         │
+      └────┬────┘
+           │
+          👹
+           │
+        👑 BOSS
+           │
        💀 / 🏆
 ```
 
-Cada partida sigue su propio camino.
+La estructura básica de una partida es sencilla:
 
 **Explora → combate → consigue recompensas → mejora tu personaje → sobrevive → derrota al jefe.**
 
@@ -71,43 +70,43 @@ Pero morir significa volver a empezar.
 
 ---
 
-## 🧠 Diseñado para que cada partida sea diferente
+## 🎲 Cada partida es diferente
 
-El contenido del juego está construido de forma modular y orientada a datos.
+El juego utiliza generación procedural para crear diferentes situaciones durante cada partida.
 
-Armas, enemigos, habilidades, personajes, mascotas, biomas, eventos, jefes y demás elementos del juego están definidos de forma independiente para poder ampliar el contenido sin tener que rehacer el núcleo del juego.
+La combinación de:
 
-Esto permite que el juego pueda crecer progresivamente con:
+* Salas
+* Enemigos
+* Armas
+* Habilidades
+* Objetos
+* Eventos
+* Biomas
+* Jefes
+* Mejoras
 
-* ⚔️ Nuevas armas
-* 👹 Nuevos enemigos
-* 👑 Nuevos jefes
-* 🧙 Nuevos personajes
-* ✨ Nuevas habilidades
-* 🐾 Nuevas mascotas
-* 🌍 Nuevos biomas
-* 🎲 Nuevos eventos
-* 💎 Nuevos objetos y reliquias
+hace que las decisiones tomadas durante una partida puedan producir experiencias completamente diferentes.
 
 ---
 
 ## 🎨 Estilo
 
-El juego utiliza una estética **pixel art / voxel**, con una cámara cenital en perspectiva diagonal inspirada en los clásicos juegos de acción y aventura.
+El juego combina una estética **pixel art / voxel** con una cámara cenital en perspectiva diagonal.
 
-La intención es combinar:
+La intención es mezclar:
 
-**🕹️ estética retro + ⚔️ combate arcade + 🎲 estructura roguelike**
+**🕹️ estética retro + ⚔️ acción arcade + 🎲 estructura roguelike**
 
-en una experiencia sencilla de entender pero con suficiente profundidad para que cada partida pueda jugarse de una manera diferente.
+en una experiencia rápida, caótica y rejugable.
 
 ---
 
 ## 🛠️ Tecnología
 
-El proyecto está desarrollado como un **monorepo** y actualmente está orientado a funcionar directamente en navegador.
+El proyecto está desarrollado como un monorepo utilizando tecnologías web.
 
-### Frontend
+**Frontend**
 
 * TypeScript
 * React
@@ -115,29 +114,29 @@ El proyecto está desarrollado como un **monorepo** y actualmente está orientad
 * Canvas
 * Motor de juego propio
 
-### Arquitectura
+**Arquitectura**
 
-El juego separa el **motor** de la lógica específica del videojuego:
+El proyecto separa el motor reutilizable de la lógica específica del videojuego:
 
 ```text
 src/
 ├── engine/       → Sistemas reutilizables del motor
-├── game/         → Lógica y sistemas del juego
+├── game/         → Lógica específica del juego
 ├── content/      → Contenido del juego
 └── App.tsx       → Interfaz y pantallas
 ```
 
-El objetivo es mantener una separación clara entre la infraestructura reutilizable y la lógica específica de **Moros VS Gitanos 2030**.
+El objetivo es mantener una separación clara entre el motor y **Moros VS Gitanos 2030** para poder ampliar el proyecto sin convertir el código en un único bloque difícil de mantener.
 
 ---
 
 ## 🚧 Estado del proyecto
 
-🟢 **Jugable**
+🟢 **Jugable — En desarrollo**
 
-El proyecto ya cuenta con el núcleo necesario para ejecutar partidas completas y continúa en desarrollo.
+El núcleo del juego ya permite ejecutar partidas y actualmente el desarrollo continúa centrado en ampliar y pulir el contenido.
 
-Actualmente se trabaja principalmente en:
+### Actualmente en desarrollo
 
 * ⚔️ Combate y balance
 * 👹 Enemigos
@@ -146,16 +145,21 @@ Actualmente se trabaja principalmente en:
 * ✨ Habilidades
 * 👑 Jefes
 * 🎨 Arte y animaciones
-* 🎵 Audio y música
+* 🎵 Música y efectos
 * 🧩 Contenido adicional
-
-El proyecto está en evolución constante, por lo que algunas partes pueden cambiar considerablemente durante el desarrollo.
 
 ---
 
-## 🚀 Ejecutarlo
+## 🚀 Ejecutar el proyecto
 
-Clona el repositorio e instala las dependencias:
+Clona el repositorio:
+
+```bash
+git clone https://github.com/Kronos062/MorosVSGitanos2030.git
+cd MorosVSGitanos2030
+```
+
+Instala las dependencias:
 
 ```bash
 npm install
@@ -167,26 +171,26 @@ Inicia el servidor de desarrollo:
 npm run dev
 ```
 
-Y abre la dirección indicada por Vite en el navegador.
+Después abre en el navegador la dirección proporcionada por Vite.
 
 ---
 
-## 📸 Capturas
+## 📸 Gameplay
 
-> Próximamente: capturas de gameplay, enemigos, bosses, armas y diferentes biomas.
-
----
-
-## ❤️ Proyecto
-
-**Moros VS Gitanos 2030** es un proyecto independiente desarrollado con la intención de experimentar con diseño de videojuegos, arquitectura de motores, generación procedural y desarrollo de un roguelike desde cero.
-
-No busca ser un clon de otro juego.
-
-Busca convertirse en **su propio caos**.
+> Las capturas y GIFs de gameplay se añadirán próximamente.
 
 ---
 
-### ☠️ Entra. Lucha. Mejora. Muere. Repite.
+## ❤️ Sobre el proyecto
+
+**Moros VS Gitanos 2030** es un proyecto independiente creado desde cero para experimentar con desarrollo de videojuegos, arquitectura de motores, generación procedural y diseño de un roguelike.
+
+El objetivo no es simplemente crear otro roguelike.
+
+El objetivo es crear un juego con **su propia identidad, su propio caos y su propia forma de jugarse**.
+
+---
+
+# ☠️ Entra. Lucha. Mejora. Muere. Repite.
 
 **Moros VS Gitanos 2030**
