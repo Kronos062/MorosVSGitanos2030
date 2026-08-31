@@ -224,6 +224,9 @@ export class GameEngine {
   private nearestWeapon: PickupEntity | null = null;
   private nearestItem: PickupEntity | null = null;
   private stackedPickupCount = 0;
+  /** When a room is cleared, every consumable drop is magnetically pulled
+   *  toward the player (pickup "vacuum") so loot is auto-collected quickly. */
+  private lootVacuum = false;
   private nearestChest: ChestEntity | null = null;
   private eventEntities: InteractiveEventEntity[] = [];
   private nearestEvent: InteractiveEventEntity | null = null;
@@ -2329,6 +2332,9 @@ export class GameEngine {
         kind: isFinal ? 'final' : 'descent',
       };
     }
+    // La sala se ha completado: activa el imán para que todo el botín
+    // (monedas, vida, escudos, reliquias) vuele de inmediato hacia el jugador.
+    this.lootVacuum = true;
   }
 
   private spawnEnemyInRoom(def: EnemyDef, isBoss = false) {
@@ -3055,14 +3061,71 @@ const spd = e.speed * slowFactor;
     }
   }
 
+  /** Apply the effect of a consumable pickup and remove it from the world. */
+  private collectConsumable(pk: PickupEntity) {
+    const p = this.player;
+    // Game feel: instant pickup burst on collect.
+    if (pk.kind === 'heal') {
+      p.hp = Math.min(p.maxHp, p.hp + pk.value);
+      this.burst(pk.x, pk.y, '#39ff88', 6);
+      this.camera.shake = Math.max(this.camera.shake, 0.06);
+    } else if (pk.kind === 'score') {
+      this.score += pk.value;
+      this.goldEarned += 5;
+      this.burst(pk.x, pk.y, '#ffe14a', 6);
+      this.camera.shake = Math.max(this.camera.shake, 0.06);
+    } else if (pk.kind === 'shield') {
+      if (p.maxShield > 0) p.shield = Math.min(p.maxShield, p.shield + pk.value);
+    } else if (pk.kind === 'relic' && pk.itemId) {
+      // Static relics (content/items.ts) apply their mods permanently
+      // for the run, reusing the exact same generic pipeline as event
+      // stat_mod rewards: push a synthetic mod entry and recompute.
+      const item = getItem(pk.itemId);
+      this.acquiredSkills.push({
+        id: item.id, name: item.name, description: item.description, icon: item.icon, rarity: item.rarity,
+        mods: item.mods.map((m) => ({ stat: m.stat, op: m.op, value: m.value })),
+      });
+      this.recalcStats();
+      this.camera.shake = Math.max(this.camera.shake, 0.1);
+    }
+    pk.life = 0;
+    audio.play('pickup');
+    this.burst(pk.x, pk.y, pk.color, 6);
+  }
+
+  /** Return true if a pickup is a magnetisable consumable (not weapon/equipment). */
+  private isConsumable(pk: PickupEntity): boolean {
+    return pk.kind === 'heal' || pk.kind === 'score' || pk.kind === 'shield' || pk.kind === 'relic';
+  }
+
   private updatePickups(dt: number) {
+    const p = this.player;
     for (const pk of this.pickups) {
       pk.bob += dt * 3;
       // Only consumables decay. Weapons and equipment persist until picked up
       // or the map ends.
       if (Number.isFinite(pk.life)) pk.life -= dt;
+
+      // Efecto imán al completar la sala: todo botín consumible vuela rápido
+      // hacia el jugador y se autocolecta al llegar.
+      if (this.lootVacuum && this.isConsumable(pk) && pk.life > 0) {
+        const dx = p.x - pk.x;
+        const dy = p.y - pk.y;
+        const d = Math.hypot(dx, dy) || 1;
+        // Cuanto más lejos, más rápido el tirón (con un tope), para que el
+        // botín se agrupe en un solo flujo hacia el personaje.
+        const vacuumSpeed = Math.min(1900, 650 + d * 1.6);
+        pk.x += (dx / d) * vacuumSpeed * dt;
+        pk.y += (dy / d) * vacuumSpeed * dt;
+        if (d < 30) this.collectConsumable(pk);
+      }
     }
     this.pickups = this.pickups.filter((pk) => pk.life > 0);
+
+    // Cuando ya no queda ningún consumible que atraer, desactiva el imán.
+    if (this.lootVacuum && !this.pickups.some((pk) => this.isConsumable(pk))) {
+      this.lootVacuum = false;
+    }
   }
 
   private handlePickups(input: InputState) {
@@ -3087,33 +3150,7 @@ const spd = e.speed * slowFactor;
         continue;
       }
       if (d < 28 && pk.kind !== 'weapon' && pk.kind !== 'item') {
-        // Game feel: instant pickup burst on collect.
-        if (pk.kind === 'heal') {
-          p.hp = Math.min(p.maxHp, p.hp + pk.value);
-          this.burst(pk.x, pk.y, '#39ff88', 6);
-          this.camera.shake = Math.max(this.camera.shake, 0.06);
-        } else if (pk.kind === 'score') {
-          this.score += pk.value;
-          this.goldEarned += 5;
-          this.burst(pk.x, pk.y, '#ffe14a', 6);
-          this.camera.shake = Math.max(this.camera.shake, 0.06);
-        } else if (pk.kind === 'shield') {
-          if (p.maxShield > 0) p.shield = Math.min(p.maxShield, p.shield + pk.value);
-        } else if (pk.kind === 'relic' && pk.itemId) {
-          // Static relics (content/items.ts) apply their mods permanently
-          // for the run, reusing the exact same generic pipeline as event
-          // stat_mod rewards: push a synthetic mod entry and recompute.
-          const item = getItem(pk.itemId);
-          this.acquiredSkills.push({
-            id: item.id, name: item.name, description: item.description, icon: item.icon, rarity: item.rarity,
-            mods: item.mods.map((m) => ({ stat: m.stat, op: m.op, value: m.value })),
-          });
-          this.recalcStats();
-          this.camera.shake = Math.max(this.camera.shake, 0.1);
-        }
-        pk.life = 0;
-        audio.play('pickup');
-        this.burst(pk.x, pk.y, pk.color, 6);
+        this.collectConsumable(pk);
       }
     }
     this.stackedPickupCount = stackedCount;
