@@ -2687,6 +2687,19 @@ const spd = e.speed * slowFactor;
         }
       }
 
+      // Separación física con el jugador: evita que el enemigo quede
+      // superpuesto/montado sobre el personaje, sobre todo en cuerpo a
+      // cuerpo. Solo se empuja al enemigo, nunca al jugador.
+      const minDist = e.size + 14;
+      const sepDx = e.x - p.x;
+      const sepDy = e.y - p.y;
+      const sepDist = Math.hypot(sepDx, sepDy);
+      if (sepDist > 0 && sepDist < minDist) {
+        const push = (minDist - sepDist);
+        e.x += (sepDx / sepDist) * push;
+        e.y += (sepDy / sepDist) * push;
+      }
+
       if (dist < e.size + 14 && e.attackTimer <= 0 && e.aiProfile !== 'bomber_rush') {
         e.attackTimer = e.attackCooldown;
         this.damagePlayer(e.damage);
