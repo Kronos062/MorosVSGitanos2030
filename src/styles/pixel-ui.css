@@ -1,0 +1,689 @@
+/* ==========================================================================
+   MOROS VS GITANOS 2030 · Interfaz pixel art
+   Capa visual sobre index.css. Solo cambia la PRESENTACIÓN: no toca layout,
+   estructura DOM, datos ni comportamiento de ningún menú.
+
+   Reglas de estilo:
+   - Bordes duros de 2/4 px, sin border-radius, sin blur, sin degradados suaves.
+   - Profundidad con anillos de color (tinta / borde / bisel) y sombras inferiores duras.
+   - Patrones solo con paradas duras (tablero tipo zellige), nunca degradado continuo.
+   - Estados de botón: normal · hover/foco · pulsado · desactivado · seleccionado.
+   - Movimiento sutil y "a saltos" (steps), nunca easing suave.
+   ========================================================================== */
+
+:root {
+  --px-ink: #151a30;
+  --px-night: #243059;
+  --px-panel: #2f3d72;
+  --px-panel-hi: #3d4f8f;
+  --px-edge: #7d92e0;
+  --px-edge-hi: #b5c4ff;
+  --px-bone: #fff4d6;
+  --px-dim: #cdd5f0;
+  --px-gold: #ffd24a;
+  --px-gold-dk: #c8901c;
+  --px-clay: #f0583a;
+  --px-clay-dk: #a82c1c;
+  --px-tile: #4a8fe8;
+  --px-tile-hi: #9dd2ff;
+  --px-jade: #5ee0a0;
+  --px-violet: #a77bff;
+  --px-font: 'Pixelify Sans', ui-monospace, 'Courier New', monospace;
+
+  /* Variables heredadas: el resto de la UI (y estilos en línea) pasa a la paleta nueva. */
+  --bg-0: var(--px-ink);
+  --bg-1: var(--px-night);
+  --bg-2: var(--px-panel);
+  --asphalt: var(--px-night);
+  --street-yellow: var(--px-gold);
+  --hazard-orange: #e2762a;
+  --hazard-red: var(--px-clay);
+  --street-cyan: var(--px-tile-hi);
+  --text: var(--px-bone);
+  --text-dim: var(--px-dim);
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--px-font);
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+
+canvas.game-canvas,
+img.pixel-icon,
+img.pixel-portrait {
+  image-rendering: pixelated;
+}
+
+/* ── Marco base compartido ───────────────────────────────────────────── */
+.screen-content,
+.hud-panel,
+.boss-bar,
+.weapon-prompt,
+.detail-box,
+.gold-box,
+.item-card,
+.shop-row,
+.binding-row,
+.build-cell,
+.char-card,
+.skill-card {
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--px-edge);
+  border-radius: 0;
+  background: var(--px-panel);
+  color: var(--px-bone);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 -6px 0 0 rgba(0, 0, 0, 0.28);
+}
+
+/* ── Pantallas ───────────────────────────────────────────────────────── */
+.screen {
+  background-color: #1b2449;
+  background-image: conic-gradient(#222d5a 25%, transparent 0 50%, #222d5a 0 75%, transparent 0);
+  background-size: 32px 32px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: pxFade 0.25s steps(5) both;
+}
+@keyframes pxFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.screen-content {
+  background: var(--px-night);
+  border-color: var(--px-edge-hi);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    0 8px 0 2px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 0 0 6px var(--px-night),
+    inset 0 0 0 8px var(--px-edge),
+    inset 0 -10px 0 8px rgba(0, 0, 0, 0.25);
+  padding: 28px;
+}
+
+.game-title {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--px-gold);
+  filter: none;
+  text-shadow:
+    4px 4px 0 var(--px-clay-dk),
+    8px 8px 0 var(--px-ink);
+  animation: pxBob 2.4s steps(2) infinite;
+  font-weight: 700;
+}
+@keyframes pxBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.game-subtitle {
+  color: var(--px-bone);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+
+.section-title {
+  text-shadow: 2px 2px 0 var(--px-ink);
+  padding-bottom: 12px;
+  background: repeating-linear-gradient(90deg, var(--px-edge) 0 8px, transparent 8px 16px) bottom / 100% 4px no-repeat;
+}
+
+.footer-text {
+  color: var(--px-dim);
+}
+
+/* ── Botones ─────────────────────────────────────────────────────────── */
+.menu-btn {
+  border: 4px solid var(--px-edge);
+  border-radius: 0;
+  background: var(--px-panel);
+  color: var(--px-bone);
+  font-size: 1.125rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 var(--px-ink);
+  transition: none;
+  overflow: visible;
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 4px 0 0 var(--px-panel-hi),
+    inset 0 -4px 0 0 rgba(0, 0, 0, 0.35);
+}
+.menu-btn::before {
+  display: none;
+}
+.menu-btn:hover,
+.menu-btn:focus-visible {
+  background: var(--px-panel-hi);
+  border-color: var(--px-gold);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    0 4px 0 2px var(--px-ink),
+    inset 0 4px 0 0 var(--px-edge),
+    inset 0 -4px 0 0 rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+.menu-btn:focus:not(:focus-visible) {
+  transform: none;
+}
+.menu-btn:active {
+  transform: translateY(2px);
+  background: var(--px-night);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 4px 0 0 rgba(0, 0, 0, 0.5);
+}
+.menu-btn.primary {
+  border-color: var(--px-gold);
+  background: var(--px-clay);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 4px 0 0 #ff8f72,
+    inset 0 -4px 0 0 var(--px-clay-dk);
+  animation: pxBlink 1.2s steps(1) infinite;
+}
+.menu-btn.primary:hover,
+.menu-btn.primary:focus-visible {
+  background: #ff7a5c;
+  animation: none;
+}
+@keyframes pxBlink {
+  0%, 60% { border-color: var(--px-gold); }
+  61%, 100% { border-color: var(--px-gold-dk); }
+}
+.menu-btn:disabled {
+  opacity: 1;
+  color: #b3bbdc;
+  border-color: #55669f;
+  background-color: var(--px-night);
+  background-image: conic-gradient(rgba(0, 0, 0, 0.35) 25%, transparent 0 50%, rgba(0, 0, 0, 0.35) 0 75%, transparent 0);
+  background-size: 4px 4px;
+  text-shadow: none;
+  transform: none;
+  box-shadow: 0 0 0 2px var(--px-ink);
+}
+button:focus-visible {
+  outline: 4px solid var(--px-gold);
+  outline-offset: 2px;
+}
+
+.gold-box {
+  border-color: var(--px-gold-dk);
+}
+.gold-box .value {
+  color: var(--px-gold);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+.gold-box .label {
+  color: var(--px-dim);
+}
+
+/* ── Selección de personaje y mejoras ────────────────────────────────── */
+.char-card {
+  transition: none;
+}
+.char-card:hover {
+  border-color: var(--px-gold);
+  background: var(--px-panel-hi);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 -6px 0 0 rgba(0, 0, 0, 0.28);
+}
+.char-card.selected {
+  background: var(--px-panel-hi);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    0 0 0 6px var(--px-gold),
+    0 0 0 8px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 -6px 0 0 rgba(0, 0, 0, 0.28);
+  animation: pxSelected 1s steps(1) infinite;
+}
+@keyframes pxSelected {
+  0%, 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 6px var(--px-gold), 0 0 0 8px var(--px-ink), inset 0 0 0 2px var(--px-ink), inset 0 -6px 0 0 rgba(0,0,0,.28); }
+  51%, 100% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 6px var(--px-gold-dk), 0 0 0 8px var(--px-ink), inset 0 0 0 2px var(--px-ink), inset 0 -6px 0 0 rgba(0,0,0,.28); }
+}
+.char-card .faction {
+  color: var(--px-dim);
+}
+img.pixel-icon {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 8px;
+}
+img.pixel-portrait {
+  float: left;
+  height: 128px;
+  width: auto;
+  margin: 0 14px 8px 0;
+  background: var(--px-night);
+  border: 4px solid var(--px-ink);
+  box-shadow: 0 0 0 2px var(--px-edge);
+}
+.detail-box {
+  background: var(--px-night);
+  border-color: var(--px-edge);
+}
+.detail-box::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+.skill-card {
+  border-color: var(--px-violet);
+  transition: none;
+}
+.skill-card:hover {
+  border-color: var(--px-gold);
+  background: var(--px-panel-hi);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    0 4px 0 2px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 -6px 0 0 rgba(0, 0, 0, 0.28);
+}
+.skill-card .title {
+  color: var(--px-gold);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+.skill-card .desc {
+  color: var(--px-dim);
+}
+
+.item-card.dim {
+  opacity: 1;
+  filter: grayscale(1) brightness(0.7);
+}
+.shop-row {
+  border-color: var(--px-edge);
+}
+.binding-row {
+  border-color: var(--px-edge);
+}
+.build-cell {
+  border-width: 2px;
+  box-shadow: none;
+  background: var(--px-night);
+}
+.build-cell-value {
+  color: var(--px-tile-hi);
+}
+.highscore-row {
+  border-bottom: 2px solid var(--px-edge);
+}
+.highscore-rank {
+  color: var(--px-gold);
+}
+.highscore-value {
+  color: var(--px-tile-hi);
+}
+.controls-info h3 {
+  color: var(--px-tile-hi);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+.controls-info strong {
+  color: var(--px-gold);
+}
+
+/* ── HUD de partida ──────────────────────────────────────────────────── */
+.hud-panel {
+  background: var(--px-night);
+}
+.stat-label {
+  color: var(--px-dim);
+  font-size: 0.75rem;
+}
+.stat-value {
+  color: var(--px-tile-hi);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+.stat-value.score {
+  color: var(--px-gold);
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+
+/* Barras: marco duro + relleno segmentado (una marca cada 12 px) + brillo superior */
+.health-bar-bg,
+.xp-bar-bg,
+.boss-bar .bar {
+  border: 3px solid var(--px-ink);
+  border-radius: 0;
+  background: #161d3d;
+  box-shadow: 0 0 0 2px var(--px-edge);
+  overflow: hidden;
+}
+.health-bar-bg {
+  height: 22px;
+}
+.xp-bar-bg {
+  height: 12px;
+  margin-top: 8px;
+}
+.health-bar-fill,
+.xp-bar-fill,
+.boss-bar .fill {
+  background-color: var(--px-clay);
+  background-image: repeating-linear-gradient(90deg, transparent 0 11px, rgba(0, 0, 0, 0.35) 11px 12px);
+  box-shadow:
+    inset 0 4px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -4px 0 0 rgba(0, 0, 0, 0.28);
+  transition: width 0.2s steps(5, end);
+}
+.xp-bar-fill {
+  background-color: var(--px-violet);
+  box-shadow:
+    inset 0 3px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -3px 0 0 rgba(0, 0, 0, 0.28);
+}
+.boss-bar .fill {
+  background-color: var(--px-gold);
+  transition: width 0.2s steps(8, end);
+}
+.health-text {
+  color: var(--px-bone);
+  text-shadow: 2px 2px 0 var(--px-ink);
+  font-size: 0.8rem;
+}
+
+.ability {
+  border: 4px solid var(--px-violet);
+  border-radius: 0;
+  background: var(--px-night);
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    inset 0 0 0 2px var(--px-ink),
+    inset 0 -6px 0 0 rgba(0, 0, 0, 0.3);
+}
+.ability-cooldown-overlay {
+  background-color: rgba(21, 26, 48, 0.7);
+  background-image: conic-gradient(rgba(0, 0, 0, 0.4) 25%, transparent 0 50%, rgba(0, 0, 0, 0.4) 0 75%, transparent 0);
+  background-size: 4px 4px;
+  transition: height 0.1s steps(4, end);
+}
+.ability-key {
+  background: var(--px-ink);
+  border: 2px solid var(--px-gold);
+  border-radius: 0;
+  color: var(--px-gold);
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  box-shadow: 2px 2px 0 var(--px-ink);
+}
+
+.boss-bar {
+  border-color: var(--px-clay);
+  background: var(--px-night);
+}
+.boss-bar .name {
+  color: var(--px-gold);
+  text-shadow: 2px 2px 0 var(--px-ink);
+  font-size: 0.85rem;
+}
+.weapon-prompt {
+  border-color: var(--px-gold);
+  animation: pxPrompt 1s steps(1) infinite;
+}
+@keyframes pxPrompt {
+  0%, 60% { border-color: var(--px-gold); }
+  61%, 100% { border-color: var(--px-gold-dk); }
+}
+
+/* Minimapa */
+.minimap-panel {
+  padding: 10px !important;
+}
+.minimap-svg {
+  border-radius: 0;
+  shape-rendering: crispEdges;
+  outline: 2px solid var(--px-ink);
+  background: #161d3d;
+}
+
+/* Controles táctiles: planos, sin brillos */
+.joystick,
+.joystick-thumb,
+.touch-btn {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.touch-btn {
+  border-width: 4px;
+  font-family: var(--px-font);
+}
+
+/* ── Opciones: deslizadores y asignación de teclas ───────────────────── */
+.volume-row input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  background: #161d3d;
+  border: 3px solid var(--px-ink);
+  box-shadow: 0 0 0 2px var(--px-edge);
+  border-radius: 0;
+  accent-color: var(--px-gold);
+}
+.volume-row input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 22px;
+  background: var(--px-gold);
+  border: 3px solid var(--px-ink);
+  border-radius: 0;
+  box-shadow: inset 0 3px 0 0 #fff3b0;
+  cursor: pointer;
+}
+.volume-row input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 16px;
+  background: var(--px-gold);
+  border: 3px solid var(--px-ink);
+  border-radius: 0;
+  cursor: pointer;
+}
+.binding-btn {
+  min-width: 120px;
+}
+
+/* ── Barras de desplazamiento ────────────────────────────────────────── */
+* {
+  scrollbar-color: var(--px-edge) var(--px-ink);
+}
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: var(--px-ink);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--px-edge);
+  border: 3px solid var(--px-ink);
+  box-shadow: inset 0 3px 0 0 var(--px-edge-hi);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--px-gold-dk);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-title,
+  .menu-btn.primary,
+  .char-card.selected,
+  .weapon-prompt,
+  .screen {
+    animation: none;
+  }
+}
+
+/* Legibilidad: la fuente píxel necesita ≥16 px y poco tracking para distinguir C/O, E/F, etc. */
+.stat-label,
+.char-card .faction,
+.footer-text,
+.gold-box .label,
+.build-cell-label,
+.health-text,
+.ability-key,
+.boss-bar .name {
+  letter-spacing: 0.03em;
+}
+.footer-text,
+.gold-box .label,
+.char-card .faction,
+.build-cell-label {
+  font-size: 0.95rem;
+}
+.char-card .name {
+  font-size: 1.05rem;
+}
+.stat-label {
+  font-size: 0.95rem;
+}
+.stat-value {
+  font-size: 1.3rem;
+}
+.skill-card .desc,
+.detail-box,
+.controls-info,
+.highscore-row,
+.build-cell-value {
+  font-size: 1rem;
+}
+.section-title {
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+}
+.game-subtitle {
+  letter-spacing: 0.3em;
+}
+
+/* Peso: Pixelify Sans en 700 cierra la abertura de la «C» por debajo de ~24 px (C se lee como O).
+   Toda la UI usa 400; el 700 queda solo para el título grande. */
+body *,
+button,
+input {
+  font-weight: 400 !important;
+}
+.game-title {
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   Segunda pasada (auditoría de pantallas)
+   ========================================================================== */
+
+/* Texto secundario: los estilos en línea de App.tsx usan 0,65–0,85 rem (10–14 px), ilegible con fuente píxel.
+   Se sube a tamaños ENTEROS (16/18 px) para que los píxeles de la fuente caigan en la rejilla. */
+.screen [style*="font-size: 0.65rem"],
+.screen [style*="font-size: 0.68rem"],
+.screen [style*="font-size: 0.7rem"],
+.screen [style*="font-size: 0.72rem"],
+.screen [style*="font-size: 0.75rem"],
+.screen [style*="font-size: 0.78rem"],
+.screen [style*="font-size: 0.8rem"],
+.screen [style*="font-size: 0.82rem"],
+.hud-panel [style*="font-size: 0.7rem"],
+.hud-panel [style*="font-size: 0.75rem"],
+.hud-panel [style*="font-size: 0.8rem"] {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+.screen [style*="font-size: 0.85rem"],
+.screen [style*="font-size: 0.9rem"] {
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+}
+
+/* Paneles más anchos: menos altura total y mejor uso de pantallas panorámicas */
+.screen-content {
+  max-width: 880px;
+  width: min(94%, 880px);
+}
+
+/* Pantallas de poca altura (portátiles 720–800 px): compactar márgenes para que el botón principal quede visible */
+@media (max-height: 800px) {
+  .screen {
+    padding: 8px 0;
+  }
+  .screen-content {
+    padding: 16px 20px;
+  }
+  .section-title {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+  .menu-btn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .char-card {
+    padding: 8px;
+  }
+}
+
+/* Selección de personaje: las cinco tarjetas de un bando en una sola fila */
+.char-card .name {
+  line-height: 1.15;
+}
+.char-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  max-height: none;
+}
+.gold-box .label,
+.footer-text {
+  font-size: 1rem;
+}
+
+/* ── Iconos pixel art (sustituyen a los emojis; ver src/ui) ─────────────── */
+.px-ico {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
+  vertical-align: -3px;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  flex: none;
+}
+.skill-card .icon .px-ico,
+.ability .px-ico,
+.touch-btn .px-ico,
+.hud-panel .px-ico-heart,
+.build-slot .px-ico {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+.ability {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Colores atenuados en línea de App.tsx: se elevan para el fondo más claro */
+[style*="#8891b8"], [style*="#94a3b8"], [style*="rgb(136, 145, 184)"], [style*="rgb(148, 163, 184)"] {
+  color: var(--px-dim) !important;
+}
+.hud-panel {
+  background: var(--px-night);
+}

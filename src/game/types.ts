@@ -16,6 +16,8 @@ export interface Projectile {
   pierced: Set<number>;
   life: number;
   owner: 'player' | 'enemy';
+  /** Solo visual: clave del sprite de proyectil (baseId del arma o id de enemigo). */
+  sprite?: string;
   _bounceCount?: number;
   _explosionRadius?: number;
   /** Affix carry-over so hit resolution can apply effects generically. */
