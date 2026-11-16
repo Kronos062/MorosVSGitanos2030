@@ -1,0 +1,77 @@
+{
+  "_comment": "PLANTILLA para Comandante Tariq. No está activa. Cuando existan los PNG definitivos, copiar estas entradas a public/assets/sprites/manifest.json y ajustar frames/fps/socket al arte real.",
+  "version": 1,
+  "characters": {
+    "tariq": {
+      "clip": "characters/tariq/tariq_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    }
+  },
+  "weapons": {
+    "iron_python": {
+      "image": "weapons/iron_python.png",
+      "grip": {
+        "x": 2,
+        "y": 3
+      }
+    }
+  },
+  "projectiles": {
+    "iron_python": {
+      "image": "projectiles/iron_python.png"
+    }
+  },
+  "portraits": {
+    "tariq": {
+      "portrait": "portraits/tariq_portrait.png",
+      "icon": "portraits/tariq_icon.png"
+    }
+  }
+}

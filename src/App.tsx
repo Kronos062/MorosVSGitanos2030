@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CharacterPortrait } from './components/CharacterPortrait';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
 import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
@@ -359,6 +360,8 @@ export default function App() {
     const engine = new GameEngine(canvas);
     engine.setBindings(loadSave().bindings);
     engineRef.current = engine;
+    // Solo con ?spritedebug: expone el motor a las pruebas E2E (no afecta al juego).
+    if (new URLSearchParams(location.search).has('spritedebug')) (window as unknown as { __engine: GameEngine }).__engine = engine;
 
     const offStats = engine.onStats((s) => setStats(s));
     const offLevel = engine.onLevelUp((choices) => { setSkillChoices(choices); setScreen('levelup'); });
@@ -630,6 +633,8 @@ export default function App() {
         {!hasFaction && screen === 'menu' && (
           <div className="screen">
             <div className="screen-content">
+              <h1 className="game-title">MOROS VS GITANOS</h1>
+              <p className="game-subtitle">2 0 3 0</p>
               <h2 className="section-title" style={{ color: '#ffe14a' }}>ELIGE TU BANDO</h2>
               <p style={{ color: '#94a3b8', marginBottom: 20 }}>Esta decisión es permanente. Solo podrás jugar personajes del bando elegido.</p>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 16 }}>
@@ -708,12 +713,14 @@ export default function App() {
               <div className="char-grid">
                 {availableChars.map((c) => (
                   <button type="button" key={c.id} className={`char-card ${selectedChar === c.id ? 'selected' : ''}`} onClick={() => { setSelectedChar(c.id); audio.play('button'); }} style={{ borderColor: selectedChar === c.id ? c.sprite.color : undefined }}>
+                    <CharacterPortrait id={c.id} variant="icon" />
                     <div className="name" style={{ color: c.sprite.color }}>{c.name}</div>
                     <div className="faction">{c.faction === 'bando_moros' ? '◆ BANDO MOROS' : '◆ BANDO GITANOS'}</div>
                   </button>
                 ))}
               </div>
               <div className="detail-box">
+                <CharacterPortrait id={selected.id} />
                 <strong style={{ color: selected.sprite.color }}>{selected.name}</strong>
                 <span style={{ color: '#8891b8' }}> · {selected.faction === 'bando_moros' ? 'Moros' : 'Gitanos'}</span>
                 <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>

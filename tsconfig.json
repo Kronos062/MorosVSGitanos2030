@@ -14,11 +14,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "mvg-jsx",
 
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "mvg-jsx/*": ["src/ui/jsx/*"]
     },
 
     /* Linting */

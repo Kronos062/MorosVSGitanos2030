@@ -47,7 +47,7 @@ export class AudioManager {
       return;
     }
     try {
-      const el = new Audio(`/assets/sounds/${file}`);
+      const el = new Audio(`${import.meta.env.BASE_URL}assets/sounds/${file}`);
       el.volume = this.volume;
       el.play().catch(() => {
         // Archivo ausente o bloqueo de autoplay — fallo silencioso.

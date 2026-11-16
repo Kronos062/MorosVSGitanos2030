@@ -1,4 +1,5 @@
 import { getCharacter, type CharacterDef } from '../content/characters';
+import { spriteAtlas } from './sprites/spriteAtlas';
 import {
   getWeapon,
   generateWeapon,
@@ -2412,6 +2413,7 @@ export class GameEngine {
           pierced: new Set(),
           life: w.lifetime ?? 1.8,
           owner: 'player',
+          sprite: w.baseId,
           _bounceCount: (w.bounceCount ?? 0) + p.bounceBonus,
           _explosionRadius: (w.explosionRadius ?? 0) + p.explosionBonus,
           // Affix carry-over (weapon-local; independent from item lifesteal).
@@ -2555,6 +2557,7 @@ export class GameEngine {
 
   private explodeAt(x: number, y: number, radius: number, damage: number, color: string) {
     audio.play('explosion');
+    spriteAtlas.spawnEffect('explosion', x, y, this.worldTime);
     this.burst(x, y, color, 16);
     for (const e of this.enemies) {
       if (Math.hypot(e.x - x, e.y - y) < radius + e.size) {
@@ -2682,6 +2685,7 @@ const spd = e.speed * slowFactor;
             pierced: new Set(),
             life: 3,
             owner: 'enemy',
+            sprite: e.defId,
           });
         }
       } else if (e.aiProfile === 'bomber_rush') {
@@ -2725,6 +2729,7 @@ const spd = e.speed * slowFactor;
     const r = e.explosionRadius ?? 60;
     audio.play('explosion');
     this.camera.shake = 0.4;
+    spriteAtlas.spawnEffect('explosion', e.x, e.y, this.worldTime);
     this.burst(e.x, e.y, e.color, 20);
     const d = Math.hypot(this.player.x - e.x, this.player.y - e.y);
     if (d < r + 14) this.damagePlayer(e.damage);
@@ -3592,6 +3597,44 @@ const spd = e.speed * slowFactor;
     for (const cb of this.onStatsCbs) cb(s);
   }
 
+  /** Solo visual: baseId del arma equipada, cacheado para el dibujado de sprites. */
+  private visWeaponId = '';
+  private visWeaponBase = '';
+
+  /** Solo visual: ranura de equipo de cada pickup, cacheada (getEquipment es una búsqueda). */
+  private pickupSlotCache = new WeakMap<PickupEntity, string>();
+
+  /** Solo visual: baseId del arma de un pickup, cacheado (getWeapon puede generar). */
+  private pickupWeaponCache = new WeakMap<PickupEntity, string>();
+  private pickupWeaponBase(pk: PickupEntity): string {
+    let b = this.pickupWeaponCache.get(pk);
+    if (b === undefined) {
+      b = pk.weaponId ? getWeapon(pk.weaponId).baseId : '';
+      this.pickupWeaponCache.set(pk, b);
+    }
+    return b;
+  }
+
+  /** Solo visual: clave de sprite de un pickup, o null si ese tipo no tiene. */
+  private pickupSpriteKey(pk: PickupEntity): string | null {
+    switch (pk.kind) {
+      case 'heal': return 'pickup_heal';
+      case 'shield': return 'pickup_shield';
+      case 'score': return 'pickup_score';
+      case 'weapon': return 'pickup_weapon';
+      case 'relic': return 'pickup_relic';
+      case 'item': {
+        let slot = this.pickupSlotCache.get(pk);
+        if (!slot) {
+          slot = getEquipment(pk.itemId ?? EQUIP_SLOTS[0]).slot;
+          this.pickupSlotCache.set(pk, slot);
+        }
+        return `pickup_item_${slot}`;
+      }
+      default: return null;
+    }
+  }
+
   private render() {
     const ctx = this.ctx;
     const w = window.innerWidth;
@@ -3640,6 +3683,20 @@ const spd = e.speed * slowFactor;
     // pickups
     for (const pk of this.pickups) {
       const by = pk.y + Math.sin(pk.bob) * 4;
+      if (pk.kind === 'weapon') {
+        const wb = this.pickupWeaponBase(pk);
+        if (wb && spriteAtlas.hasWeapon(wb)) {
+          spriteAtlas.drawGroundPad(ctx, pk.x, pk.y + 12, pk.color);
+          spriteAtlas.drawWeaponIcon(ctx, wb, pk.x, by);
+          continue;
+        }
+      }
+      const spriteKey = this.pickupSpriteKey(pk);
+      if (spriteKey && spriteAtlas.hasObject(spriteKey)) {
+        spriteAtlas.drawGroundPad(ctx, pk.x, pk.y + 12, pk.color); // la base no flota: conserva el color de rareza
+        spriteAtlas.drawObject(ctx, spriteKey, pk.x, by, this.worldTime + pk.bob * 0.3); // desfase para que las monedas no giren sincronizadas
+        continue;
+      }
       ctx.shadowColor = pk.color;
       ctx.shadowBlur = 12;
       ctx.fillStyle = pk.color;
@@ -3661,11 +3718,24 @@ const spd = e.speed * slowFactor;
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.scale(Math.max(0.2, scale), Math.max(0.2, scale));
-      ctx.shadowColor = e.glow;
-      ctx.shadowBlur = e.isBoss ? 28 : 14;
-      ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : e.color;
-      this.drawShape(ctx, e.shape, e.size);
-      ctx.shadowBlur = 0;
+      const enemySprite = spriteAtlas.hasEnemy(e.defId) && spriteAtlas.drawEnemy(ctx, e.defId, e, 0, 0, {
+        now: this.worldTime,
+        faceX: this.player.x - e.x,
+        faceY: this.player.y - e.y,
+        hp: e.hp,
+        dead: e.hp <= 0,
+        flash: e.hitFlash > 0,
+        footOffset: e.size * 0.8,
+        trackX: e.x,
+        trackY: e.y,
+      });
+      if (!enemySprite) {
+        ctx.shadowColor = e.glow;
+        ctx.shadowBlur = e.isBoss ? 28 : 14;
+        ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : e.color;
+        this.drawShape(ctx, e.shape, e.size);
+        ctx.shadowBlur = 0;
+      }
       if (e.hp < e.maxHp || e.isBoss) {
         const bw = e.size * 2;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -3678,6 +3748,7 @@ const spd = e.speed * slowFactor;
 
     // projectiles
     for (const pr of this.projectiles) {
+      if (spriteAtlas.drawProjectile(ctx, pr.sprite, pr.x, pr.y, Math.atan2(pr.vy, pr.vx), this.worldTime)) continue;
       ctx.shadowColor = pr.color;
       ctx.shadowBlur = 10;
       ctx.fillStyle = pr.color;
@@ -3689,26 +3760,47 @@ const spd = e.speed * slowFactor;
 
     // player
     const p = this.player;
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    const ang = Math.atan2(p.facingY, p.facingX);
-    ctx.rotate(ang);
-    if (p.invuln > 0 && Math.floor(this.worldTime * 20) % 2 === 0) {
-      ctx.globalAlpha = 0.4;
+    const blink = p.invuln > 0 && Math.floor(this.worldTime * 20) % 2 === 0;
+    if (this.visWeaponId !== p.weaponId) {
+      this.visWeaponId = p.weaponId;
+      this.visWeaponBase = getWeapon(p.weaponId).baseId; // solo al cambiar de arma (getWeapon puede generar)
     }
-    ctx.shadowColor = p.glow;
-    ctx.shadowBlur = p.isDashing ? 30 : 16;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.moveTo(16, 0);
-    ctx.lineTo(-12, 10);
-    ctx.lineTo(-8, 0);
-    ctx.lineTo(-12, -10);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-    ctx.restore();
+    const playerSprite = spriteAtlas.hasCharacter(this.characterId) && spriteAtlas.drawCharacter(ctx, this.characterId, p, p.x, p.y, {
+      now: this.worldTime,
+      faceX: p.facingX,
+      faceY: p.facingY,
+      hp: p.hp + p.shield,
+      rolling: p.isDashing,
+      dead: p.hp <= 0,
+      alpha: blink ? 0.4 : 1,
+      footOffset: 14, // radio de colisión del jugador (clampToWalkable): los pies quedan en el borde inferior del hitbox
+      weaponId: this.visWeaponBase,
+      aimAngle: Math.atan2(p.facingY, p.facingX),
+    });
+    if (!playerSprite) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      const ang = Math.atan2(p.facingY, p.facingX);
+      ctx.rotate(ang);
+      if (blink) {
+        ctx.globalAlpha = 0.4;
+      }
+      ctx.shadowColor = p.glow;
+      ctx.shadowBlur = p.isDashing ? 30 : 16;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(16, 0);
+      ctx.lineTo(-12, 10);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-12, -10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      // Arma real en mano mientras el personaje no tiene sprite propio.
+      spriteAtlas.drawHeldWeapon(ctx, this.visWeaponBase, p.x, p.y, Math.atan2(p.facingY, p.facingX), blink ? 0.4 : 1);
+    }
 
     if (p.shield > 0) {
       ctx.strokeStyle = 'rgba(0,240,255,0.55)';
@@ -3745,6 +3837,7 @@ const spd = e.speed * slowFactor;
       ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
     }
     ctx.globalAlpha = 1;
+    spriteAtlas.drawEffects(ctx, this.worldTime);
 
     // Ambient biome particles
     const theme = this.currentBiome?.theme;
@@ -3758,7 +3851,9 @@ const spd = e.speed * slowFactor;
     }
 
     // Portal entity drawing
-    if (this.portal?.active) {
+    if (this.portal?.active && spriteAtlas.drawObject(ctx, `portal_${this.portal.kind}`, this.portal.x, this.portal.y, this.worldTime)) {
+      // dibujado con sprite
+    } else if (this.portal?.active) {
       const pt = this.portal;
       const pulse = Math.sin(this.worldTime * 3) * 4;
       ctx.save();
@@ -3827,6 +3922,8 @@ const spd = e.speed * slowFactor;
   }
 
   private drawChest(ctx: CanvasRenderingContext2D, c: ChestEntity) {
+    // Sprite pixel art si está declarado (la base del cofre queda a y+12, como el rectángulo original).
+    if (spriteAtlas.drawObject(ctx, `${c.defId}_${c.opened ? 'open' : 'closed'}`, c.x, c.y + 12, this.worldTime)) return;
     ctx.save();
     ctx.translate(c.x, c.y);
     if (!c.opened) {

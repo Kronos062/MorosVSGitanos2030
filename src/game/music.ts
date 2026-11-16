@@ -48,7 +48,7 @@ class MusicManager {
       this.fadeInterval = null;
     }
 
-    const next = new Audio(`/assets/music/${file}`);
+    const next = new Audio(`${import.meta.env.BASE_URL}assets/music/${file}`);
     next.loop = true;
     next.volume = 0;
 

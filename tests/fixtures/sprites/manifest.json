@@ -1,0 +1,69 @@
+{
+ "version": 1,
+ "characters": {
+  "tariq": {
+   "clip": "characters/tariq/tariq_{anim}_{dir}.png",
+   "pixelScale": 2,
+   "weaponSocket": {
+    "right": {
+     "x": 6,
+     "y": -18
+    },
+    "up": {
+     "x": 4,
+     "y": -20,
+     "behind": true
+    }
+   },
+   "animations": {
+    "idle": {
+     "frames": 4,
+     "fps": 6
+    },
+    "walk": {
+     "frames": 6,
+     "fps": 10
+    },
+    "roll": {
+     "frames": 5,
+     "fps": 14
+    },
+    "hurt": {
+     "frames": 3,
+     "fps": 10
+    },
+    "death": {
+     "frames": 6,
+     "fps": 8
+    }
+   }
+  }
+ },
+ "weapons": {
+  "iron_python": {
+   "image": "weapons/iron_python.png",
+   "grip": {
+    "x": 2,
+    "y": 3
+   }
+  }
+ },
+ "projectiles": {
+  "iron_python": {
+   "image": "projectiles/iron_python.png"
+  }
+ },
+ "effects": {
+  "explosion": {
+   "image": "effects/explosion.png",
+   "frames": 5,
+   "fps": 14
+  }
+ },
+ "portraits": {
+  "tariq": {
+   "portrait": "portraits/tariq_portrait.png",
+   "icon": "portraits/tariq_icon.png"
+  }
+ }
+}
