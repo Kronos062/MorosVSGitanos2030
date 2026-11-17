@@ -168,8 +168,10 @@ def mode_a(pw):
     exp_objs = {'chest_common_closed', 'chest_common_open', 'chest_rare_closed', 'chest_rare_open', 'chest_legendary_closed', 'chest_legendary_open', 'portal_descent', 'portal_final',
                 'pickup_heal', 'pickup_shield', 'pickup_score', 'pickup_relic', 'pickup_weapon',
                 'pickup_item_helm', 'pickup_item_chest', 'pickup_item_pants', 'pickup_item_boots'}
-    check('A: manifiesto real: 17 objetos del mundo (cofres, portal, pickups), sin personajes ni enemigos y sin problemas de carga',
-          set(st['objects']) == exp_objs and not st['characters'] and not st['enemies'] and not st['problems'], st)
+    n_equip = len([k for k in st['objects'] if k.startswith('equip_')])
+    check('A: manifiesto real: 17 objetos del mundo + 84 de equipo (20 sets x 4 ranuras + 4 genéricos), sin personajes ni enemigos y sin problemas de carga',
+          exp_objs <= set(st['objects']) and n_equip == 84 and len(st['objects']) == 101 and not st['characters'] and not st['enemies'] and not st['problems'],
+          f"{len(st['objects'])} objetos, {n_equip} de equipo, problemas={st['problems'][:2]}")
     check('A: manifiesto real: 59 armas y 59 proyectiles cargados', len(st['weapons']) == 59 and len(st['projectiles']) == 59 and 'iron_python' in st['weapons'],
           f"{len(st['weapons'])} armas, {len(st['projectiles'])} proyectiles")
     start_run(pg); combat(pg); clean_scene(pg)
@@ -219,10 +221,11 @@ def mode_a(pw):
         ('score (moneda)', 'score', None, (255, 210, 74), 8, None),
         ('relic (reliquia)', 'relic', 'x', (167, 123, 255), 10, None),
         ('weapon (arma)', 'weapon', None, (116, 128, 176), 8, None),
-        ('item helm (casco)', 'item', 'set_berserker_helm', (240, 88, 58), 6, None),
-        ('item chest (pechera)', 'item', 'set_berserker_chest', (195, 203, 232), 8, None),
-        ('item pants (pantalón)', 'item', 'set_berserker_pants', (74, 143, 232), 10, (195, 203, 232)),
-        ('item boots (botas)', 'item', 'set_berserker_boots', (185, 119, 63), 10, None),
+        ('item helm (casco, set Berserker)', 'item', 'set_berserker_helm', (255, 85, 0), 10, None),
+        ('item chest (pechera, set Berserker)', 'item', 'set_berserker_chest', (255, 85, 0), 14, None),
+        ('item pants (pantalón, set Berserker)', 'item', 'set_berserker_pants', (255, 85, 0), 14, None),
+        ('item boots (botas, set Berserker)', 'item', 'set_berserker_boots', (255, 85, 0), 14, None),
+        ('item helm (casco, set Francotirador)', 'item', 'set_sniper_helm', (0, 200, 255), 10, None),
     ]
     for label, kind, item, col, need, absent in CASES:
         arg = f", undefined, '{item}'" if (item and kind == 'item') else (", undefined, 'x'" if kind == 'relic' else "")
@@ -239,6 +242,30 @@ def mode_a(pw):
     y0, y1 = [pg.evaluate("() => window.__engine.pickups[0].y") for _ in range(1)] * 2
     pg.wait_for_timeout(400); y1 = pg.evaluate("() => window.__engine.pickups[0].y")
     check('A: el flotado del pickup no altera su posición real', y0 == y1, f'{y0} → {y1}')
+    pg.evaluate("() => { window.__engine.pickups.length = 0; }")
+
+    # ── equipo: formas distintas por ranura, pantalla de objeto encontrado y build con el sprite de la pieza ──
+    hashes = {}
+    for slot in ('helm', 'chest', 'pants', 'boots'):
+        pg.evaluate(f"() => {{ const e = window.__engine; e.pickups.length = 0; e.spawnPickup(e.player.x + 90, e.player.y + 10, 'item', '#ff5500', 0, undefined, 'set_berserker_{slot}'); }}")
+        pg.wait_for_timeout(200)
+        off = pg.evaluate("() => { const e = window.__engine, k = e.pickups[0]; return [k.x - e.camera.x, k.y - e.camera.y]; }")
+        kx, ky = int(W / 2 + off[0]), int(H / 2 + off[1])
+        reg = shot(pg)[ky - 20:ky + 14, kx - 20:kx + 20]; hashes[slot] = (mask(reg, (255, 85, 0))).tobytes().__hash__()
+    check('A: las cuatro ranuras de un mismo set tienen silueta distinta', len(set(hashes.values())) == 4, len(set(hashes.values())))
+    pg.evaluate("() => { const e = window.__engine; e.pickups.length = 0; e.spawnPickup(e.player.x + 12, e.player.y, 'item', '#ff5500', 0, undefined, 'set_berserker_helm'); }")
+    pg.wait_for_timeout(300); pg.keyboard.press('KeyE'); pg.wait_for_timeout(700)
+    tiles = pg.evaluate("() => [...document.querySelectorAll('.screen .equip-tile .px-ico')].map(e => [getComputedStyle(e).backgroundImage, e.getBoundingClientRect().width])")
+    check('A: la pantalla de objeto encontrado muestra el sprite de la pieza (set Berserker, 32 px)',
+          len(tiles) >= 1 and all('equip_set_berserker_helm' in t[0] and t[1] == 32 for t in tiles), tiles)
+    pg.locator('.screen .menu-btn.primary').first.click(); pg.wait_for_timeout(500)
+    check('A: tras elegir, el juego se reanuda', pg.evaluate('() => window.__engine.running === true'))
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(400)
+    pg.get_by_role('button', name='BUILD').first.click(); pg.wait_for_timeout(500)
+    bt = pg.evaluate("() => [...document.querySelectorAll('.build-equipment-section .equip-tile .px-ico')].map(e => getComputedStyle(e).backgroundImage)")
+    check('A: la pantalla de build muestra el sprite de la pieza equipada', len(bt) == 1 and 'equip_set_berserker_helm' in bt[0], bt)
+    pg.get_by_role('button', name='VOLVER').first.click(); pg.wait_for_timeout(300)
+    pg.get_by_role('button', name='CONTINUAR').first.click(); pg.wait_for_timeout(500)
     pg.evaluate("() => { window.__engine.pickups.length = 0; }")
 
     # ── armas: en mano sobre la forma original, como pickup concreto y como proyectil ──
