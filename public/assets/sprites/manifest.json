@@ -184,6 +184,762 @@
         "x": 0.5,
         "y": 0.5
       }
+    },
+    "equip_set_berserker_helm": {
+      "image": "objects/equip_set_berserker_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_berserker_chest": {
+      "image": "objects/equip_set_berserker_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_berserker_pants": {
+      "image": "objects/equip_set_berserker_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_berserker_boots": {
+      "image": "objects/equip_set_berserker_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_sniper_helm": {
+      "image": "objects/equip_set_sniper_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_sniper_chest": {
+      "image": "objects/equip_set_sniper_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_sniper_pants": {
+      "image": "objects/equip_set_sniper_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_sniper_boots": {
+      "image": "objects/equip_set_sniper_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_asesino_helm": {
+      "image": "objects/equip_set_asesino_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_asesino_chest": {
+      "image": "objects/equip_set_asesino_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_asesino_pants": {
+      "image": "objects/equip_set_asesino_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_asesino_boots": {
+      "image": "objects/equip_set_asesino_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tank_helm": {
+      "image": "objects/equip_set_tank_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tank_chest": {
+      "image": "objects/equip_set_tank_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tank_pants": {
+      "image": "objects/equip_set_tank_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tank_boots": {
+      "image": "objects/equip_set_tank_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_vampiro_helm": {
+      "image": "objects/equip_set_vampiro_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_vampiro_chest": {
+      "image": "objects/equip_set_vampiro_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_vampiro_pants": {
+      "image": "objects/equip_set_vampiro_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_vampiro_boots": {
+      "image": "objects/equip_set_vampiro_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_ingeniero_helm": {
+      "image": "objects/equip_set_ingeniero_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_ingeniero_chest": {
+      "image": "objects/equip_set_ingeniero_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_ingeniero_pants": {
+      "image": "objects/equip_set_ingeniero_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_ingeniero_boots": {
+      "image": "objects/equip_set_ingeniero_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_piromano_helm": {
+      "image": "objects/equip_set_piromano_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_piromano_chest": {
+      "image": "objects/equip_set_piromano_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_piromano_pants": {
+      "image": "objects/equip_set_piromano_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_piromano_boots": {
+      "image": "objects/equip_set_piromano_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_criomante_helm": {
+      "image": "objects/equip_set_criomante_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_criomante_chest": {
+      "image": "objects/equip_set_criomante_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_criomante_pants": {
+      "image": "objects/equip_set_criomante_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_criomante_boots": {
+      "image": "objects/equip_set_criomante_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_electricista_helm": {
+      "image": "objects/equip_set_electricista_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_electricista_chest": {
+      "image": "objects/equip_set_electricista_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_electricista_pants": {
+      "image": "objects/equip_set_electricista_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_electricista_boots": {
+      "image": "objects/equip_set_electricista_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_toxicologo_helm": {
+      "image": "objects/equip_set_toxicologo_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_toxicologo_chest": {
+      "image": "objects/equip_set_toxicologo_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_toxicologo_pants": {
+      "image": "objects/equip_set_toxicologo_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_toxicologo_boots": {
+      "image": "objects/equip_set_toxicologo_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_explorador_helm": {
+      "image": "objects/equip_set_explorador_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_explorador_chest": {
+      "image": "objects/equip_set_explorador_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_explorador_pants": {
+      "image": "objects/equip_set_explorador_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_explorador_boots": {
+      "image": "objects/equip_set_explorador_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_artillero_helm": {
+      "image": "objects/equip_set_artillero_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_artillero_chest": {
+      "image": "objects/equip_set_artillero_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_artillero_pants": {
+      "image": "objects/equip_set_artillero_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_artillero_boots": {
+      "image": "objects/equip_set_artillero_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_comando_helm": {
+      "image": "objects/equip_set_comando_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_comando_chest": {
+      "image": "objects/equip_set_comando_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_comando_pants": {
+      "image": "objects/equip_set_comando_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_comando_boots": {
+      "image": "objects/equip_set_comando_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_fanatico_helm": {
+      "image": "objects/equip_set_fanatico_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_fanatico_chest": {
+      "image": "objects/equip_set_fanatico_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_fanatico_pants": {
+      "image": "objects/equip_set_fanatico_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_fanatico_boots": {
+      "image": "objects/equip_set_fanatico_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_mercenario_helm": {
+      "image": "objects/equip_set_mercenario_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_mercenario_chest": {
+      "image": "objects/equip_set_mercenario_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_mercenario_pants": {
+      "image": "objects/equip_set_mercenario_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_mercenario_boots": {
+      "image": "objects/equip_set_mercenario_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_medico_helm": {
+      "image": "objects/equip_set_medico_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_medico_chest": {
+      "image": "objects/equip_set_medico_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_medico_pants": {
+      "image": "objects/equip_set_medico_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_medico_boots": {
+      "image": "objects/equip_set_medico_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cazador_helm": {
+      "image": "objects/equip_set_cazador_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cazador_chest": {
+      "image": "objects/equip_set_cazador_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cazador_pants": {
+      "image": "objects/equip_set_cazador_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cazador_boots": {
+      "image": "objects/equip_set_cazador_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tecnomante_helm": {
+      "image": "objects/equip_set_tecnomante_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tecnomante_chest": {
+      "image": "objects/equip_set_tecnomante_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tecnomante_pants": {
+      "image": "objects/equip_set_tecnomante_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_tecnomante_boots": {
+      "image": "objects/equip_set_tecnomante_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_caotico_helm": {
+      "image": "objects/equip_set_caotico_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_caotico_chest": {
+      "image": "objects/equip_set_caotico_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_caotico_pants": {
+      "image": "objects/equip_set_caotico_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_caotico_boots": {
+      "image": "objects/equip_set_caotico_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cuantico_helm": {
+      "image": "objects/equip_set_cuantico_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cuantico_chest": {
+      "image": "objects/equip_set_cuantico_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cuantico_pants": {
+      "image": "objects/equip_set_cuantico_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_set_cuantico_boots": {
+      "image": "objects/equip_set_cuantico_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_generic_helm": {
+      "image": "objects/equip_generic_helm.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_generic_chest": {
+      "image": "objects/equip_generic_chest.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_generic_pants": {
+      "image": "objects/equip_generic_pants.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equip_generic_boots": {
+      "image": "objects/equip_generic_boots.png",
+      "frames": 1,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
     }
   },
   "weapons": {

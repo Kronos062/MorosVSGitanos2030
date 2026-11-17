@@ -2,7 +2,7 @@
 
 Sprites de personajes, enemigos, armas, proyectiles y efectos. Cualquier archivo `x.png` queda accesible en `/assets/sprites/x.png`.
 
-El motor lee **`manifest.json`** (esta carpeta). Todo lo que no esté declarado se dibuja con las primitivas vectoriales originales, así que el juego funciona con 0, 1 o 100 sprites integrados. **Estado actual: integrados objetos del mundo (cofres, portal, pickups), las 59 armas base y sus proyectiles. Faltan personajes, enemigos y efectos.**
+El motor lee **`manifest.json`** (esta carpeta). Todo lo que no esté declarado se dibuja con las primitivas vectoriales originales, así que el juego funciona con 0, 1 o 100 sprites integrados. **Estado actual: integrados objetos del mundo (cofres, portal, pickups), las 59 armas base con sus proyectiles y el equipo (20 sets x 4 ranuras). Faltan personajes, enemigos y efectos.**
 
 ## Estructura
 
@@ -89,3 +89,11 @@ Los pickups se anclan en su centro y flotan (efecto solo visual: la posición re
 - El arma se dibuja **en mano** también sobre la forma vectorial del jugador (su boca queda ~20 px por delante del centro, cerca del punto donde nacen las balas). Cuando exista el sprite del personaje se colocará en su `weaponSocket`.
 - Los pickups de arma muestran el arma concreta sobre la base del color de rareza.
 - Regenerar: `python3 tools/make_weapon_sprites.py` (lee `weapons.ts`; si añades un arma hay que asignarle silueta en el diccionario `W` del script).
+
+## Equipo (armaduras)
+
+- **`objects/equip_<setId>_<slot>.png`** (80) y **`equip_generic_<slot>.png`** (4, respaldo sin set). `slot` = `helm` | `chest` | `pants` | `boots`; `setId` = id de set de `src/content/equipment.ts` (p. ej. `set_berserker`). 16x16, `pixelScale` 2 (32 px en pantalla).
+- Cada pieza usa el **color exacto del set** (cuerpo, con tono oscuro y claro) y un emblema blanco propio del set: completo en la pechera, recortado por filas en casco y pantalón; las botas no llevan emblema.
+- **La rareza no cambia el dibujo**: se muestra con el marco (en la interfaz) o la base plana (en el suelo) del color de rareza.
+- Donde se usa: pickups en el suelo (`pickupSpriteKey` en el motor), pantalla de objeto encontrado y pantalla de build (componente `src/components/EquipIcon.tsx`, que cae al emoji original si falta el sprite).
+- Regenerar: `python3 tools/make_equipment_sprites.py` (lee `equipment.ts`; si añades un set hay que darle un emblema en el diccionario `EMBLEMS`).
