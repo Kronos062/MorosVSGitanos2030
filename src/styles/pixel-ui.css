@@ -687,3 +687,20 @@ input {
 .hud-panel {
   background: var(--px-night);
 }
+
+/* Pieza de equipo: sprite con marco del color de rareza */
+.equip-tile {
+  display: inline-block;
+  padding: 2px;
+  margin-right: 8px;
+  background: var(--px-ink);
+  border: 3px solid var(--px-edge);
+  line-height: 0;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px var(--px-ink);
+}
+.equip-tile .px-ico {
+  display: block;
+  margin: 0;
+  vertical-align: top;
+}

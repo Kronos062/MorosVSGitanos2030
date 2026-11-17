@@ -94,6 +94,7 @@ export class SpriteAtlas {
   private live: LiveEffect[] = [];
   private scratch: HTMLCanvasElement | null = null;
   private loading: Promise<void> | null = null;
+  private baseUrl = '';
   private problems: string[] = [];
 
   /** Carga el manifiesto y todos los recursos declarados. Nunca rechaza: ante cualquier fallo el juego usa el fallback. */
@@ -103,6 +104,7 @@ export class SpriteAtlas {
   }
 
   private async doLoad(base: string): Promise<void> {
+    this.baseUrl = base;
     let manifest: SpriteManifest;
     try {
       const res = await fetch(`${base}manifest.json`, { cache: 'no-cache' });
@@ -379,6 +381,12 @@ export class SpriteAtlas {
     ctx.drawImage(p.img, frame * p.fw, 0, p.fw, p.fh, -(p.fw * ps) / 2, -(p.fh * ps) / 2, p.fw * ps, p.fh * ps);
     ctx.restore();
     return true;
+  }
+
+  /** URL de la imagen de un objeto del mundo (para usarla desde la interfaz), o null si no está declarado. */
+  getObjectUrl(key: string): string | null {
+    const o = this.objects.get(key);
+    return o ? this.baseUrl + o.meta.image : null;
   }
 
   hasWeapon(id: string): boolean {

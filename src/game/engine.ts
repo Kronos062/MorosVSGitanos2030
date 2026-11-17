@@ -3601,7 +3601,7 @@ const spd = e.speed * slowFactor;
   private visWeaponId = '';
   private visWeaponBase = '';
 
-  /** Solo visual: ranura de equipo de cada pickup, cacheada (getEquipment es una búsqueda). */
+  /** Solo visual: clave de sprite de cada pickup de equipo, cacheada (getEquipment es una búsqueda). */
   private pickupSlotCache = new WeakMap<PickupEntity, string>();
 
   /** Solo visual: baseId del arma de un pickup, cacheado (getWeapon puede generar). */
@@ -3624,12 +3624,14 @@ const spd = e.speed * slowFactor;
       case 'weapon': return 'pickup_weapon';
       case 'relic': return 'pickup_relic';
       case 'item': {
-        let slot = this.pickupSlotCache.get(pk);
-        if (!slot) {
-          slot = getEquipment(pk.itemId ?? EQUIP_SLOTS[0]).slot;
-          this.pickupSlotCache.set(pk, slot);
+        let key = this.pickupSlotCache.get(pk);
+        if (!key) {
+          const eq = getEquipment(pk.itemId ?? EQUIP_SLOTS[0]);
+          const specific = `equip_${eq.setId ?? 'generic'}_${eq.slot}`; // sprite propio del set y la ranura
+          key = spriteAtlas.hasObject(specific) ? specific : `pickup_item_${eq.slot}`;
+          this.pickupSlotCache.set(pk, key);
         }
-        return `pickup_item_${slot}`;
+        return key;
       }
       default: return null;
     }

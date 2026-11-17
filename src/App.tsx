@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from './components/CharacterPortrait';
+import { EquipIcon } from './components/EquipIcon';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
 import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
@@ -180,7 +181,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
                 </span>
                 {eq ? (
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#8891b8' }}>{eq.icon}</span>
+                    <EquipIcon setId={eq.setId} slot={eq.slot} frame={EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS]} fallback={eq.icon} />
                     <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
                     <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
                   </span>
@@ -1258,7 +1259,7 @@ export default function App() {
       <div className="screen">
         <div className="screen-content">
           <h2 className="section-title" style={{ color: itemPickup.item.color }}>
-            {itemPickup.item.icon} OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
+            <EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
           </h2>
 
           {/* Side-by-side comparison */}
@@ -1268,7 +1269,7 @@ export default function App() {
               <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 6 }}>EQUIPADO</div>
               {curEq ? (
                 <>
-                  <div style={{ fontWeight: 800, color: curEq.color, marginBottom: 4 }}>{curEq.icon} {curEq.name}</div>
+                  <div style={{ fontWeight: 800, color: curEq.color, marginBottom: 4 }}><EquipIcon setId={curEq.setId} slot={curEq.slot} frame={EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS]} fallback={curEq.icon} /> {curEq.name}</div>
                   <div style={{ fontSize: '0.7rem', color: EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{curEq.rarity.toUpperCase()}</div>
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{curEq.description}</div>
                   <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
@@ -1282,7 +1283,7 @@ export default function App() {
             {/* NEW */}
             <div style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: `2px solid ${itemPickup.item.color}66`, borderRadius: 4, textAlign: 'left' }}>
               <div style={{ fontSize: '0.7rem', color: '#39ff88', marginBottom: 6 }}>ENCONTRADO</div>
-              <div style={{ fontWeight: 800, color: itemPickup.item.color, marginBottom: 4 }}>{itemPickup.item.icon} {itemPickup.item.name}</div>
+              <div style={{ fontWeight: 800, color: itemPickup.item.color, marginBottom: 4 }}><EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> {itemPickup.item.name}</div>
               <div style={{ fontSize: '0.7rem', color: EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{itemPickup.item.rarity.toUpperCase()}</div>
               <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{itemPickup.item.description}</div>
               <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
