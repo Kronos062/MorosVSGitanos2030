@@ -3923,29 +3923,54 @@ const spd = e.speed * slowFactor;
     ctx.fillRect(0, 0, w, h);
   }
 
-  private drawChest(ctx: CanvasRenderingContext2D, c: ChestEntity) {
-    // Sprite pixel art si está declarado (la base del cofre queda a y+12, como el rectángulo original).
-    if (spriteAtlas.drawObject(ctx, `${c.defId}_${c.opened ? 'open' : 'closed'}`, c.x, c.y + 12, this.worldTime)) return;
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    if (!c.opened) {
-      ctx.shadowColor = c.glow;
-      ctx.shadowBlur = 16;
-      ctx.fillStyle = c.color;
-      ctx.fillRect(-16, -12, 32, 24);
-      ctx.fillStyle = '#0a0c10';
-      ctx.fillRect(-16, -2, 32, 4);
-      ctx.fillStyle = '#ffe14a';
-      ctx.fillRect(-3, -6, 6, 10);
-      ctx.shadowBlur = 0;
-    } else {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = '#555';
-      ctx.fillRect(-16, -4, 32, 16);
-      ctx.globalAlpha = 1;
-    }
-    ctx.restore();
+  
+private drawChest(ctx: CanvasRenderingContext2D, c: ChestEntity) {
+  // Relacionar el identificador lógico del cofre con su sprite.
+  const spriteIds: Record<string, string> = {
+    chest_street: 'chest_common',
+    chest_armory: 'chest_rare',
+    chest_boss: 'chest_legendary',
+  };
+
+  const spriteId = spriteIds[c.defId];
+
+  // Intentar dibujar el sprite correspondiente.
+  if (
+    spriteId &&
+    spriteAtlas.drawObject(
+      ctx,
+      `${spriteId}_${c.opened ? 'open' : 'closed'}`,
+      c.x,
+      c.y + 12,
+      this.worldTime,
+    )
+  ) {
+    return;
   }
+
+  // Fallback original mediante Canvas.
+  ctx.save();
+  ctx.translate(c.x, c.y);
+
+  if (!c.opened) {
+    ctx.shadowColor = c.glow;
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-16, -12, 32, 24);
+    ctx.fillStyle = '#0a0c10';
+    ctx.fillRect(-16, -2, 32, 4);
+    ctx.fillStyle = '#ffe14a';
+    ctx.fillRect(-3, -6, 6, 10);
+    ctx.shadowBlur = 0;
+  } else {
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-16, -4, 32, 16);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
 
   private drawWorld(ctx: CanvasRenderingContext2D) {
     const bt = this.currentBiome?.theme;
