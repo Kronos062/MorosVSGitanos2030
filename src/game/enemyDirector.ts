@@ -1,16 +1,3 @@
-/* ======================================================================
- * enemyDirector.ts — Data-driven Enemy Director.
- * ----------------------------------------------------------------------
- * A context-aware decision layer that controls WHICH enemies appear,
- * in WHAT composition, and at WHAT pacing — without ever modifying
- * enemy stats. The engine still calls spawnEnemyInRoom with the chosen
- * EnemyDef; the Director only decides the list and timing.
- *
- * Everything is driven by data: composition templates, enemy metadata
- * (threat/cost/role), and a live intensity tracker. Adding new enemies
- * requires ZERO changes here.
- * ==================================================================== */
-
 import {
   ENEMIES,
   type EnemyDef,
@@ -20,22 +7,15 @@ import type { BiomeDef } from '../content/biomes';
 import { runRandom } from './random';
 import type { PlayerState } from './types';
 
-/* ------------------------------------------------------------------ */
-/*  COMPOSITION TEMPLATES (data-driven encounter archetypes)          */
-/* ------------------------------------------------------------------ */
-
 export interface CompositionTemplate {
   id: string;
   name: string;
   description: string;
-  /** How early this composition can appear (1=map1, 10=map10). */
   minMap: number;
-  /** How many role slots this composition fills. */
   slots: Array<{
     role: EnemyDef['role'];
     count: number;
   }>;
-  /** Weight multiplier at different intensity bands. */
   intensityWeights: { low: number; mid: number; high: number };
 }
 
@@ -135,10 +115,6 @@ export const COMPOSITIONS: CompositionTemplate[] = [
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  DIRECTOR CONTEXT (observed state, data-driven)                   */
-/* ------------------------------------------------------------------ */
-
 export interface DirectorContext {
   mapNumber: number;
   roomId: number;
@@ -162,10 +138,6 @@ export interface DirectorContext {
   roomCleared: boolean;
 }
 
-/* ------------------------------------------------------------------ */
-/*  INTENSITY TRACKER                                                 */
-/* ------------------------------------------------------------------ */
-
 export class IntensityTracker {
   private intensity = 30;
   private readonly decayRate = 2;
@@ -175,28 +147,21 @@ export class IntensityTracker {
   update(ctx: DirectorContext, dt: number): void {
     let delta = 0;
 
-    // Player stress
     if (ctx.playerHpRatio < 0.3) delta += 8;
     else if (ctx.playerHpRatio < 0.6) delta += 3;
 
-    // Recent damage
     if (ctx.recentDamageTaken > 0) delta += Math.min(5, ctx.recentDamageTaken * 0.3);
 
-    // Near-death experience
     delta += ctx.nearDeathCount * 4;
 
-    // High kill rate → dominant player, lower intensity
     if (ctx.killRate > 8) delta -= 6;
     else if (ctx.killRate > 5) delta -= 3;
 
-    // Long room time
     if (ctx.roomTime > 30) delta += 2;
     if (ctx.roomTime > 60) delta += 3;
 
-    // Safe zones reduce intensity
     if (ctx.playerShield > 0) delta -= 1;
 
-    // Natural decay
     delta -= this.decayRate * dt;
 
     this.intensity = Math.max(this.minIntensity, Math.min(this.maxIntensity, this.intensity + delta));
@@ -225,10 +190,6 @@ export class IntensityTracker {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  ANTI-REPETITION MEMORY                                            */
-/* ------------------------------------------------------------------ */
-
 export class EncounterMemory {
   private recentCompositions: string[] = [];
   private recentEnemies: string[] = [];
@@ -251,7 +212,6 @@ export class EncounterMemory {
   compositionWeight(compId: string): number {
     const idx = this.recentCompositions.indexOf(compId);
     if (idx === -1) return 1;
-    // Most recent = strongest penalty, fading over time
     const recency = this.recentCompositions.length - 1 - idx;
     return 0.3 + recency * 0.08;
   }
@@ -269,10 +229,6 @@ export class EncounterMemory {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  ENEMY DIRECTOR — the orchestrator                                 */
-/* ------------------------------------------------------------------ */
-
 export class EnemyDirector {
   private intensityTracker = new IntensityTracker();
   private memory = new EncounterMemory();
@@ -284,8 +240,6 @@ export class EnemyDirector {
   private damageTimer = 0;
   private bossesDefeated = 0;
   private roomsCleared = 0;
-
-  /* ---- event hooks (called by the engine, no coupling) ---- */
 
   onKill(): void {
     this.totalKills++;
@@ -326,7 +280,16 @@ export class EnemyDirector {
     this.roomsCleared = 0;
   }
 
-  /* ---- main decision: generate a wave's enemy list ---- */
+  getTelemetrySnapshot() {
+    return {
+      totalKills: this.totalKills,
+      recentKills: this.recentKills,
+      recentDamageTaken: this.recentDamageTaken,
+      nearDeathCount: this.nearDeathCount,
+      bossesDefeated: this.bossesDefeated,
+      roomsCleared: this.roomsCleared,
+    };
+  }
 
   generateWave(
     ctx: DirectorContext,
@@ -335,12 +298,10 @@ export class EnemyDirector {
     runDirector?: RunDirector,
     biome?: BiomeDef,
   ): EnemyDef[] {
-    // Update trackers
     this.intensityTracker.update(ctx, dt);
     this.killTimer += dt;
     this.damageTimer += dt;
 
-    // Decay recent counters
     if (this.killTimer > 3) {
       this.recentKills = Math.max(0, this.recentKills - 1);
       this.killTimer = 0;
@@ -351,38 +312,28 @@ export class EnemyDirector {
       this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
     }
 
-    // ── enemyIntensityMult: scales the intensity band used for composition picking.
-    //   The raw intensity comes from the tracker; ascension multiplies it so that
-    //   higher levels push compositions toward harder templates earlier.
     let effectiveIntensity = this.intensityTracker.getIntensity();
     const ascState = runDirector?.getAscensionState();
     if (ascState) {
       effectiveIntensity *= ascState.enemyIntensityMult;
     }
-    // Run mood: nudge intensity when the player is stomping ("thriving")
-    // or barely surviving ("struggling"). RunDirector already computes this
-    // delta, it just wasn't being applied anywhere.
     effectiveIntensity += runDirector?.getEnemyIntensityDelta() ?? 0;
     const intensity = effectiveIntensity < 30 ? 'low' : effectiveIntensity < 70 ? 'mid' : 'high';
     const map = ctx.mapNumber;
 
-    // Pick composition template
     const template = this.pickComposition(map, intensity, runDirector);
     this.memory.rememberComposition(template.id);
 
-    // Build enemy list from template slots
     const enemies: EnemyDef[] = [];
     for (const slot of template.slots) {
       const picked = this.pickEnemiesForRole(slot.role, slot.count, map, biome, runDirector);
       enemies.push(...picked);
     }
 
-    // Remember spawned enemies for anti-repetition
     for (const e of enemies) {
       this.memory.rememberEnemy(e.id);
     }
 
-    // Safety: NEVER return an empty list — that would soft-lock the room.
     if (enemies.length === 0) {
       const fallback = ENEMIES.filter((e) => e.role === 'fodder')[0] ?? ENEMIES[0];
       enemies.push(this.scaleEnemy(fallback, map));
@@ -392,7 +343,6 @@ export class EnemyDirector {
   }
 
   generateBossAdds(_bossId: string, mapNumber: number, biome?: BiomeDef, runDirector?: RunDirector): EnemyDef[] {
-    // Data-driven adds for boss encounters
     const adds: EnemyDef[] = [];
     const addBudget = Math.min(6, 2 + Math.floor(mapNumber / 2));
     const pool = ENEMIES.filter((e) => !e.tags.includes('boss') && !e.tags.includes('miniboss'));
@@ -412,8 +362,6 @@ export class EnemyDirector {
   getIntensityBand(): string {
     return this.intensityTracker.getBand();
   }
-
-  /* ---- internal helpers ---- */
 
   private pickComposition(map: number, intensity: 'low' | 'mid' | 'high', runDirector?: RunDirector): CompositionTemplate {
     const available = COMPOSITIONS.filter((c) => map >= c.minMap);
@@ -446,20 +394,16 @@ export class EnemyDirector {
   private pickEnemyByWeight(pool: EnemyDef[], map: number, biome?: BiomeDef, runDirector?: RunDirector): EnemyDef | null {
     if (pool.length === 0) return null;
 
-    // Ascension elite weight: enemies with threat >= 3 (not miniboss/boss)
-    // get a weight multiplier. Normal enemies (threat 1-2) are unaffected.
     const eliteMult = runDirector?.getAscensionState()?.eliteWeightMult ?? 1;
     const hasElite = eliteMult > 1;
 
     const weighted = pool.map((e) => {
       let w = 1;
       w *= this.memory.enemyWeight(e.id);
-      // Prefer higher-threat enemies later in the run
       if (map >= 5 && e.threat >= 3) w *= 1.3;
       if (map >= 8 && e.threat >= 4) w *= 1.5;
       if (map < 3 && e.threat > 2) w *= 0.6;
 
-      // Biome enemy weights
       if (biome) {
         if (biome.enemyRoleWeights?.[e.role]) {
           w *= biome.enemyRoleWeights[e.role];
@@ -471,7 +415,6 @@ export class EnemyDirector {
         }
       }
 
-      // Ascension: boost elite enemies (threat >= 3, not boss/miniboss)
       if (hasElite && e.threat >= 3 && !e.tags.includes('boss') && !e.tags.includes('miniboss')) {
         w *= eliteMult;
       }
@@ -483,7 +426,6 @@ export class EnemyDirector {
   }
 
   private scaleEnemy(def: EnemyDef, map: number): EnemyDef {
-    // Scale stats based on map progression (data-driven, no hardcoding)
     const mapScale = 1 + (map - 1) * 0.12;
     return {
       ...def,

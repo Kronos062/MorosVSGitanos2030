@@ -10,7 +10,7 @@ import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
 import { GameEngine } from './game/engine';
 import { audio } from './game/audio';
 import { music, MENU_TRACKS } from './game/music';
-import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, BuildItemEntry, EquipSlot } from './game/types';
+import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, NearbyPickupEntry, BuildItemEntry, EquipSlot } from './game/types';
 import { EQUIP_SLOT_LABELS, EQUIP_SLOT_ICONS, RARITY_COLORS as EQ_COLORS, SET_DEFS } from './content/equipment';
 
 import {
@@ -42,7 +42,7 @@ const emptyStats: GameStats = {
   hp: 0, maxHp: 1, shield: 0, maxShield: 0, level: 1, xp: 0, xpToNext: 55, dashPct: 1,
   score: 0, wave: 0, kills: 0, combo: 0, multiplier: 1,
   weaponName: '', weaponColor: '#00f0ff', stackedPickupCount: 0,
-  boss: null, weaponPrompt: null, chestPrompt: null, portalPrompt: null,
+  boss: null, weaponPrompt: null, itemPrompt: null, chestPrompt: null, portalPrompt: null,
   ended: null, goldEarned: 0,
   currentRoomLabel: '', roomsCleared: 0, roomsTotal: 0,
   mapNumber: 1, totalMaps: 10,
@@ -138,138 +138,134 @@ function BuildPanel({ build }: { build: BuildStats }) {
         </div>
 
         <div className="build-column build-loadout-column">
-
-      <div className="build-section build-weapon-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
-        <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
-        <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
-        {build.weaponAffixName && (
-          <div style={{ marginTop: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.3)', borderLeft: `3px solid ${build.weaponAffixColor ?? '#fff'}`, borderRadius: 2 }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: build.weaponAffixColor ?? '#fff' }}>
-              Afijo: {build.weaponAffixName}
+          <div className="build-section build-weapon-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
+            <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
+            <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
+            {build.weaponAffixName && (
+              <div style={{ marginTop: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.3)', borderLeft: `3px solid ${build.weaponAffixColor ?? '#fff'}`, borderRadius: 2 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: build.weaponAffixColor ?? '#fff' }}>
+                  Afijo: {build.weaponAffixName}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{build.weaponAffixDescription}</div>
+              </div>
+            )}
+            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4 }}>
+              <div>Daño: {build.weaponDamage} · Cadencia: {(build.weaponFireRate * build.fireRateMult).toFixed(1)}/s · Dispersión: {Math.round(build.weaponSpread * 100)}%</div>
+              <div>Proyectiles: {build.weaponCount} · Perforación: {build.weaponPierce}</div>
+              {(build.weaponBurst ?? 0) > 1 && <div>Ráfaga: ×{build.weaponBurst}</div>}
+              {(build.weaponBounce ?? 0) > 0 && <div>Rebotes: {build.weaponBounce}</div>}
+              {(build.weaponExplosion ?? 0) > 0 && <div>Explosión: r{build.weaponExplosion}</div>}
+              <div>Tags: {build.weaponTags.join(', ')}</div>
             </div>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{build.weaponAffixDescription}</div>
           </div>
-        )}
-        <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4 }}>
-          <div>Daño: {build.weaponDamage} · Cadencia: {(build.weaponFireRate * build.fireRateMult).toFixed(1)}/s · Dispersión: {Math.round(build.weaponSpread * 100)}%</div>
-          <div>Proyectiles: {build.weaponCount} · Perforación: {build.weaponPierce}</div>
-          {(build.weaponBurst ?? 0) > 1 && <div>Ráfaga: ×{build.weaponBurst}</div>}
-          {(build.weaponBounce ?? 0) > 0 && <div>Rebotes: {build.weaponBounce}</div>}
-          {(build.weaponExplosion ?? 0) > 0 && <div>Explosión: r{build.weaponExplosion}</div>}
-          <div>Tags: {build.weaponTags.join(', ')}</div>
-        </div>
-      </div>
 
-      {build.hasNearbyWeapon && (
-        <div className="build-section build-nearby-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 4 }}>
-          <div style={{ fontWeight: 800, color: '#00c8ff', marginBottom: 4 }}>🔀 Arma cercana</div>
-          <div>{build.nearbyWeaponName}</div>
-        </div>
-      )}
-
-      {/* Equipment slots */}
-      <div className="build-section build-equipment-section" style={{ marginBottom: 14 }}>
-        <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>EQUIPO</div>
-        {(['helm','chest','pants','boots'] as SlotKey[]).map((slot) => {
-          const eq = build.equippedItems.find((e) => e.slot === slot);
-          const setInfo = eq?.setId ? build.activeSets.find((s) => s.setId === eq.setId) : undefined;
-          return (
-            <div key={slot} style={{ padding: '6px 10px', marginBottom: 4, background: 'rgba(0,0,0,0.3)', border: `1px solid ${eq ? eq.color+'55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                  {EQUIP_SLOT_ICONS[slot]} {EQUIP_SLOT_LABELS[slot]}
-                </span>
-                {eq ? (
-                  <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <EquipIcon setId={eq.setId} slot={eq.slot} frame={EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS]} fallback={eq.icon} />
-                    <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
-                    <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
-                  </span>
-                ) : (
-                  <span style={{ color: '#555', fontSize: '0.75rem' }}>Vacío</span>
-                )}
-              </div>
-              {eq && (
-                <div style={{ fontSize: '0.68rem', color: '#8891b8', marginTop: 3, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <span>{eq.mods.map((m) => m.label).join(' · ')}</span>
-                  {setInfo && <span style={{ color: setInfo.color }}>Conjunto {setInfo.name} ({setInfo.equipped}/4)</span>}
-                </div>
-              )}
+          {build.hasNearbyWeapon && (
+            <div className="build-section build-nearby-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 4 }}>
+              <div style={{ fontWeight: 800, color: '#00c8ff', marginBottom: 4 }}>🔀 Arma cercana</div>
+              <div>{build.nearbyWeaponName}</div>
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Set synergies */}
-      {build.activeSets.length > 0 && (
-        <div className="build-section build-sets-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
-          <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>SINERGIAS DE CONJUNTO</div>
-          {build.activeSets.map((s) => {
-            const slotKeys: SlotKey[] = ['helm', 'chest', 'pants', 'boots'];
-            return (
-              <div key={s.setId} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${s.color}40`, borderRadius: 4 }}>
-                <div style={{ fontWeight: 800, color: s.color, marginBottom: 4 }}>
-                  {s.name} <span style={{fontSize:'0.7rem',color:'#8891b8'}}>{s.equipped}/4 piezas</span>
-                </div>
-                {/* Per-slot ✓/✗ progress */}
-                <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.7rem' }}>
-                  {slotKeys.map((slot) => {
-                    const has = build.equippedItems.some((e) => e.slot === slot && e.setId === s.setId);
-                    return (
-                      <span key={slot} style={{ color: has ? '#39ff88' : '#666' }}>
-                        {EQUIP_SLOT_LABELS[slot]} {has ? '✓' : '✗'}
+          <div className="build-section build-equipment-section" style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>EQUIPO</div>
+            {(['helm','chest','pants','boots'] as SlotKey[]).map((slot) => {
+              const eq = build.equippedItems.find((e) => e.slot === slot);
+              const setInfo = eq?.setId ? build.activeSets.find((s) => s.setId === eq.setId) : undefined;
+              return (
+                <div key={slot} style={{ padding: '6px 10px', marginBottom: 4, background: 'rgba(0,0,0,0.3)', border: `1px solid ${eq ? eq.color+'55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                      {EQUIP_SLOT_ICONS[slot]} {EQUIP_SLOT_LABELS[slot]}
+                    </span>
+                    {eq ? (
+                      <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <EquipIcon setId={eq.setId} slot={eq.slot} frame={EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS]} fallback={eq.icon} />
+                        <strong style={{ color: eq.color, fontSize: '0.82rem' }}>{eq.name}</strong>
+                        <span style={{ fontSize: '0.65rem', color: EQ_COLORS[eq.rarity as keyof typeof EQ_COLORS] ?? '#888' }}>{eq.rarity.toUpperCase()}</span>
                       </span>
-                    );
-                  })}
+                    ) : (
+                      <span style={{ color: '#555', fontSize: '0.75rem' }}>Vacío</span>
+                    )}
+                  </div>
+                  {eq && (
+                    <div style={{ fontSize: '0.68rem', color: '#8891b8', marginTop: 3, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <span>{eq.mods.map((m) => m.label).join(' · ')}</span>
+                      {setInfo && <span style={{ color: setInfo.color }}>Conjunto {setInfo.name} ({setInfo.equipped}/4)</span>}
+                    </div>
+                  )}
                 </div>
-                {s.bonuses.map((b, j) => (
-                  <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
-                    {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
-                  </div>
-                ))}
-                {s.playstyle && (
-                  <div style={{ fontSize: '0.72rem', color: '#8891b8', marginBottom: 4 }}>
-                    {s.playstyle}
-                  </div>
-                )}
-                {s.strengths.length > 0 && (
-                  <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
-                    <span style={{ color: '#39ff88' }}>Fortalezas: </span>
-                    {s.strengths.map((tag, i) => (
-                      <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(57,255,136,0.12)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-                {s.weaknesses.length > 0 && (
-                  <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
-                    <span style={{ color: '#ff5500' }}>Debilidades: </span>
-                    {s.weaknesses.map((tag, i) => (
-                      <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(255,85,0,0.12)', border: '1px solid rgba(255,85,0,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-                {s.synergyDescription && (
-                  <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.synergyActive ? '#ffe14a' : '#666' }}>
-                    {s.synergyActive ? '⚡ ACTIVA' : '○'} Sinergia: {s.synergyDescription}
-                  </div>
-                )}
-                {s.counterSynergy && (
-                  <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.counterSynergyActive ? '#ff5500' : '#666' }}>
-                    {s.counterSynergyActive ? '⚠ ACTIVA' : '○'} Contrasinergia: {s.counterSynergy.description}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
 
-      {build.equippedItems.length === 0 && (
-        <div className="build-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.05)', border: '1px dashed rgba(176,77,255,0.2)', borderRadius: 4, textAlign: 'center', color: '#94a3b8' }}>
-          Sin equipo. ¡Ábrelos en cofres o derrota jefes!
+          {build.activeSets.length > 0 && (
+            <div className="build-section build-sets-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.08)', border: '1px solid rgba(176,77,255,0.25)', borderRadius: 4 }}>
+              <div style={{ fontWeight: 800, color: '#b04dff', marginBottom: 8, letterSpacing: '0.1em' }}>SINERGIAS DE CONJUNTO</div>
+              {build.activeSets.map((s) => {
+                const slotKeys: SlotKey[] = ['helm', 'chest', 'pants', 'boots'];
+                return (
+                  <div key={s.setId} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${s.color}40`, borderRadius: 4 }}>
+                    <div style={{ fontWeight: 800, color: s.color, marginBottom: 4 }}>
+                      {s.name} <span style={{fontSize:'0.7rem',color:'#8891b8'}}>{s.equipped}/4 piezas</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.7rem' }}>
+                      {slotKeys.map((slot) => {
+                        const has = build.equippedItems.some((e) => e.slot === slot && e.setId === s.setId);
+                        return (
+                          <span key={slot} style={{ color: has ? '#39ff88' : '#666' }}>
+                            {EQUIP_SLOT_LABELS[slot]} {has ? '✓' : '✗'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {s.bonuses.map((b, j) => (
+                      <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
+                        {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
+                      </div>
+                    ))}
+                    {s.playstyle && (
+                      <div style={{ fontSize: '0.72rem', color: '#8891b8', marginBottom: 4 }}>
+                        {s.playstyle}
+                      </div>
+                    )}
+                    {s.strengths.length > 0 && (
+                      <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
+                        <span style={{ color: '#39ff88' }}>Fortalezas: </span>
+                        {s.strengths.map((tag, i) => (
+                          <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(57,255,136,0.12)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    {s.weaknesses.length > 0 && (
+                      <div style={{ fontSize: '0.7rem', marginBottom: 3 }}>
+                        <span style={{ color: '#ff5500' }}>Debilidades: </span>
+                        {s.weaknesses.map((tag, i) => (
+                          <span key={i} style={{ display: 'inline-block', padding: '1px 6px', margin: '0 2px', background: 'rgba(255,85,0,0.12)', border: '1px solid rgba(255,85,0,0.25)', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    {s.synergyDescription && (
+                      <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.synergyActive ? '#ffe14a' : '#666' }}>
+                        {s.synergyActive ? '⚡ ACTIVA' : '○'} Sinergia: {s.synergyDescription}
+                      </div>
+                    )}
+                    {s.counterSynergy && (
+                      <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.counterSynergyActive ? '#ff5500' : '#666' }}>
+                        {s.counterSynergyActive ? '⚠ ACTIVA' : '○'} Contrasinergia: {s.counterSynergy.description}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {build.equippedItems.length === 0 && (
+            <div className="build-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(176,77,255,0.05)', border: '1px dashed rgba(176,77,255,0.2)', borderRadius: 4, textAlign: 'center', color: '#94a3b8' }}>
+              Sin equipo. ¡Ábrelos en cofres o derrota jefes!
+            </div>
+          )}
         </div>
-      )}
-      </div>
       </div>
     </div>
   );
@@ -287,8 +283,9 @@ export default function App() {
   const [rebinding, setRebinding] = useState<InputAction | null>(null);
   const [factionConfirm, setFactionConfirm] = useState(false);
   const [itemPickup, setItemPickup] = useState<{ item: ItemPickupData; equipped: BuildItemEntry[]; resolve: (slot: EquipSlot | null) => void } | null>(null);
+  const [pickupChoice, setPickupChoice] = useState<{ items: NearbyPickupEntry[]; resolve: (pickupId: number | null) => void } | null>(null);
   const [eventData, setEventData] = useState<{ instance: any; resolve: (idx: number | null) => void } | null>(null);
-  // End-of-run unlock summary (computed purely from already-stored save data).
+  const [buildOrigin, setBuildOrigin] = useState<'playing' | 'paused'>('paused');
   const [runUnlocks, setRunUnlocks] = useState<{
     weapons: string[];
     bestiary: string[];
@@ -296,9 +293,6 @@ export default function App() {
     newHighScore: boolean;
   }>({ weapons: [], bestiary: [], ascension: null, newHighScore: false });
   const joyThumbRef = useRef<HTMLDivElement>(null);
-  // Snapshot of the save taken when a run starts, so the end screen can diff
-  // it against the final save to list only THIS run's unlocks. Reuses the
-  // exact data already persisted (armory / bestiary / ascension / scores).
   const runStartRef = useRef<{ armory: Record<string, boolean>; bestiary: Record<string, number>; highestAscension: number; topScore: number }>({
     armory: {}, bestiary: {}, highestAscension: 0, topScore: 0,
   });
@@ -321,7 +315,6 @@ export default function App() {
   );
   const selected = useMemo(() => getCharacter(selectedChar), [selectedChar]);
 
-  // auto-pick first char of faction on faction change or first load
   useEffect(() => {
     if (hasFaction && availableChars.length > 0) {
       if (!availableChars.find((c) => c.id === selectedChar)) {
@@ -332,14 +325,17 @@ export default function App() {
 
   useEffect(() => { audio.setVolume(save.sfxVolume); }, [save.sfxVolume]);
   useEffect(() => { music.setVolume(save.volume); }, [save.volume]);
+  useEffect(() => { music.setMenuTrack(save.menuMusicId); }, [save.menuMusicId]);
+
   useEffect(() => {
-    const runScreens: GameScreen[] = ['playing', 'paused', 'build', 'map', 'levelup', 'itempickup', 'event'];
+    const runScreens: GameScreen[] = ['playing', 'paused', 'build', 'map', 'levelup', 'itempickup', 'pickupchoice', 'event'];
     if (runScreens.includes(screen)) {
       music.playContext(stats.boss ? 'boss' : 'run');
       return;
     }
     music.playContext('menu');
   }, [screen, stats.boss]);
+
   useEffect(() => {
     const unlockMusic = () => {
       music.resume();
@@ -353,6 +349,7 @@ export default function App() {
       window.removeEventListener('keydown', unlockMusic);
     };
   }, []);
+
   useEffect(() => { engineRef.current?.setBindings(save.bindings); }, [save.bindings]);
 
   useEffect(() => {
@@ -361,7 +358,6 @@ export default function App() {
     const engine = new GameEngine(canvas);
     engine.setBindings(loadSave().bindings);
     engineRef.current = engine;
-    // Solo con ?spritedebug: expone el motor a las pruebas E2E (no afecta al juego).
     if (new URLSearchParams(location.search).has('spritedebug')) (window as unknown as { __engine: GameEngine }).__engine = engine;
 
     const offStats = engine.onStats((s) => setStats(s));
@@ -370,31 +366,21 @@ export default function App() {
       setEndResult(result); setStats(s);
       setScreen(result === 'victory' ? 'victory' : 'gameover');
       setSave((prev) => {
-        // Endless: onEnd fires once per completed cycle + final defeat.
-        // goldEarned is cumulative for the whole run, so only add the delta
-        // since the last onEnd to avoid duplicating rewards.
         const deltaGold = Math.max(0, s.goldEarned - goldAwardedRef.current);
         let next = deltaGold > 0 ? addGold(prev, deltaGold) : prev;
         goldAwardedRef.current = s.goldEarned;
 
-        // High score: one row per run that gets updated each cycle,
-        // instead of pushing a new row per cycle.
         const runId = runIdRef.current ?? new Date().toISOString();
         if (!runIdRef.current) runIdRef.current = runId;
         const entry = { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: runId };
         next = upsertHighScore(next, entry);
 
-        // Unlock next ascension level on victory
         if (result === 'victory') {
           const maxUnlocked = Math.min(prev.activeAscension + 1, 9);
           if (maxUnlocked > prev.highestAscension) {
             next = { ...next, highestAscension: maxUnlocked };
           }
         }
-        // --- Compute THIS run's unlocks by diffing against the start snapshot.
-        // All data is already persisted; nothing new is stored here. `prev`
-        // already contains every weapon/enemy discovered mid-run (callbacks
-        // updated it), so it's the authoritative final state.
         const start = runStartRef.current;
         const newWeapons = Object.keys(prev.armory).filter((id) => prev.armory[id] && !start.armory[id]);
         const newBestiary = Object.keys(prev.bestiary).filter((id) => (prev.bestiary[id] ?? 0) > 0 && (start.bestiary[id] ?? 0) === 0);
@@ -412,13 +398,18 @@ export default function App() {
       setItemPickup({ item, equipped, resolve });
       setScreen('itempickup');
     });
+    const offChoice = engine.onPickupChoice((items, resolve) => {
+      engineRef.current?.pause();
+      setPickupChoice({ items, resolve });
+      setScreen('pickupchoice');
+    });
     const offEvent = engine.onEventInteract((instance, resolve) => {
       engineRef.current?.pause();
       setEventData({ instance, resolve });
       setScreen('event');
     });
 
-    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offEvent(); engine.destroy(); engineRef.current = null; };
+    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offChoice(); offEvent(); engine.destroy(); engineRef.current = null; };
   }, []);
 
   useEffect(() => {
@@ -428,7 +419,10 @@ export default function App() {
         setSave((prev) => setBinding(prev, rebinding, e.code)); setRebinding(null); audio.play('button'); return;
       }
       if (e.code === 'Enter' && screen === 'menu') { setScreen('chars'); audio.play('button'); }
-      const pauseCode = save.bindings.pause; const mapCode = save.bindings.openMap;
+      const pauseCode = save.bindings.pause;
+      const mapCode = save.bindings.openMap;
+      const buildCode = save.bindings.openBuild;
+
       if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
       if ((e.code === pauseCode || e.code === 'Escape') && !showQuitConfirm && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
         e.preventDefault();
@@ -440,17 +434,16 @@ export default function App() {
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('map'); }
         else { engineRef.current?.resume(); setScreen('playing'); }
       }
-      // Hardcoded B key always toggles the build panel.
-      if (e.code === 'KeyB' && (screen === 'playing' || screen === 'build')) {
+      if (e.code === buildCode && (screen === 'playing' || screen === 'build')) {
         e.preventDefault();
-        if (screen === 'playing') { engineRef.current?.pause(); setScreen('build'); }
-        else { engineRef.current?.resume(); setScreen('playing'); }
-      }
-      // Hardcoded M key is an alternative way to open the map.
-      if (e.code === 'KeyM' && (screen === 'playing' || screen === 'map')) {
-        e.preventDefault();
-        if (screen === 'playing') { engineRef.current?.pause(); setScreen('map'); }
-        else { engineRef.current?.resume(); setScreen('playing'); }
+        if (screen === 'playing') {
+          engineRef.current?.pause();
+          setBuildOrigin('playing');
+          setScreen('build');
+        } else {
+          engineRef.current?.resume();
+          setScreen('playing');
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -460,7 +453,6 @@ export default function App() {
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
     music.resume();
-    // Snapshot current unlock state so the end screen can diff it after the run.
     runStartRef.current = {
       armory: { ...save.armory },
       bestiary: { ...save.bestiary },
@@ -487,9 +479,6 @@ export default function App() {
   const chooseSkill = (id: string) => {
     audio.play('levelup');
     engineRef.current?.applySkill(id);
-    // If applySkill queued another level-up (multiple levels gained from the
-    // same XP grant), the engine already pushed new choices via onLevelUp —
-    // stay on the levelup screen instead of forcing back to 'playing'.
     if (engineRef.current?.hasPendingSkillChoice()) return;
     setSkillChoices([]);
     setScreen('playing');
@@ -500,7 +489,7 @@ export default function App() {
     const cost = upgradeCost(level); const next = buyUpgrade(save, kind, cost);
     if (next) { audio.play('pickup'); setSave(next); } else { audio.play('hurt'); }
   };
-  const onVolume = (v: number) => { audio.setVolume(v); setSave((prev) => setVolume(prev, v)); };
+  const onVolume = (v: number) => { music.setVolume(v); setSave((prev) => setVolume(prev, v)); };
   const onSfxVolume = (v: number) => { audio.setVolume(v); setSave((prev) => setSfxVolume(prev, v)); };
 
   const pickFaction = (f: Faction) => {
@@ -550,7 +539,7 @@ export default function App() {
         <div className="hud">
           <div className="hud-top">
             <div className="hud-panel">
-              <div className="stat-row"><span className="stat-label">Bioma</span><span className="stat-value" style={{ color: stats.biomeColor, fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
+              <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ color: stats.biomeColor, fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
               <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
@@ -588,10 +577,18 @@ export default function App() {
           {stats.portalPrompt && (<div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] {stats.portalPrompt.kind}</div>)}
           {!stats.portalPrompt && stats.eventPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.eventPrompt.color }}>[{interactLabel}] {stats.eventPrompt.name}</div>)}
           {!stats.portalPrompt && !stats.eventPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
-          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.weaponPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>)}
+          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount >= 2 && (
+            <div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] ELEGIR OBJETO ({stats.stackedPickupCount})</div>
+          )}
+          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount < 2 && stats.weaponPrompt && (
+            <div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>
+          )}
+          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount < 2 && !stats.weaponPrompt && stats.itemPrompt && (
+            <div className="weapon-prompt" style={{ borderColor: stats.itemPrompt.color }}>[{interactLabel}] {stats.itemPrompt.name}</div>
+          )}
           {stats.stackedPickupCount > 1 && (
             <div className="weapon-prompt" style={{ borderColor: '#ffe14a', bottom: 142 }}>
-              {stats.stackedPickupCount} objetos aquí — acércate a uno para elegir
+              {stats.stackedPickupCount} objetos aquí — pulsa [{interactLabel}] para elegir
             </div>
           )}
           {stats.activeChallenge && (
@@ -630,7 +627,6 @@ export default function App() {
       )}
 
       <div className="overlay">
-        {/* Faction choice — first run */}
         {!hasFaction && screen === 'menu' && (
           <div className="screen">
             <div className="screen-content">
@@ -843,7 +839,7 @@ export default function App() {
                     <div key={w.id} className={`item-card ${discovered ? '' : 'dim'}`} style={{ borderColor: discovered ? w.color : 'rgba(255,255,255,0.1)' }}>
                       <div style={{ fontWeight: 800, color: discovered ? w.color : '#888' }}>{discovered ? w.name : '???????'}</div>
                       <div style={{ fontSize: '0.75rem', color: '#8891b8', marginTop: 4 }}>
-                        {discovered ? (<><div>Daño base: <strong>{w.damage}</strong> · Cadencia: {w.fireRate}/s</div><div>Proy: {w.count} · Perf: {w.pierce} · Tags: {w.tags.join(', ')}</div><div style={{ marginTop: 2, opacity: 0.7 }}>La calidad se al generar el arma.</div></>) : (<div>Arma desconocida</div>)}
+                        {discovered ? (<><div>Daño base: <strong>{w.damage}</strong> · Cadencia: {w.fireRate}/s</div><div>Proy: {w.count} · Perf: {w.pierce} · Tags: {w.tags.join(', ')}</div><div style={{ marginTop: 2, opacity: 0.7 }}>La calidad se determina al generar el arma.</div></>) : (<div>Arma desconocida</div>)}
                       </div>
                     </div>
                   );
@@ -1000,7 +996,6 @@ export default function App() {
             <div className="options-screen-content">
               <h2 className="section-title" style={{ color: '#00f0ff', textAlign: 'center', marginBottom: 16 }}>OPCIONES</h2>
               <div className="options-layout">
-                {/* Columna izquierda: CONTROLES */}
                 <div className="options-column">
                   <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 12px', fontSize: '1rem' }}>CONFIGURAR CONTROLES</h3>
                   {rebinding && (<p style={{ color: '#00f0ff', marginBottom: 10 }}>Pulsa una tecla para «{BINDING_ROWS.find((r) => r.action === rebinding)?.label}» (ESC cancela)</p>)}
@@ -1012,7 +1007,6 @@ export default function App() {
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setSave((prev) => resetBindings(prev)); setRebinding(null); }}>Restablecer controles</button>
                 </div>
 
-                {/* Columna derecha: AUDIO, BANDO, BORRAR, RESPALDO, ACCESIBILIDAD */}
                 <div className="options-column">
                   <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 10px', fontSize: '1rem' }}>AUDIO</h3>
                   <div className="volume-row">
@@ -1030,8 +1024,13 @@ export default function App() {
                       style={{ padding: '8px 12px', fontSize: '0.85rem' }}
                       value={save.menuMusicId}
                       onChange={(e) => {
-                        music.setMenuTrack(e.target.value);
-                        setSave((prev) => ({ ...prev, menuMusicId: e.target.value }));
+                        const nextId = e.target.value;
+                        music.setMenuTrack(nextId);
+                        setSave((prev) => {
+                          const next = { ...prev, menuMusicId: nextId };
+                          writeSave(next);
+                          return next;
+                        });
                       }}
                     >
                       {MENU_TRACKS.map((t) => (<option key={t.id} value={t.id} style={{ background: '#0a0c10' }}>{t.label}</option>))}
@@ -1040,7 +1039,7 @@ export default function App() {
 
                   <h3 style={{ color: '#ff2bd6', letterSpacing: '0.12em', margin: '16px 0 10px', fontSize: '1rem' }}>BANDO</h3>
                   <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 8 }}>
-                    Bando actual: <strong style={{ color: factionColor(save.faction!) }}>{factionLabel(save.faction!)}</strong>
+                    Bando actual: <strong style={{ color: save.faction ? factionColor(save.faction) : '#888' }}>{save.faction ? factionLabel(save.faction) : 'Ninguno'}</strong>
                   </p>
                   {!factionConfirm ? (
                     <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%', borderColor: '#ff2a4b', color: '#ff2a4b' }} onClick={() => { audio.play('button'); setFactionConfirm(true); }}>
@@ -1084,7 +1083,7 @@ export default function App() {
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
                     audio.play('button');
                     const fresh: SaveData = { faction: null, gold: 0, armory: { pulse_pistol: true }, bestiary: {}, upgrades: { permHpLevel: 0, permDamageLevel: 0 }, highScores: [], volume: save.volume, sfxVolume: save.sfxVolume, bindings: { ...DEFAULT_BINDINGS }, pets: {}, equippedPet: null, highestAscension: 0, activeAscension: 0, tutorialSeen: false, assistMode: false, menuMusicId: 'menu1' };
-                    writeSave(fresh); setSave(fresh); setRebinding(null);
+                    writeSave(fresh); setSave(fresh); setRebinding(null); setScreen('menu');
                   }}>Borrar progreso</button>
 
                   <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '12px 0 10px', fontSize: '1rem' }}>ACCESIBILIDAD</h3>
@@ -1146,7 +1145,7 @@ export default function App() {
               </p>
               <div className="menu-grid">
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); engineRef.current?.resume(); setScreen('playing'); }}>Continuar</button>
-                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('build'); }}>Build</button>
+                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setBuildOrigin('paused'); setScreen('build'); }}>Build</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('map'); }}>Mapa</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setShowQuitConfirm(true); }}>Menú principal</button>
               </div>
@@ -1193,7 +1192,21 @@ export default function App() {
               <h2 className="section-title" style={{ color: '#b04dff' }}>BUILD</h2>
               <BuildPanel build={stats.build} />
               <div className="menu-grid" style={{ marginTop: 16 }}>
-                <button type="button" className="menu-btn primary" onClick={() => { audio.play('button'); setScreen('paused'); }}>Volver</button>
+                <button
+                  type="button"
+                  className="menu-btn primary"
+                  onClick={() => {
+                    audio.play('button');
+                    if (buildOrigin === 'playing') {
+                      engineRef.current?.resume();
+                      setScreen('playing');
+                    } else {
+                      setScreen('paused');
+                    }
+                  }}
+                >
+                  Volver
+                </button>
               </div>
             </div>
           </div>
@@ -1208,13 +1221,13 @@ export default function App() {
               <div style={{ marginBottom: 16, color: '#94a3b8', fontSize: '0.85rem' }}>
                 {eventData.instance.description}
               </div>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 {eventData.instance.options?.map((opt: any, i: number) => {
                   const canAffordGold = !opt.costGold || stats.goldEarned >= opt.costGold;
                   const canAffordHp = !opt.costHpPct || stats.hp > stats.maxHp * opt.costHpPct;
                   const canAfford = canAffordGold && canAffordHp;
-                  
+
                   return (
                     <button
                       key={i}
@@ -1253,72 +1266,125 @@ export default function App() {
           </div>
         )}
 
-        {screen === 'itempickup' && itemPickup && (() => {
-    const curEq = itemPickup.equipped.find((e) => e.slot === itemPickup.item.slot);
-    return (
-      <div className="screen">
-        <div className="screen-content">
-          <h2 className="section-title" style={{ color: itemPickup.item.color }}>
-            <EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
-          </h2>
-
-          {/* Side-by-side comparison */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-            {/* CURRENT */}
-            <div style={{ padding: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, textAlign: 'left' }}>
-              <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 6 }}>EQUIPADO</div>
-              {curEq ? (
-                <>
-                  <div style={{ fontWeight: 800, color: curEq.color, marginBottom: 4 }}><EquipIcon setId={curEq.setId} slot={curEq.slot} frame={EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS]} fallback={curEq.icon} /> {curEq.name}</div>
-                  <div style={{ fontSize: '0.7rem', color: EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{curEq.rarity.toUpperCase()}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{curEq.description}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
-                    {curEq.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
-                  </div>
-                </>
-              ) : (
-                <div style={{ color: '#555', fontSize: '0.8rem' }}>(Vacío)</div>
-              )}
+        {screen === 'pickupchoice' && pickupChoice && (
+          <div className="screen">
+            <div className="screen-content">
+              <h2 className="section-title" style={{ color: '#ffe14a' }}>
+                OBJETOS EN EL SUELO ({pickupChoice.items.length})
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 14 }}>
+                Hay varios objetos juntos. Elige cuál deseas inspeccionar o recoger:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                {pickupChoice.items.map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    className="menu-btn"
+                    style={{ textAlign: 'left', borderColor: `${it.color}66` }}
+                    onClick={() => {
+                      const res = pickupChoice.resolve;
+                      setPickupChoice(null);
+                      res(it.id);
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, color: it.color, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {it.kind === 'weapon' ? (
+                          '⚔️ '
+                        ) : (
+                          <EquipIcon setId={it.setId} slot={it.slot!} frame={EQ_COLORS[it.rarity as keyof typeof EQ_COLORS]} />
+                        )}
+                        {it.name}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: it.color }}>{it.rarity.toUpperCase()}</span>
+                    </div>
+                    {it.description && (
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
+                        {it.description}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="menu-btn full-width"
+                onClick={() => {
+                  const res = pickupChoice.resolve;
+                  setPickupChoice(null);
+                  res(null);
+                }}
+              >
+                Cancelar
+              </button>
             </div>
-            {/* NEW */}
-            <div style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: `2px solid ${itemPickup.item.color}66`, borderRadius: 4, textAlign: 'left' }}>
-              <div style={{ fontSize: '0.7rem', color: '#39ff88', marginBottom: 6 }}>ENCONTRADO</div>
-              <div style={{ fontWeight: 800, color: itemPickup.item.color, marginBottom: 4 }}><EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> {itemPickup.item.name}</div>
-              <div style={{ fontSize: '0.7rem', color: EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{itemPickup.item.rarity.toUpperCase()}</div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{itemPickup.item.description}</div>
-              <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
-                {itemPickup.item.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
+          </div>
+        )}
+
+        {screen === 'itempickup' && itemPickup && (() => {
+          const curEq = itemPickup.equipped.find((e) => e.slot === itemPickup.item.slot);
+          return (
+            <div className="screen">
+              <div className="screen-content">
+                <h2 className="section-title" style={{ color: itemPickup.item.color }}>
+                  <EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
+                </h2>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  <div style={{ padding: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 6 }}>EQUIPADO</div>
+                    {curEq ? (
+                      <>
+                        <div style={{ fontWeight: 800, color: curEq.color, marginBottom: 4 }}><EquipIcon setId={curEq.setId} slot={curEq.slot} frame={EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS]} fallback={curEq.icon} /> {curEq.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: EQ_COLORS[curEq.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{curEq.rarity.toUpperCase()}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{curEq.description}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
+                          {curEq.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ color: '#555', fontSize: '0.8rem' }}>(Vacío)</div>
+                    )}
+                  </div>
+                  <div style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: `2px solid ${itemPickup.item.color}66`, borderRadius: 4, textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#39ff88', marginBottom: 6 }}>ENCONTRADO</div>
+                    <div style={{ fontWeight: 800, color: itemPickup.item.color, marginBottom: 4 }}><EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> {itemPickup.item.name}</div>
+                    <div style={{ fontSize: '0.7rem', color: EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS] ?? '#888', marginBottom: 4 }}>{itemPickup.item.rarity.toUpperCase()}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{itemPickup.item.description}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 6 }}>
+                      {itemPickup.item.mods.map((m, j) => <span key={j} style={{ marginRight: 8 }}>{m.label}</span>)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="menu-grid">
+                  <button type="button" className="menu-btn primary" onClick={() => {
+                    itemPickup.resolve(itemPickup.item.slot);
+                    setItemPickup(null);
+                    engineRef.current?.resume();
+                    setScreen('playing');
+                  }}>
+                    Equipar
+                  </button>
+                  <button type="button" className="menu-btn" onClick={() => {
+                    itemPickup.resolve(null);
+                    setItemPickup(null);
+                    engineRef.current?.resume();
+                    setScreen('playing');
+                  }}>
+                    Mantener {curEq ? 'actual' : 'vacío'}
+                  </button>
+                </div>
+                {itemPickup.item.setId && (
+                  <div style={{ marginTop: 12, fontSize: '0.75rem', color: '#b04dff' }}>
+                    Pertenece al conjunto: <strong>{itemPickup.item.setId.replace('set_','')}</strong>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-
-          <div className="menu-grid">
-            <button type="button" className="menu-btn primary" onClick={() => {
-              itemPickup.resolve(itemPickup.item.slot);
-              setItemPickup(null);
-              engineRef.current?.resume();
-              setScreen('playing');
-            }}>
-              Equipar
-            </button>
-            <button type="button" className="menu-btn" onClick={() => {
-              itemPickup.resolve(null);
-              setItemPickup(null);
-              engineRef.current?.resume();
-              setScreen('playing');
-            }}>
-              Mantener {curEq ? 'actual' : 'vacío'}
-            </button>
-          </div>
-          {itemPickup.item.setId && (
-            <div style={{ marginTop: 12, fontSize: '0.75rem', color: '#b04dff' }}>
-              Pertenece al conjunto: <strong>{itemPickup.item.setId.replace('set_','')}</strong>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  })()}
+          );
+        })()}
 
         {screen === 'map' && (
           <div className="screen">

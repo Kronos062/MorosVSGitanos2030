@@ -47,7 +47,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'skill_speed_rare', name: 'Propulsión Avanzada', description: '+20% Velocidad de movimiento.', icon: '💨', rarity: 'rare', mods: [{ stat: 'speedMult', op: 'add_pct', value: 0.2 }] },
   { id: 'skill_pierce_rare', name: 'Perforación Profunda', description: '+2 Perforación a todos tus disparos.', icon: '🎯', rarity: 'rare', mods: [{ stat: 'pierce', op: 'add', value: 2 }] },
   { id: 'skill_fire_element', name: 'Ígnea Potenciada', description: '+30% Daño de arma. Solo con arma de fuego.', icon: '🔥', rarity: 'rare', mods: [{ stat: 'damageMult', op: 'add_pct', value: 0.3 }], condition: { weaponElement: 'fire' } },
-  { id: 'skill_set_ranged', name: 'Tiro en Movimiento', description: '+18% Daño. Requiere set ranged.', icon: '🏃', rarity: 'rare', mods: [{ stat: 'damageMult', op: 'add_pct', value: 0.18 }], condition: { setIds: ['set_pirate'] } },
+  { id: 'skill_set_ranged', name: 'Tiro en Movimiento', description: '+18% Daño. Requiere set Explorador o Mercenario.', icon: '🏃', rarity: 'rare', mods: [{ stat: 'damageMult', op: 'add_pct', value: 0.18 }], condition: { setIds: ['set_explorador', 'set_mercenario'] } },
   { id: 'skill_shield_up', name: 'Barrera Reforzada', description: '+2 Cargas de escudo.', icon: '🛡️', rarity: 'rare', mods: [{ stat: 'shield', op: 'add', value: 2 }] },
 
   // ── EPIC ────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'skill_crit_epic', name: 'Punto Débil', description: '+18% Probabilidad de golpe crítico.', icon: '🎯', rarity: 'epic', mods: [{ stat: 'critChance', op: 'add', value: 0.18 }] },
   { id: 'skill_vampirism_epic', name: 'Extracción Nanómica', description: '+8% Robo de vida por baja.', icon: '💉', rarity: 'epic', mods: [{ stat: 'lifesteal', op: 'add', value: 0.08 }] },
   { id: 'skill_set_berserker', name: 'Furia del Berserker', description: '+20% Daño. Requiere set Berserker.', icon: '💢', rarity: 'epic', mods: [{ stat: 'damageMult', op: 'add_pct', value: 0.2 }], condition: { setIds: ['set_berserker'] } },
-  { id: 'skill_set_pirate', name: 'Botín del Pirata', description: '+25% Oro ganado. Requiere set Pirata.', icon: '💰', rarity: 'epic', mods: [{ stat: 'gold_boost', op: 'add_pct', value: 0.25 }], condition: { setIds: ['set_pirate'] } },
+  { id: 'skill_set_pirate', name: 'Botín del Mercenario', description: '+25% Oro ganado. Requiere set Mercenario.', icon: '💰', rarity: 'epic', mods: [{ stat: 'gold_boost', op: 'add_pct', value: 0.25 }], condition: { setIds: ['set_mercenario'] } },
 
   // ── LEGENDARY ───────────────────────────────────────────
   { id: 'skill_legendary_vamp', name: 'Sed de Sangre', description: '+12% Robo de vida por baja.', icon: '🧛', rarity: 'legendary', mods: [{ stat: 'lifesteal', op: 'add', value: 0.12 }] },

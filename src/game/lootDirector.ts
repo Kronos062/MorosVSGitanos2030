@@ -1,17 +1,3 @@
-/* ======================================================================
- * lootDirector.ts — Data-driven Loot Director.
- * ----------------------------------------------------------------------
- * A thin decision layer ON TOP of the existing loot generators. It never
- * guarantees drops: it only re-weights the existing pools using:
- *
- *   finalWeight = base × map × build × source × repetition × rarity
- *
- * The engine keeps calling generateWeapon / generateEquipment exactly as
- * before; the Director only decides WHICH baseId / setId / quality / affix
- * to feed them. Adding content (weapons, armour, affixes, sets) requires
- * ZERO changes here — everything reads from the existing content arrays.
- * ==================================================================== */
-
 import {
   WEAPON_BASES,
   AFFIXES,
@@ -27,20 +13,12 @@ import type { RunDirector } from './runDirector';
 import type { BiomeDef } from '../content/biomes';
 import { runRandom } from './random';
 
-/* ------------------------------------------------------------------ */
-/*  LOOT TABLES — pure data. One table per loot source.               */
-/*  weights are relative; add new sources by adding new entries.      */
-/* ------------------------------------------------------------------ */
-
 export type LootCategory = 'gold' | 'heal' | 'shield' | 'weapon' | 'equipment' | 'relic' | 'nothing';
 
 export interface LootTableDef {
   id: string;
-  /** Relative category weights for this source. */
   categories: Partial<Record<LootCategory, number>>;
-  /** Multiplier applied on top of quality weights (rarer skew when >1 for high tiers). */
   qualityBias: Partial<Record<Rarity, number>>;
-  /** If true, this source may roll legendary quality at all. */
   allowLegendary: boolean;
 }
 
@@ -93,30 +71,15 @@ export function getLootTable(id: string): LootTableDef {
   return LOOT_TABLES.find((t) => t.id === id) ?? LOOT_TABLES[0];
 }
 
-/* ------------------------------------------------------------------ */
-/*  BUILD CONTEXT — snapshot the engine passes in each roll.          */
-/* ------------------------------------------------------------------ */
-
 export interface BuildContext {
   mapNumber: number;
   totalMaps: number;
-  /** Tags of the currently held weapon (e.g. 'sniper', 'energy'). */
   weaponTags: string[];
-  /** Current weapon element (from affix), if any. */
   weaponElement?: string;
-  /** Current weapon affix id, if any. */
   weaponAffixId?: string;
-  /** Set ids currently equipped and how many pieces each. */
   setCounts: Record<string, number>;
-  /** Equipped pet id, if any. */
   petId?: string | null;
 }
-
-/* ------------------------------------------------------------------ */
-/*  DERIVED BUILD PREFERENCES (data-driven, computed from content).    */
-/*  We read each set's declared `synergy` to know which weapon tags /  */
-/*  affixes / elements the player's build "likes". No hardcoding.      */
-/* ------------------------------------------------------------------ */
 
 interface BuildPreference {
   tags: Set<string>;
@@ -129,9 +92,8 @@ function computePreference(ctx: BuildContext): BuildPreference {
   const affixIds = new Set<string>();
   const elements = new Set<string>();
 
-  // Preferences inferred from equipped sets' synergy definitions.
   for (const [setId, count] of Object.entries(ctx.setCounts)) {
-    if (count < 2) continue; // only committed sets bias the loot
+    if (count < 2) continue;
     const def = SET_DEFS.find((s) => s.setId === setId);
     if (!def?.synergy) continue;
     def.synergy.weaponTags?.forEach((t) => tags.add(t));
@@ -139,8 +101,6 @@ function computePreference(ctx: BuildContext): BuildPreference {
     if (def.synergy.element) elements.add(def.synergy.element);
   }
 
-  // The currently held weapon's own tags/element/affix also nudge future loot
-  // toward that same playstyle (so drops "match" what you're using).
   ctx.weaponTags.forEach((t) => tags.add(t));
   if (ctx.weaponElement) elements.add(ctx.weaponElement);
   if (ctx.weaponAffixId) affixIds.add(ctx.weaponAffixId);
@@ -148,27 +108,17 @@ function computePreference(ctx: BuildContext): BuildPreference {
   return { tags, affixIds, elements };
 }
 
-/* ------------------------------------------------------------------ */
-/*  MAP PROGRESSION CURVE (Rule 1) — non-linear.                      */
-/*  Returns a per-rarity multiplier that rises with map progress.     */
-/* ------------------------------------------------------------------ */
-
 function mapCurve(mapNumber: number, totalMaps: number): Record<Rarity, number> {
   const t = Math.max(0, Math.min(1, (mapNumber - 1) / Math.max(1, totalMaps - 1)));
-  // eased progress — slow start, faster mid/late (feels like a curve)
-  const eased = t * t * (3 - 2 * t); // smoothstep
+  const eased = t * t * (3 - 2 * t);
   return {
     common: 1 - eased * 0.7,
     uncommon: 0.6 + eased * 0.8,
     rare: 0.25 + eased * 1.9,
     epic: 0.06 + eased * 2.6,
-    legendary: 0.01 + eased * eased * 2.2, // extra-steep so early maps ≈ 0
+    legendary: 0.01 + eased * eased * 2.2,
   };
 }
-
-/* ------------------------------------------------------------------ */
-/*  ANTI-DUPLICATION MEMORY (Rule 4) — recent loot fades weights.     */
-/* ------------------------------------------------------------------ */
 
 const RECENT_MAX = 6;
 
@@ -186,11 +136,10 @@ export class LootMemory {
   }
 
   private penalty(list: string[], id: string): number {
-    // Most recent → strongest reduction, fading over time. Never zero.
     const idx = list.indexOf(id);
     if (idx === -1) return 1;
-    const recencyFromNewest = list.length - 1 - idx; // 0 = newest
-    return 0.35 + 0.1 * recencyFromNewest; // 0.35..~0.85, always > 0
+    const recencyFromNewest = list.length - 1 - idx;
+    return 0.35 + 0.1 * recencyFromNewest;
   }
 
   baseWeight(id: string) { return this.penalty(this.recentBases, id); }
@@ -208,10 +157,6 @@ export class LootMemory {
     while (list.length > RECENT_MAX) list.shift();
   }
 }
-
-/* ------------------------------------------------------------------ */
-/*  QUALITY ROLL (directed) — Rules 1, 5, 7.                          */
-/* ------------------------------------------------------------------ */
 
 const BASE_QUALITY_WEIGHT: Record<Rarity, number> = {
   common: 60, uncommon: 25, rare: 10, epic: 4, legendary: 1,
@@ -245,14 +190,9 @@ export function rollDirectedQuality(
   return 'common';
 }
 
-/* ------------------------------------------------------------------ */
-/*  WEAPON SELECTION (directed) — Rules 2, 6, 7, plus anti-dup.       */
-/* ------------------------------------------------------------------ */
+const BUILD_MATCH_BONUS = 1.6;
+const USELESS_PENALTY = 0.6;
 
-const BUILD_MATCH_BONUS = 1.6;   // slight boost when weapon matches build
-const USELESS_PENALTY = 0.6;     // slight reduction for off-build items
-
-/** Does the weapon base overlap the build preference in any way? */
 function weaponMatchesBuild(base: WeaponBase, pref: BuildPreference): boolean {
   if (base.tags.some((t) => pref.tags.has(t))) return true;
   return false;
@@ -287,9 +227,8 @@ export function pickDirectedWeapon(
     if (r <= 0) { chosen = p.base; break; }
   }
 
-  const quality = rollDirectedQuality(table, ctx);
+  const quality = rollDirectedQuality(table, ctx, runDirector);
 
-  // Affix roll — reuse existing chance table, then anti-dup weighted pick.
   let affixId: string | null = null;
   if (runRandom.next('loot') < (AFFIX_CHANCE[quality] ?? 0)) {
     affixId = pickDirectedAffix(chosen, ctx, mem, pref);
@@ -314,7 +253,6 @@ function pickDirectedAffix(
 ): string | null {
   const pool = AFFIXES.filter((a) => affixCompatible(a, base)).map((a) => {
     let w = 1;
-    // Build preference: affix matches a preferred affix or its element.
     if (pref.affixIds.has(a.id)) w *= BUILD_MATCH_BONUS;
     if (a.element && pref.elements.has(a.element)) w *= BUILD_MATCH_BONUS;
     w *= mem.affixWeight(a.id);
@@ -329,10 +267,6 @@ function pickDirectedAffix(
   }
   return pool[0].id;
 }
-
-/* ------------------------------------------------------------------ */
-/*  EQUIPMENT SELECTION (directed) — Rules 2, 4, 6.                   */
-/* ------------------------------------------------------------------ */
 
 export function pickDirectedEquipment(
   table: LootTableDef,
@@ -379,14 +313,6 @@ export function pickDirectedEquipment(
   return { baseId: `${chosen.setId}_${slot}`, quality };
 }
 
-/* ------------------------------------------------------------------ */
-/*  RELIC (STATIC ITEM) SELECTION (directed) — reuses content/items.ts */
-/*  Items have a fixed, intrinsic rarity (unlike weapons/equipment,    */
-/*  which scale via a quality tier), so the Director rolls a rarity   */
-/*  first (same map curve / ascension / mood weighting as everything  */
-/*  else) and then picks an item that matches it, with anti-dup decay. */
-/* ------------------------------------------------------------------ */
-
 export function pickDirectedItem(
   table: LootTableDef,
   ctx: BuildContext,
@@ -395,8 +321,6 @@ export function pickDirectedItem(
 ): { itemId: string; rarity: Rarity } {
   const rarity = rollDirectedQuality(table, ctx, runDirector);
 
-  // Prefer items matching the rolled rarity; fall back to the closest
-  // available tier so a sparsely populated rarity never breaks the roll.
   let pool = ITEMS.filter((it) => it.rarity === rarity);
   if (pool.length === 0) pool = ITEMS;
 
@@ -412,10 +336,6 @@ export function pickDirectedItem(
   mem.rememberItem(chosen.id);
   return { itemId: chosen.id, rarity: chosen.rarity };
 }
-
-/* ------------------------------------------------------------------ */
-/*  CATEGORY ROLL — which kind of drop from a source (Rule 3).       */
-/* ------------------------------------------------------------------ */
 
 export function rollLootCategory(table: LootTableDef, runDirector?: RunDirector): LootCategory {
   const entries = (Object.entries(table.categories) as Array<[LootCategory, number]>).map(
@@ -434,5 +354,4 @@ export function rollLootCategory(table: LootTableDef, runDirector?: RunDirector)
   return 'nothing';
 }
 
-// Re-export helper so callers can resolve affix metadata if needed.
 export { getAffix };

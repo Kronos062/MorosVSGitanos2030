@@ -5,7 +5,10 @@
  * y los agrupa en ContentBundle listos para ser consumidos por el ContentLoader.
  */
 
-import type { ContentBundle } from '@/engine/content/ContentRepository';
+export interface ContentBundle {
+  type: string;
+  items: never[];
+}
 
 // Characters
 import tariq from './characters/tariq.json';

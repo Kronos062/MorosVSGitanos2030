@@ -89,6 +89,8 @@ export interface EffectSpriteMeta {
   fps: number;
   pixelScale?: number;
   anchor?: { x: number; y: number };
+  /** Los efectos en bucle (status_*) se dibujan con drawStatus, no con spawnEffect. */
+  loop?: boolean;
 }
 
 /** Objeto del mundo (cofre, portal, pickup…): imagen estática o tira animada en bucle. */
@@ -108,6 +110,42 @@ export interface PortraitMeta {
   icon?: string;
 }
 
+export interface WorldPropMeta {
+  image: string;
+  foot: [number, number];
+}
+
+export type ShoreDir = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
+
+export interface WorldSpriteMeta {
+  pixelScale?: number;
+  tile?: number;
+  islandMargin: { x: number; y: number };
+  floor?: {
+    main?: string[];
+    worn?: string[];
+    detail?: string[];
+  };
+  sea?: string[];
+  shore: Record<ShoreDir, string>;
+  bridge?: {
+    ew?: string[];
+    ns?: string[];
+    railN: string;
+    railW: string;
+    railE: string;
+    fascia: string;
+    pile: string;
+    gateH: string;
+    gateV: string;
+  };
+  props?: {
+    cornerTop?: WorldPropMeta[];
+    cornerBottom?: WorldPropMeta[];
+    edge?: WorldPropMeta[];
+  };
+}
+
 export interface SpriteManifest {
   version: 1;
   characters?: Record<string, SpriteSetMeta>;
@@ -121,6 +159,7 @@ export interface SpriteManifest {
   /** Clave = `<defId>_<estado>` para cofres (chest_rare_closed…) o `portal_<kind>`. */
   objects?: Record<string, ObjectSpriteMeta>;
   portraits?: Record<string, PortraitMeta>;
+  worlds?: Record<string, WorldSpriteMeta>;
 }
 
 /** Datos que el motor pasa para dibujar un actor animado. */

@@ -55,6 +55,7 @@ export interface EnemyEntity {
   hitFlash: number;
   spawnAnim: number;
   isBoss: boolean;
+  dead?: boolean;
   /** Affix-driven status effects (generic, engine-handled). */
   burnTimer?: number;
   burnDps?: number;
@@ -79,6 +80,17 @@ export interface PickupEntity {
   itemId?: string;
   bob: number;
   life: number;
+}
+
+export interface NearbyPickupEntry {
+  id: number;
+  kind: 'weapon' | 'item';
+  name: string;
+  color: string;
+  rarity: string;
+  slot?: EquipSlot;
+  setId?: string;
+  description?: string;
 }
 
 export interface ChestEntity {
@@ -141,15 +153,15 @@ export interface MinimapData {
   biomeRoomColor?: string;
 }
 
-export type EventAction = 
-  | { kind: 'stat_mod'; stat: string; op: 'add'|'mult'; val: number }
+export type EventAction =
+  | { kind: 'stat_mod'; stat: string; op: 'add' | 'mult'; val: number }
   | { kind: 'add_gold'; value: number }
   | { kind: 'lose_gold'; value: number }
   | { kind: 'heal'; value: number }
   | { kind: 'lose_hp_pct'; value: number }
   | { kind: 'spawn_chest'; chestId: string }
-  | { kind: 'drop_weapon'; weaponGenId: string, baseId: string, color: string }
-  | { kind: 'drop_equipment'; equipGenId: string, color: string };
+  | { kind: 'drop_weapon'; weaponGenId: string; baseId: string; color: string }
+  | { kind: 'drop_equipment'; equipGenId: string; color: string };
 
 export interface EventOption {
   label: string;
@@ -157,7 +169,7 @@ export interface EventOption {
   color: string;
   actions: EventAction[];
   costGold?: number;
-  costHpPct?: number; 
+  costHpPct?: number;
 }
 
 export interface EventInstance {
@@ -199,7 +211,6 @@ export type InputAction =
 
 export type KeyBindings = Record<InputAction, string>;
 
-
 export interface Particle {
   x: number;
   y: number;
@@ -240,6 +251,8 @@ export interface PlayerState {
   name: string;
   damageMult: number;
   speedMult: number;
+  spreadMult: number;
+  goldMult: number;
   pierceBonus: number;
   countBonus: number;
   lifesteal: number;
@@ -283,6 +296,7 @@ export interface GameStats {
   stackedPickupCount: number;
   boss?: { name: string; hp: number; maxHp: number; phase?: string } | null;
   weaponPrompt?: { name: string; color: string } | null;
+  itemPrompt?: { name: string; color: string } | null;
   chestPrompt?: { name: string; color: string } | null;
   portalPrompt?: { kind: string } | null;
   ended: 'victory' | 'defeat' | null;
@@ -428,4 +442,5 @@ export type GameScreen =
   | 'gameover'
   | 'victory'
   | 'itempickup'
+  | 'pickupchoice'
   | 'event';
