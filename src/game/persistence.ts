@@ -78,31 +78,6 @@ const DEFAULT_SAVE: SaveData = {
 function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
   return { ...DEFAULT_BINDINGS, ...(raw ?? {}) };
 }
-
-function normalizeSave(parsed: Partial<SaveData>): SaveData {
-  return {
-    faction: parsed.faction ?? null,
-    gold: parsed.gold ?? 0,
-    armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
-    bestiary: parsed.bestiary ?? {},
-    upgrades: {
-      permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
-      permDamageLevel: parsed.upgrades?.permDamageLevel ?? 0,
-    },
-    highScores: parsed.highScores ?? [],
-    volume: parsed.volume ?? 0.7,
-    sfxVolume: parsed.sfxVolume ?? parsed.volume ?? 0.7,
-    bindings: mergeBindings(parsed.bindings),
-    pets: parsed.pets ?? {},
-    equippedPet: parsed.equippedPet ?? null,
-    highestAscension: parsed.highestAscension ?? 0,
-    activeAscension: parsed.activeAscension ?? 0,
-    tutorialSeen: parsed.tutorialSeen ?? false,
-    assistMode: parsed.assistMode ?? false,
-    menuMusicId: parsed.menuMusicId ?? 'menu1',
-  };
-}
-
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
