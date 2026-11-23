@@ -121,28 +121,19 @@ function rectsOverlapPoint(r: RoomBounds, x: number, y: number, pad = 0): boolea
   return x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
 }
 
-function clampToWalkable(x: number, y: number, radius: number, walkables: RoomBounds[]): { x: number; y: number } {
+function clampToWalkable(x: number, y: number, _radius: number, walkables: RoomBounds[]): { x: number; y: number } {
   for (const r of walkables) {
-    if (rectsOverlapPoint(r, x, y, 0)) {
-      return { x, y };
-    }
+    if (rectsOverlapPoint(r, x, y, 0)) return { x, y };
   }
-  let bestX = x;
-  let bestY = y;
-  let bestD = Infinity;
+  let bestX = x, bestY = y, bestD = Infinity;
   for (const r of walkables) {
-    const cx = Math.max(r.x + radius, Math.min(r.x + r.w - radius, x));
-    const cy = Math.max(r.y + radius, Math.min(r.y + r.h - radius, y));
+    const cx = Math.max(r.x, Math.min(r.x + r.w, x));
+    const cy = Math.max(r.y, Math.min(r.y + r.h, y));
     const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
-    if (d < bestD) {
-      bestD = d;
-      bestX = cx;
-      bestY = cy;
-    }
+    if (d < bestD) { bestD = d; bestX = cx; bestY = cy; }
   }
   return { x: bestX, y: bestY };
 }
-
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -239,6 +230,9 @@ export class GameEngine {
   private visWeaponBase = '';
   private pickupSlotCache = new WeakMap<PickupEntity, string>();
   private pickupWeaponCache = new WeakMap<PickupEntity, string>();
+  private shieldRegenTimer = 0;
+  private bloodlustTimer = 0;
+  private statsPushTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -392,13 +386,17 @@ export class GameEngine {
     this.pushStats();
   }
 
-  pause() { this.running = false; }
+pause() {
+    this.running = false;
+    this.pushStats();
+  }
 
   resume() {
     if (this.ended || this.pendingSkills || this.pendingItemPickup || this.pendingPickupChoice) return;
     this.running = true;
     this.last = performance.now();
     if (!this.raf) this.raf = requestAnimationFrame(this.tick);
+    this.pushStats();
   }
 
   togglePause() {
@@ -1200,6 +1198,9 @@ export class GameEngine {
     this.challengeTimer = 0;
     this.nextId = 1;
     this.worldTime = 0;
+    this.shieldRegenTimer = 0;
+    this.bloodlustTimer = 0;
+    this.statsPushTimer = 0;
     this.currentRoomId = 0;
     this.roomCombatActive = false;
     this.roomWave = 0;
@@ -1380,6 +1381,9 @@ export class GameEngine {
     this.damageTakenTotal = 0;
     this.healsUsed = 0;
     this.bossesDefeated = 0;
+    this.shieldRegenTimer = 0;
+    this.bloodlustTimer = 0;
+    this.statsPushTimer = 0;
     this.goldEarned = getAscensionLevel(this.ascensionLevel).startingGoldBonus;
     this.pendingSkills = null;
     this.pendingItemPickup = null;
@@ -1437,6 +1441,7 @@ export class GameEngine {
     this.newMapLayout();
     this.recalcStats();
     this.presentSkillChoice();
+    this.pushStats();
   }
 
   private presentSkillChoice() {
@@ -1470,7 +1475,11 @@ export class GameEngine {
     }
     this.endDamageBatch();
     this.render();
-    this.pushStats();
+    this.statsPushTimer += realDt;
+    if (this.statsPushTimer >= 0.08) {
+      this.statsPushTimer = 0;
+      this.pushStats();
+    }
   };
 
   private isDown(action: InputAction): boolean {
@@ -1533,7 +1542,20 @@ export class GameEngine {
   private update(dt: number) {
     if (this.ended) return;
     this.worldTime += dt;
+    this.enemyDirector.tick(dt);
     this.runDirector.update(this.buildRunTelemetry(), dt);
+    if (this.bloodlustTimer > 0) this.bloodlustTimer = Math.max(0, this.bloodlustTimer - dt);
+    if (this.player.maxShield > 0 && this.player.shield < this.player.maxShield) {
+      const hasRegenSkill = this.acquiredSkills.some((s) => s.id === 'skill_shield');
+      const interval = hasRegenSkill ? 10 : 16;
+      this.shieldRegenTimer += dt;
+      if (this.shieldRegenTimer >= interval) {
+        this.shieldRegenTimer = 0;
+        this.player.shield = Math.min(this.player.maxShield, this.player.shield + 1);
+      }
+    } else {
+      this.shieldRegenTimer = 0;
+    }
     const input = this.pollInput();
     this.updatePlayer(dt, input);
     this.updateProjectiles(dt);
@@ -1928,6 +1950,7 @@ export class GameEngine {
     const char = getCharacter(this.characterId);
     const hpPerUpgrade = this.upgrades.permHpLevel * 10;
     const permDmg = 1 + this.upgrades.permDamageLevel * 0.05;
+    const prevMaxShield = this.player?.maxShield ?? 0;
 
     this.player.maxHp = char.stats.hp + hpPerUpgrade;
     this.player.speed = char.stats.speed;
@@ -2089,11 +2112,14 @@ export class GameEngine {
     }
 
     this.applyStatBalance();
+    if (this.player.maxShield > prevMaxShield) {
+      this.player.shield = Math.min(this.player.maxShield, this.player.shield + (this.player.maxShield - prevMaxShield));
+    }
   }
 
   private applyStatBalance() {
     const p = this.player;
-    p.maxHp = Math.round(balanceStat('maxHp', p.maxHp));
+    p.maxHp = Math.max(1, Math.round(balanceStat('maxHp', p.maxHp)));
     p.armor = balanceStat('armor', p.armor);
     p.maxShield = Math.round(balanceStat('shield', p.maxShield));
     p.shield = Math.min(p.shield, p.maxShield);
@@ -2201,6 +2227,7 @@ export class GameEngine {
     const half = (count - 1) / 2;
     const burstN = w.burstCount && w.burstCount > 1 ? w.burstCount : 1;
     const effectiveSpread = w.spread * p.spreadMult;
+    const bloodlustMult = this.bloodlustTimer > 0 ? 1.15 : 1;
 
     for (let b = 0; b < burstN; b++) {
       const burstDelay = (b / burstN) * 0.03;
@@ -2211,7 +2238,7 @@ export class GameEngine {
         const ang = baseAngle + spread;
         const crit = runRandom.next('combat') < p.critChance;
         const unstableMult = w.unstable ? 0.75 + runRandom.next('combat') : 1;
-        const dmg = w.damage * p.damageMult * (crit ? p.critDamageMult : 1) * unstableMult;
+        const dmg = w.damage * p.damageMult * (crit ? p.critDamageMult : 1) * unstableMult * bloodlustMult;
         const size = (w.projectileSize + p.projectileSizeBonus + (crit ? 2 : 0)) * (w.sizeMult ?? 1);
         this.projectiles.push({
           id: this.nextId++,
@@ -2227,8 +2254,10 @@ export class GameEngine {
           life: w.lifetime ?? 1.8,
           owner: 'player',
           sprite: w.baseId,
+          angle: ang,
           _bounceCount: (w.bounceCount ?? 0) + p.bounceBonus,
           _explosionRadius: (w.explosionRadius ?? 0) + p.explosionBonus,
+          _knockback: w.knockback,
           _lifesteal: w.lifesteal,
           _element: w.element,
           _elementChance: w.elementChance,
@@ -2246,8 +2275,13 @@ export class GameEngine {
   private updateProjectiles(dt: number) {
     const next: Projectile[] = [];
     for (const pr of this.projectiles) {
-      pr.x += pr.vx * dt;
-      pr.y += pr.vy * dt;
+      if (pr.owner === 'player' && pr.vx === 0 && pr.vy === 0 && pr.angle !== undefined) {
+        pr.x = this.player.x + Math.cos(pr.angle) * 18;
+        pr.y = this.player.y + Math.sin(pr.angle) * 18;
+      } else {
+        pr.x += pr.vx * dt;
+        pr.y += pr.vy * dt;
+      }
       pr.life -= dt;
 
       const walkables = this.getAccessibleWalkables();
@@ -2269,7 +2303,7 @@ export class GameEngine {
         }
         if (pr._bounceCount <= 0) {
           if (pr._explosionRadius && pr._explosionRadius > 0) {
-            this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
+            this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color, pr.owner === 'player');
           }
           continue;
         }
@@ -2280,7 +2314,7 @@ export class GameEngine {
       const insideWalkable = containingRoom !== undefined || walkables.some((b) => rectsOverlapPoint(b, pr.x, pr.y, pr.size));
       if (!insideWalkable) {
         if (pr._explosionRadius && pr._explosionRadius > 0) {
-          this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
+          this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color, pr.owner === 'player');
         }
         continue;
       }
@@ -2358,7 +2392,7 @@ export class GameEngine {
     }
   }
 
-  private explodeAt(x: number, y: number, radius: number, damage: number, color: string) {
+  private explodeAt(x: number, y: number, radius: number, damage: number, color: string, fromPlayer = false) {
     audio.play('explosion');
     spriteAtlas.spawnExplosion(x, y, radius, this.worldTime);
     this.burst(x, y, color, 16);
@@ -2371,7 +2405,7 @@ export class GameEngine {
         if (e.hp <= 0) this.killEnemy(e);
       }
     }
-    if (Math.hypot(this.player.x - x, this.player.y - y) < radius + 14) {
+    if (!fromPlayer && Math.hypot(this.player.x - x, this.player.y - y) < radius + 14) {
       this.damagePlayer(damage * 0.3);
     }
   }
@@ -2415,7 +2449,7 @@ export class GameEngine {
     }
   }
 
-  private updateEnemies(dt: number) {
+private updateEnemies(dt: number) {
     const p = this.player;
     const room = this.rooms.find((r) => r.id === (this.activeCombatRoomId ?? this.currentRoomId));
     for (const e of this.enemies) {
@@ -2492,10 +2526,11 @@ export class GameEngine {
       } else if (e.aiProfile === 'bomber_rush') {
         e.x += nx * spd * 1.3 * dt;
         e.y += ny * spd * 1.3 * dt;
-        if (dist < (e.explosionRadius ?? 50) * 0.5) {
+        if (dist < Math.max((e.explosionRadius ?? 50) * 0.5, e.size + 14 + 4)) {
           this.explodeEnemy(e);
           e.dead = true;
           e.hp = 0;
+          continue;
         }
       }
 
@@ -2574,6 +2609,8 @@ export class GameEngine {
     const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
     const dmg = Math.max(1, amount * ascDmgMult - p.armor) * (this.assistMode ? 0.75 : 1);
 
+    this.shieldRegenTimer = 0;
+
     if (this.currentEvent?.combatRules?.noDamage) {
       this.challengeFailed = true;
     }
@@ -2584,6 +2621,7 @@ export class GameEngine {
       audio.play('hit');
       this.burstJuice(p.x, p.y, '#00f0ff', 10, 1.2, 0.1);
       this.camera.shake = Math.max(this.camera.shake, 0.2);
+      this.pushStats();
       return;
     }
     const heavy = dmg > 18;
@@ -2603,6 +2641,7 @@ export class GameEngine {
       this.burstJuice(p.x, p.y, '#ff2a4b', 14, 1.8, 0.2);
       this.camera.shake = 0.6;
     }
+    this.pushStats();
     if (p.hp <= 0) {
       p.hp = 0;
       this.endRun('defeat');
@@ -2610,6 +2649,7 @@ export class GameEngine {
   }
 
   private handleCombat() {
+    const room = this.rooms.find((r) => r.id === (this.activeCombatRoomId ?? this.currentRoomId));
     for (const pr of this.projectiles) {
       if (pr.owner !== 'player') continue;
       for (const e of this.enemies) {
@@ -2631,9 +2671,21 @@ export class GameEngine {
           }
           spriteAtlas.spawnEffect(isCrit || pr._isCrit ? 'impact_crit' : `impact_${pr._element ?? 'hit'}`, pr.x, pr.y, this.worldTime);
           this.applyProjectileAffix(pr, e);
+          if (pr._knockback && pr._knockback > 0 && !e.isBoss && e.hp > 0) {
+            const kdx = e.x - this.player.x;
+            const kdy = e.y - this.player.y;
+            const kd = Math.hypot(kdx, kdy) || 1;
+            e.x += (kdx / kd) * pr._knockback;
+            e.y += (kdy / kd) * pr._knockback;
+            if (room) {
+              const b = room.bounds;
+              e.x = Math.max(b.x + e.size, Math.min(b.x + b.w - e.size, e.x));
+              e.y = Math.max(b.y + e.size, Math.min(b.y + b.h - e.size, e.y));
+            }
+          }
           if (e.hp <= 0) this.killEnemy(e);
           if (pr._explosionRadius && pr._explosionRadius > 0) {
-            this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.6, pr.color);
+            this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.6, pr.color, true);
             pr.life = 0;
             break;
           }
@@ -2675,6 +2727,15 @@ export class GameEngine {
     this.score += gain;
     this.goldEarned += Math.max(1, Math.floor((e.score / 8) * this.petGoldMult() * this.player.goldMult));
     this.grantXp(Math.round(e.xp * this.petXpMult()));
+
+    const vampPieces = EQUIP_SLOTS.filter((s) => {
+      const id = this.player.equipment[s];
+      return id ? getEquipment(id).setId === 'set_vampiro' : false;
+    }).length;
+    if (vampPieces >= 4) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.max(2, Math.round(this.player.maxHp * 0.03)));
+      this.bloodlustTimer = 4;
+    }
 
     audio.play('kill');
     if (e.isBoss) {
@@ -2746,6 +2807,7 @@ export class GameEngine {
         this.spawnPickup(e.x + 10, e.y, 'score', '#ffe14a', 50);
       }
     }
+    this.pushStats();
   }
 
   private grantXp(amount: number) {
@@ -2759,10 +2821,16 @@ export class GameEngine {
       const heal = Math.floor(p.maxHp * 0.15);
       p.hp = Math.min(p.maxHp, p.hp + heal);
       this.goldEarned += Math.max(1, Math.floor((p.level * 8) * this.petGoldMult() * this.player.goldMult));
+      this.queuedLevelUps += 1;
       audio.play('levelup');
       this.burstJuice(p.x, p.y, '#ffe14a', 16, 1.5, 0.15);
       this.burstJuice(p.x, p.y, '#b04dff', 10, 1.8, 0.1);
       this.camera.shake = Math.max(this.camera.shake, 0.3);
+    }
+    if (this.queuedLevelUps > 0 && !this.pendingSkills && !this.ended) {
+      this.queuedLevelUps -= 1;
+      this.presentSkillChoice();
+      this.pushStats();
     }
   }
 
@@ -2831,6 +2899,7 @@ export class GameEngine {
       const relic = this.directedItem(chestTable);
       this.spawnPickup(chest.x - 18, chest.y - 6, 'relic', relic.color, 0, undefined, relic.id);
     }
+    this.pushStats();
   }
 
   private collectConsumable(pk: PickupEntity) {
@@ -3109,6 +3178,7 @@ export class GameEngine {
       this.running = true;
       this.last = performance.now();
     }
+    this.pushStats();
   }
 
   private resolveEventOption(eventEntId: number, optionIndex: number | null) {
@@ -3176,6 +3246,7 @@ export class GameEngine {
       this.running = true;
       this.last = performance.now();
     }
+    this.pushStats();
   }
 
   private updateParticles(dt: number) {
@@ -3571,7 +3642,8 @@ export class GameEngine {
     }
 
     for (const pr of this.projectiles) {
-      if (spriteAtlas.drawProjectile(ctx, pr.sprite, pr.x, pr.y, Math.atan2(pr.vy, pr.vx), this.worldTime)) continue;
+      const prAng = pr.vx || pr.vy ? Math.atan2(pr.vy, pr.vx) : (pr.angle ?? 0);
+      if (spriteAtlas.drawProjectile(ctx, pr.sprite, pr.x, pr.y, prAng, this.worldTime)) continue;
       ctx.shadowColor = pr.color;
       ctx.shadowBlur = 10;
       ctx.fillStyle = pr.color;
@@ -3643,8 +3715,6 @@ export class GameEngine {
       ctx.shadowBlur = 0;
       ctx.font = `${ps * 1.6}px monospace`;
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(petDef.icon, 0, 1);
       ctx.textBaseline = 'middle';
       ctx.fillText(petDef.icon, 0, 1);
       ctx.textBaseline = 'alphabetic';
@@ -3740,6 +3810,57 @@ export class GameEngine {
     grd.addColorStop(1, theme?.ambientLight ?? 'rgba(0,0,0,0.45)');
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, w, h);
+  }
+
+  private drawWorldArt(ctx: CanvasRenderingContext2D, worldId: string): boolean {
+    if (!spriteAtlas.drawWorldSea(ctx, worldId)) return false;
+    for (const r of this.rooms) {
+      const b = r.bounds;
+      const lit = r.discovered || r.status !== 'locked';
+      if (!spriteAtlas.drawWorldIsland(ctx, worldId, b, r.id)) return false;
+      if (lit && r.kind !== 'portal' && r.kind !== 'boss') {
+        spriteAtlas.drawWorldProps(ctx, worldId, b, r.id);
+      }
+      if (!lit) {
+        const isl = spriteAtlas.worldIslandRect(worldId, b);
+        if (isl) {
+          ctx.fillStyle = 'rgba(7,9,14,0.86)';
+          ctx.fillRect(isl.x + 22, isl.y + 22, isl.w - 44, isl.h - 44);
+        }
+      }
+    }
+    const allBounds = [...this.rooms.map((r) => r.bounds), ...this.corridors.map((c) => c.bounds)];
+    for (const c of this.corridors) {
+      const from = this.rooms.find((r) => r.id === c.from)!;
+      const to = this.rooms.find((r) => r.id === c.to)!;
+      const open = !(from.status === 'active' || to.status === 'active') && (from.status === 'cleared' || to.status === 'cleared');
+      const b = c.bounds;
+      const others = allBounds.filter((x) => x !== b);
+      spriteAtlas.drawWorldBridge(ctx, worldId, b, others);
+      if (!open) {
+        spriteAtlas.drawWorldGate(ctx, worldId, b, others);
+      }
+    }
+    const theme = this.currentBiome?.theme;
+    for (const r of this.rooms) {
+      const b = r.bounds;
+      const lit = r.discovered || r.status !== 'locked';
+      let border = 'rgba(100,100,120,0.4)';
+      if (r.status === 'active') border = 'rgba(255,85,0,0.75)';
+      else if (r.status === 'cleared') border = theme?.wallColor ?? 'rgba(57,255,136,0.45)';
+      else if (r.kind === 'boss') border = 'rgba(255,43,214,0.5)';
+      else if (r.kind === 'event') border = 'rgba(176,77,255,0.4)';
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(b.x + 3, b.y + 3, b.w - 6, b.h - 6);
+      if (lit && r.kind !== 'portal') {
+        ctx.fillStyle = 'rgba(226,232,240,0.35)';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(r.label.toUpperCase(), b.x + 16, b.y + 28);
+      }
+    }
+    return true;
   }
 
   private drawChest(ctx: CanvasRenderingContext2D, c: ChestEntity) {

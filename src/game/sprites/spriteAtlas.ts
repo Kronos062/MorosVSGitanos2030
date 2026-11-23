@@ -736,13 +736,14 @@ export class SpriteAtlas {
     socket: { x: number; y: number },
     actor: SpriteSetMeta,
     angle: number,
+    now: number,
   ) {
     const ps = w.meta.pixelScale ?? actor.pixelScale ?? 2;
     ctx.save();
     ctx.translate(socket.x * (actor.pixelScale ?? 2), socket.y * (actor.pixelScale ?? 2));
     ctx.rotate(angle);
     if (Math.abs(angle) > Math.PI / 2) ctx.scale(1, -1);
-    const frame = w.frames > 1 ? Math.floor(performance.now() / 1000 * (w.meta.fps ?? 8)) % w.frames : 0;
+    const frame = w.frames > 1 ? Math.floor(Math.max(0, now) * (w.meta.fps ?? 8)) % w.frames : 0;
     ctx.drawImage(w.img, frame * w.fw, 0, w.fw, w.fh, -w.meta.grip.x * ps, -w.meta.grip.y * ps, w.fw * ps, w.fh * ps);
     ctx.restore();
   }

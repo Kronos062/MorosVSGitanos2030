@@ -18,8 +18,10 @@ export interface Projectile {
   owner: 'player' | 'enemy';
   /** Solo visual: clave del sprite de proyectil (baseId del arma o id de enemigo). */
   sprite?: string;
+  angle?: number;
   _bounceCount?: number;
   _explosionRadius?: number;
+  _knockback?: number;
   /** Affix carry-over so hit resolution can apply effects generically. */
   _lifesteal?: number;
   _element?: 'fire' | 'ice' | 'electric' | 'toxic' | 'radiant' | 'dark' | 'bleed';

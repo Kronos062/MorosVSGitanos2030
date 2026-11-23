@@ -684,6 +684,14 @@ input {
 [style*="#8891b8"], [style*="#94a3b8"], [style*="rgb(136, 145, 184)"], [style*="rgb(148, 163, 184)"] {
   color: var(--px-dim) !important;
 }
+.screen [style*="color: #444"],
+.screen [style*="color: #555"],
+.screen [style*="color: #666"],
+.screen [style*="rgb(68, 68, 68)"],
+.screen [style*="rgb(85, 85, 85)"],
+.screen [style*="rgb(102, 102, 102)"] {
+  color: #a8b4e0 !important;
+}
 .hud-panel {
   background: var(--px-night);
 }

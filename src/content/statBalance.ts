@@ -117,8 +117,8 @@ export const STAT_BALANCE: StatBalanceDef[] = [
     ],
     note: 'Extra projectiles diminish to avoid bullet-hell overload.',
   },
-  {
-    stat: 'bounceBonus', category: 'offensive', softCap: 4, hardCap: 4,
+{
+    stat: 'bounceBonus', category: 'offensive', softCap: 2, hardCap: 6,
     curve: [
       { upTo: 4, efficiency: 0.6 },
       { upTo: Infinity, efficiency: 0.35 },
@@ -178,7 +178,7 @@ export const STAT_BALANCE: StatBalanceDef[] = [
 
   /* ---------------- UTILITY ---------------- */
   {
-    stat: 'speedMult', category: 'utility', softCap: 0.4, hardCap: 1.4,
+    stat: 'speedMult', category: 'utility', softCap: 0.4, hardCap: 2.0,
     curve: [
       { upTo: 0.5, efficiency: 0.6 },
       { upTo: 1.0, efficiency: 0.35 },

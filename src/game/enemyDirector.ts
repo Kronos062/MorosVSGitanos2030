@@ -267,6 +267,21 @@ export class EnemyDirector {
     this.intensityTracker.onSafeZone();
   }
 
+  tick(dt: number): void {
+    this.killTimer += dt;
+    this.damageTimer += dt;
+
+    if (this.killTimer >= 3) {
+      this.recentKills = Math.max(0, this.recentKills - 1);
+      this.killTimer -= 3;
+    }
+    if (this.damageTimer >= 4) {
+      this.recentDamageTaken = Math.max(0, this.recentDamageTaken - 2);
+      this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
+      this.damageTimer -= 4;
+    }
+  }
+
   reset(): void {
     this.intensityTracker.reset();
     this.memory.reset();
@@ -299,18 +314,6 @@ export class EnemyDirector {
     biome?: BiomeDef,
   ): EnemyDef[] {
     this.intensityTracker.update(ctx, dt);
-    this.killTimer += dt;
-    this.damageTimer += dt;
-
-    if (this.killTimer > 3) {
-      this.recentKills = Math.max(0, this.recentKills - 1);
-      this.killTimer = 0;
-    }
-    if (this.damageTimer > 4) {
-      this.recentDamageTaken = Math.max(0, this.recentDamageTaken - 2);
-      this.damageTimer = 0;
-      this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
-    }
 
     let effectiveIntensity = this.intensityTracker.getIntensity();
     const ascState = runDirector?.getAscensionState();
@@ -373,7 +376,7 @@ export class EnemyDirector {
       if (runDirector) {
         w *= runDirector.getEnemyCompositionWeightMult(c);
       }
-      return { template: c, weight: w };
+      return { value: c, weight: w };
     });
 
     return this.weightedPick(weighted);
@@ -419,7 +422,7 @@ export class EnemyDirector {
         w *= eliteMult;
       }
 
-      return { enemy: e, weight: Math.max(0.05, w) };
+      return { value: e, weight: Math.max(0.05, w) };
     });
 
     return this.weightedPick(weighted);
@@ -436,13 +439,13 @@ export class EnemyDirector {
     };
   }
 
-  private weightedPick<T>(items: Array<{ weight: number; [key: string]: T | number }>): T {
+  private weightedPick<T>(items: Array<{ value: T; weight: number }>): T {
     const total = items.reduce((s, i) => s + i.weight, 0);
     let r = runRandom.next('encounter') * total;
     for (const item of items) {
       r -= item.weight;
-      if (r <= 0) return Object.values(item)[0] as T;
+      if (r <= 0) return item.value;
     }
-    return Object.values(items[0])[0] as T;
+    return items[0].value;
   }
 }
