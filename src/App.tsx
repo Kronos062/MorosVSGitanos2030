@@ -85,7 +85,7 @@ function MinimapView({ data, large = false }: { data: MinimapData; large?: boole
   const ty = (y: number) => pad + (y - minY) * scale;
   return (
     <svg width={boxW} height={boxH} className={large ? 'minimap-svg large' : 'minimap-svg'} viewBox={`0 0 ${boxW} ${boxH}`}>
-      <rect x={0} y={0} width={boxW} height={boxH} fill={data.biomeBg ?? 'rgba(10,12,16,0.92)'} stroke="rgba(255,204,0,0.35)" />
+      <rect x={0} y={0} width={boxW} height={boxH} fill="rgba(10,12,16,0.92)" stroke="rgba(255,204,0,0.35)" />
       {data.corridors.map((c, i) => {
         if (!c.discovered) return null;
         return <rect key={`c-${i}`} x={tx(c.bounds.x)} y={ty(c.bounds.y)} width={Math.max(2, c.bounds.w * scale)} height={Math.max(2, c.bounds.h * scale)} fill="rgba(255,204,0,0.25)" />;
@@ -93,7 +93,7 @@ function MinimapView({ data, large = false }: { data: MinimapData; large?: boole
       {data.rooms.map((r) => {
         if (!r.discovered && r.id !== data.currentRoomId) return null;
         let fill = 'rgba(80,90,110,0.7)';
-        if (r.status === 'cleared') fill = data.biomeRoomColor ?? 'rgba(57,255,136,0.45)';
+        if (r.status === 'cleared') fill = 'rgba(57,255,136,0.45)';
         if (r.status === 'active') fill = 'rgba(255,85,0,0.55)';
         if (r.kind === 'boss') fill = r.status === 'cleared' ? 'rgba(255,43,214,0.45)' : 'rgba(255,43,214,0.3)';
         if (r.kind === 'treasure') fill = 'rgba(255,225,74,0.35)';
@@ -365,49 +365,34 @@ export default function App() {
     const offEnd = engine.onEnd((result, s) => {
       setEndResult(result); setStats(s);
       setScreen(result === 'victory' ? 'victory' : 'gameover');
-      
-      const prev = saveRef.current;
-      const deltaGold = Math.max(0, s.goldEarned - goldAwardedRef.current);
-      let next = deltaGold > 0 ? { ...prev, gold: prev.gold + deltaGold } : prev;
-      goldAwardedRef.current = s.goldEarned;
+      setSave((prev) => {
+        const deltaGold = Math.max(0, s.goldEarned - goldAwardedRef.current);
+        let next = deltaGold > 0 ? addGold(prev, deltaGold) : prev;
+        goldAwardedRef.current = s.goldEarned;
 
-      const runId = runIdRef.current ?? new Date().toISOString();
-      if (!runIdRef.current) runIdRef.current = runId;
-      const entry = { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: runId };
-      const idx = next.highScores.findIndex((h) => h.date === entry.date);
-      const highScores = (idx !== -1
-        ? next.highScores.map((h, i) => (i === idx ? entry : h))
-        : [...next.highScores, entry]
-      ).sort((a, b) => b.score - a.score).slice(0, 10);
-      next = { ...next, highScores };
+        const runId = runIdRef.current ?? new Date().toISOString();
+        if (!runIdRef.current) runIdRef.current = runId;
+        const entry = { score: s.score, wave: s.wave, kills: s.kills, characterId: selectedCharRef.current, date: runId };
+        next = upsertHighScore(next, entry);
 
-      if (result === 'victory') {
-        const maxUnlocked = Math.min(prev.activeAscension + 1, 9);
-        if (maxUnlocked > prev.highestAscension) {
-          next = { ...next, highestAscension: maxUnlocked };
+        if (result === 'victory') {
+          const maxUnlocked = Math.min(prev.activeAscension + 1, 9);
+          if (maxUnlocked > prev.highestAscension) {
+            next = { ...next, highestAscension: maxUnlocked };
+          }
         }
-      }
-      const start = runStartRef.current;
-      const newWeapons = Object.keys(next.armory).filter((id) => next.armory[id] && !start.armory[id]);
-      const newBestiary = Object.keys(next.bestiary).filter((id) => (next.bestiary[id] ?? 0) > 0 && (start.bestiary[id] ?? 0) === 0);
-      const newAscension = next.highestAscension > start.highestAscension ? next.highestAscension : null;
-      const newHighScore = s.score > start.topScore;
-      
-      setRunUnlocks({ weapons: newWeapons, bestiary: newBestiary, ascension: newAscension, newHighScore });
-      writeSave(next);
-      saveRef.current = next;
-      setSave(next);
+        const start = runStartRef.current;
+        const newWeapons = Object.keys(prev.armory).filter((id) => prev.armory[id] && !start.armory[id]);
+        const newBestiary = Object.keys(prev.bestiary).filter((id) => (prev.bestiary[id] ?? 0) > 0 && (start.bestiary[id] ?? 0) === 0);
+        const newAscension = next.highestAscension > start.highestAscension ? next.highestAscension : null;
+        const newHighScore = s.score > start.topScore;
+        setRunUnlocks({ weapons: newWeapons, bestiary: newBestiary, ascension: newAscension, newHighScore });
+        writeSave(next);
+        return next;
+      });
     });
-    const offWeapon = engine.onWeaponDiscover((id) => {
-      const next = discoverWeapon(saveRef.current, id);
-      saveRef.current = next;
-      setSave(next);
-    });
-    const offKill = engine.onKillRecord((id) => {
-      const next = recordKill(saveRef.current, id);
-      saveRef.current = next;
-      setSave(next);
-    });
+    const offWeapon = engine.onWeaponDiscover((id) => { setSave((prev) => discoverWeapon(prev, id)); });
+    const offKill = engine.onKillRecord((id) => { setSave((prev) => recordKill(prev, id)); });
     const offItem = engine.onItemPickup((item, equipped, resolve) => {
       engineRef.current?.pause();
       setItemPickup({ item, equipped, resolve });
@@ -427,26 +412,21 @@ export default function App() {
     return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offChoice(); offEvent(); engine.destroy(); engineRef.current = null; };
   }, []);
 
-  // useEffect de teclado con corrección de Enter sin bando, Escape para modales y navegación coherente en Pausa
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (rebinding) { e.preventDefault(); e.stopPropagation();
         if (e.code === 'Escape') { setRebinding(null); return; }
         setSave((prev) => setBinding(prev, rebinding, e.code)); setRebinding(null); audio.play('button'); return;
       }
-      if (e.code === 'Escape' && showCodex) { e.preventDefault(); setShowCodex(false); return; }
-      if (e.code === 'Escape' && showTutorial) { e.preventDefault(); setShowTutorial(false); return; }
-      if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
-
-      if (e.code === 'Enter' && screen === 'menu' && hasFaction) { setScreen('chars'); audio.play('button'); }
+      if (e.code === 'Enter' && screen === 'menu') { setScreen('chars'); audio.play('button'); }
       const pauseCode = save.bindings.pause;
       const mapCode = save.bindings.openMap;
       const buildCode = save.bindings.openBuild;
 
+      if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
       if ((e.code === pauseCode || e.code === 'Escape') && !showQuitConfirm && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
         e.preventDefault();
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('paused'); }
-        else if (screen === 'build' && buildOrigin === 'paused') { setScreen('paused'); }
         else { engineRef.current?.resume(); setScreen('playing'); }
       }
       if (e.code === mapCode && (screen === 'playing' || screen === 'map')) {
@@ -460,8 +440,6 @@ export default function App() {
           engineRef.current?.pause();
           setBuildOrigin('playing');
           setScreen('build');
-        } else if (buildOrigin === 'paused') {
-          setScreen('paused');
         } else {
           engineRef.current?.resume();
           setScreen('playing');
@@ -470,7 +448,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, save.bindings, rebinding, showQuitConfirm, hasFaction, showCodex, showTutorial, buildOrigin]);
+  }, [screen, save.bindings, rebinding, showQuitConfirm]);
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
@@ -1159,7 +1137,7 @@ export default function App() {
                 Semilla: {String(engineRef.current?.getRunSeed())}
                 <button
                   type="button"
-                  onClick={() => navigator.clipboard?.writeText(String(engineRef.current?.getRunSeed() ?? '')).catch(() => {})}
+                  onClick={() => navigator.clipboard.writeText(String(engineRef.current?.getRunSeed()))}
                   style={{ marginLeft: 8, background: 'none', border: 'none', color: '#00f0ff', cursor: 'pointer' }}
                 >
                   📋 Copiar
@@ -1306,10 +1284,8 @@ export default function App() {
                     style={{ textAlign: 'left', borderColor: `${it.color}66` }}
                     onClick={() => {
                       const res = pickupChoice.resolve;
-                      const isWeapon = it.kind === 'weapon';
                       setPickupChoice(null);
                       res(it.id);
-                      if (isWeapon) setScreen('playing');
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1338,7 +1314,6 @@ export default function App() {
                   const res = pickupChoice.resolve;
                   setPickupChoice(null);
                   res(null);
-                  setScreen('playing');
                 }}
               >
                 Cancelar

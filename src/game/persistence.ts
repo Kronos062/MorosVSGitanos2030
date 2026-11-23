@@ -78,6 +78,31 @@ const DEFAULT_SAVE: SaveData = {
 function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
   return { ...DEFAULT_BINDINGS, ...(raw ?? {}) };
 }
+
+function normalizeSave(parsed: Partial<SaveData>): SaveData {
+  return {
+    faction: parsed.faction ?? null,
+    gold: parsed.gold ?? 0,
+    armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
+    bestiary: parsed.bestiary ?? {},
+    upgrades: {
+      permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
+      permDamageLevel: parsed.upgrades?.permDamageLevel ?? 0,
+    },
+    highScores: parsed.highScores ?? [],
+    volume: parsed.volume ?? 0.7,
+    sfxVolume: parsed.sfxVolume ?? parsed.volume ?? 0.7,
+    bindings: mergeBindings(parsed.bindings),
+    pets: parsed.pets ?? {},
+    equippedPet: parsed.equippedPet ?? null,
+    highestAscension: parsed.highestAscension ?? 0,
+    activeAscension: parsed.activeAscension ?? 0,
+    tutorialSeen: parsed.tutorialSeen ?? false,
+    assistMode: parsed.assistMode ?? false,
+    menuMusicId: parsed.menuMusicId ?? 'menu1',
+  };
+}
+
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
@@ -96,61 +121,10 @@ export function exportSaveToJson(data: SaveData): string {
   return JSON.stringify(data, null, 2);
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function num(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
-  return typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
-}
-
-function normalizeSave(raw: unknown): SaveData {
-  const parsed = isRecord(raw) ? raw : {};
-  const faction = parsed.faction === 'bando_moros' || parsed.faction === 'bando_gitanos' ? parsed.faction : null;
-  const upgrades = isRecord(parsed.upgrades) ? parsed.upgrades : {};
-  const armory = isRecord(parsed.armory) ? (parsed.armory as Record<string, boolean>) : {};
-  const bestiary = isRecord(parsed.bestiary) ? (parsed.bestiary as Record<string, number>) : {};
-  const pets = isRecord(parsed.pets) ? (parsed.pets as Record<string, boolean>) : {};
-  const bindings = isRecord(parsed.bindings) ? (parsed.bindings as Partial<KeyBindings>) : undefined;
-  const highScores = Array.isArray(parsed.highScores)
-    ? parsed.highScores.filter(
-        (h): h is HighScore =>
-          isRecord(h) &&
-          typeof h.score === 'number' &&
-          typeof h.wave === 'number' &&
-          typeof h.kills === 'number' &&
-          typeof h.characterId === 'string' &&
-          typeof h.date === 'string',
-      )
-    : [];
-
-  return {
-    faction,
-    gold: Math.floor(num(parsed.gold, 0, 0)),
-    armory: { pulse_pistol: true, ...armory },
-    bestiary,
-    upgrades: {
-      permHpLevel: Math.floor(num(upgrades.permHpLevel, 0, 0)),
-      permDamageLevel: Math.floor(num(upgrades.permDamageLevel, 0, 0)),
-    },
-    highScores,
-    volume: num(parsed.volume, 0.7, 0, 1),
-    sfxVolume: num(parsed.sfxVolume, num(parsed.volume, 0.7, 0, 1), 0, 1),
-    bindings: mergeBindings(bindings),
-    pets,
-    equippedPet: typeof parsed.equippedPet === 'string' ? parsed.equippedPet : null,
-    highestAscension: Math.floor(num(parsed.highestAscension, 0, 0, 9)),
-    activeAscension: Math.floor(num(parsed.activeAscension, 0, 0, 9)),
-    tutorialSeen: typeof parsed.tutorialSeen === 'boolean' ? parsed.tutorialSeen : false,
-    assistMode: typeof parsed.assistMode === 'boolean' ? parsed.assistMode : false,
-    menuMusicId: typeof parsed.menuMusicId === 'string' ? parsed.menuMusicId : 'menu1',
-  };
-}
-
+/** Returns null if the JSON is malformed — caller shows an error. */
 export function importSaveFromJson(json: string): SaveData | null {
   try {
-    const parsed: unknown = JSON.parse(json);
-    if (!isRecord(parsed)) return null;
+    const parsed = JSON.parse(json) as Partial<SaveData>;
     return normalizeSave(parsed);
   } catch {
     return null;

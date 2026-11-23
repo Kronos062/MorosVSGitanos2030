@@ -35,12 +35,6 @@ export interface WeaponBase {
   explosionRadius?: number;
   lifetime?: number;
   sizeMult?: number;
-  element?: AffixElement;
-  elementChance?: number;
-  chain?: number;
-  chainChance?: number;
-  lifesteal?: number;
-  knockback?: number;
 }
 
 export const WEAPON_BASES: WeaponBase[] = [
@@ -82,7 +76,7 @@ export const WEAPON_BASES: WeaponBase[] = [
 
   /* ─────────────────── AMETRALLADORAS ─────────────────── */
   { id: 'lmg_pork', name: 'Porquero Ligero', baseRarity: 'uncommon', damage: 7, fireRate: 8.5, projectileSpeed: 620, projectileSize: 3, color: '#ffe14a', spread: 0.14, count: 1, pierce: 0, sound: 'shoot', tags: ['kinetic', 'lmg', 'rapid'] },
-  { id: 'mg_beltfed', name: 'MG-60 Cinturón', baseRarity: 'rare', damage: 11, fireRate: 8.5, projectileSpeed: 760, projectileSize: 3, color: '#ff8800', spread: 0.14, count: 1, pierce: 1, sound: 'shoot', tags: ['kinetic', 'lmg', 'rapid'] },
+  { id: 'mg_beltfed', name: 'MG-60 Cinturón', baseRarity: 'rare', damage: 9, fireRate: 10.0, projectileSpeed: 750, projectileSize: 3, color: '#ff8800', spread: 0.18, count: 1, pierce: 0, sound: 'shoot', tags: ['kinetic', 'lmg', 'rapid'] },
   { id: 'minigun', name: 'Minigun Rotatoria', baseRarity: 'rare', damage: 9, fireRate: 10.0, projectileSpeed: 750, projectileSize: 3, color: '#ff8800', spread: 0.18, count: 1, pierce: 0, sound: 'shoot', tags: ['kinetic', 'lmg', 'rapid'] },
   { id: 'bfg_minigun', name: 'BFG Minigun', baseRarity: 'epic', damage: 10, fireRate: 12.0, projectileSpeed: 820, projectileSize: 4, color: '#ff3b5c', spread: 0.15, count: 1, pierce: 1, sound: 'shoot', tags: ['kinetic', 'lmg', 'heavy'] },
   { id: 'gatling_laser', name: 'Láser Gatling', baseRarity: 'epic', damage: 8, fireRate: 14.0, projectileSpeed: 820, projectileSize: 4, color: '#ff2bd6', spread: 0.08, count: 1, pierce: 2, sound: 'shoot', tags: ['energy', 'lmg', 'precision'] },
@@ -90,17 +84,17 @@ export const WEAPON_BASES: WeaponBase[] = [
   /* ─────────────────── ENERGÍA ─────────────────── */
   { id: 'blaster', name: 'Blaster Estándar', baseRarity: 'common', damage: 10, fireRate: 3.0, projectileSpeed: 580, projectileSize: 5, color: '#00f0ff', spread: 0.06, count: 1, pierce: 0, sound: 'shoot', tags: ['energy', 'basic'] },
   { id: 'sonic_blaster', name: 'Blaster Sónico', baseRarity: 'uncommon', damage: 15, fireRate: 2.8, projectileSpeed: 500, projectileSize: 7, color: '#39ff88', spread: 0.20, count: 3, pierce: 1, sound: 'shoot', tags: ['sonic', 'area'] },
-  { id: 'venom_blaster', name: 'Blaster Biotóxico', baseRarity: 'uncommon', damage: 11, fireRate: 4.2, projectileSpeed: 580, projectileSize: 4, color: '#9dff00', spread: 0.06, count: 1, pierce: 1, sound: 'shoot', tags: ['bio', 'toxic'], element: 'toxic', elementChance: 0.55 },
+  { id: 'venom_blaster', name: 'Blaster Biotóxico', baseRarity: 'uncommon', damage: 11, fireRate: 4.2, projectileSpeed: 580, projectileSize: 4, color: '#9dff00', spread: 0.06, count: 1, pierce: 1, sound: 'shoot', tags: ['bio', 'toxic'] },
   { id: 'plasma_rifle', name: 'Lanza de Plasma', baseRarity: 'epic', damage: 35, fireRate: 2.0, projectileSpeed: 1100, projectileSize: 5, color: '#b04dff', spread: 0, count: 1, pierce: 5, sound: 'shoot_heavy', tags: ['energy', 'piercing'] },
   { id: 'proton_beam', name: 'Rayo Protónico', baseRarity: 'epic', damage: 40, fireRate: 1.8, projectileSpeed: 1000, projectileSize: 6, color: '#00f0ff', spread: 0, count: 1, pierce: 6, sound: 'shoot_heavy', tags: ['energy', 'precision'] },
-  { id: 'arc_discharger', name: 'Descargador de Arco', baseRarity: 'epic', damage: 30, fireRate: 2.2, projectileSpeed: 800, projectileSize: 5, color: '#6ef0ff', spread: 0.05, count: 2, pierce: 4, sound: 'shoot_heavy', tags: ['electric', 'piercing'], element: 'electric', chain: 3, chainChance: 0.6 },
-  { id: 'tesla_gun', name: 'Cañón Tesla', baseRarity: 'rare', damage: 16, fireRate: 3.8, projectileSpeed: 620, projectileSize: 5, color: '#6ef0ff', spread: 0.10, count: 2, pierce: 2, sound: 'shoot', tags: ['electric', 'chain'], burstCount: 2, element: 'electric', chain: 2, chainChance: 0.45 },
+  { id: 'arc_discharger', name: 'Descargador de Arco', baseRarity: 'epic', damage: 30, fireRate: 2.2, projectileSpeed: 800, projectileSize: 5, color: '#6ef0ff', spread: 0.05, count: 2, pierce: 4, sound: 'shoot_heavy', tags: ['electric', 'piercing'] },
+  { id: 'tesla_gun', name: 'Cañón Tesla', baseRarity: 'rare', damage: 16, fireRate: 3.8, projectileSpeed: 620, projectileSize: 5, color: '#6ef0ff', spread: 0.10, count: 2, pierce: 2, sound: 'shoot', tags: ['electric', 'chain'], burstCount: 2 },
   { id: 'bouncer_gun', name: 'Rebotador', baseRarity: 'rare', damage: 14, fireRate: 3.2, projectileSpeed: 520, projectileSize: 5, color: '#b04dff', spread: 0.05, count: 1, pierce: 1, sound: 'shoot', tags: ['energy', 'bounce'], bounceCount: 3 },
   { id: 'nova_cannon', name: 'Detonador Nova', baseRarity: 'legendary', damage: 14, fireRate: 2.4, projectileSpeed: 520, projectileSize: 6, color: '#ffe14a', spread: 0.08, count: 8, pierce: 1, sound: 'shoot_heavy', tags: ['energy', 'spread', 'legendary'] },
 
   /* ─────────────────── FUEGO / ÁREA ─────────────────── */
-  { id: 'flame_thrower', name: 'Lanzallamas Térmico', baseRarity: 'rare', damage: 6, fireRate: 12.0, projectileSpeed: 380, projectileSize: 8, color: '#ff6a00', spread: 0.25, count: 2, pierce: 3, sound: 'shoot', tags: ['fire', 'area'], lifetime: 0.6, element: 'fire', elementChance: 0.45 },
-  { id: 'frost_cannon', name: 'Cañón Criogénico', baseRarity: 'rare', damage: 20, fireRate: 2.5, projectileSpeed: 600, projectileSize: 6, color: '#6ef0ff', spread: 0.12, count: 2, pierce: 2, sound: 'shoot', tags: ['ice', 'control'], element: 'ice', elementChance: 0.6 },
+  { id: 'flame_thrower', name: 'Lanzallamas Térmico', baseRarity: 'rare', damage: 6, fireRate: 12.0, projectileSpeed: 380, projectileSize: 8, color: '#ff6a00', spread: 0.25, count: 2, pierce: 3, sound: 'shoot', tags: ['fire', 'area'], lifetime: 0.6 },
+  { id: 'frost_cannon', name: 'Cañón Criogénico', baseRarity: 'rare', damage: 20, fireRate: 2.5, projectileSpeed: 600, projectileSize: 6, color: '#6ef0ff', spread: 0.12, count: 2, pierce: 2, sound: 'shoot', tags: ['ice', 'control'] },
   { id: 'cluster_mortar', name: 'Mortero de Cúmulo', baseRarity: 'rare', damage: 18, fireRate: 1.4, projectileSpeed: 400, projectileSize: 8, color: '#ff3b5c', spread: 0.30, count: 4, pierce: 0, sound: 'shoot_heavy', tags: ['explosive', 'spread'], explosionRadius: 60 },
   { id: 'plasma_grenade', name: 'Lanzagranadas de Plasma', baseRarity: 'epic', damage: 32, fireRate: 1.7, projectileSpeed: 460, projectileSize: 7, color: '#ff2bd6', spread: 0.15, count: 3, pierce: 0, sound: 'shoot_heavy', tags: ['explosive', 'area'], explosionRadius: 75 },
 
@@ -122,12 +116,13 @@ export const WEAPON_BASES: WeaponBase[] = [
   { id: 'axe_heavy', name: 'Hacha Pesada', baseRarity: 'uncommon', damage: 42, fireRate: 1.0, projectileSpeed: 0, projectileSize: 22, color: '#ff8800', spread: 0, count: 1, pierce: 5, sound: 'hit', tags: ['melee', 'heavy'], burstCount: 1, lifetime: 0.15 },
   { id: 'spud_gun', name: 'Lanzapatatas', baseRarity: 'common', damage: 15, fireRate: 2.8, projectileSpeed: 340, projectileSize: 10, color: '#ff8800', spread: 0.10, count: 1, pierce: 0, sound: 'shoot', tags: ['kinetic', 'slow'], bounceCount: 1 },
   { id: 'blade_launcher', name: 'Lanzacuchillas', baseRarity: 'epic', damage: 25, fireRate: 3.0, projectileSpeed: 650, projectileSize: 6, color: '#ff3b5c', spread: 0.15, count: 3, pierce: 3, sound: 'shoot_heavy', tags: ['kinetic', 'slashing'] },
-  { id: 'riot_shield', name: 'Escudo Antidisturbios', baseRarity: 'epic', damage: 6, fireRate: 4.0, projectileSpeed: 280, projectileSize: 24, color: '#0099ff', spread: 0, count: 1, pierce: 6, sound: 'hit', tags: ['melee', 'shield', 'push'], lifetime: 0.35, sizeMult: 3, knockback: 28 },
+  { id: 'riot_shield', name: 'Escudo Antidisturbios', baseRarity: 'epic', damage: 6, fireRate: 4.0, projectileSpeed: 280, projectileSize: 24, color: '#0099ff', spread: 0, count: 1, pierce: 6, sound: 'hit', tags: ['melee', 'shield', 'push'], sizeMult: 3 },
   { id: 'judgment', name: 'Martillo del Juicio', baseRarity: 'legendary', damage: 65, fireRate: 0.7, projectileSpeed: 350, projectileSize: 20, color: '#ffe14a', spread: 0, count: 1, pierce: 20, sound: 'shoot_heavy', tags: ['melee', 'heavy', 'legendary'], explosionRadius: 120, burstCount: 1, lifetime: 0.18 },
 
   /* ─────────────────── SOPORTE / ÚTILES ─────────────────── */
-  { id: 'heal_beacon', name: 'Baliza Curativa', baseRarity: 'rare', damage: 3, fireRate: 6.0, projectileSpeed: 200, projectileSize: 14, color: '#39ff88', spread: 0, count: 3, pierce: 0, sound: 'shoot', tags: ['support', 'heal'], lifetime: 0.35, sizeMult: 3, lifesteal: 0.25 },
-  { id: 'defibrillator', name: 'Desfibrilador Táctico', baseRarity: 'legendary', damage: 5, fireRate: 7.0, projectileSpeed: 220, projectileSize: 14, color: '#00f0ff', spread: 0, count: 3, pierce: 1, sound: 'shoot', tags: ['support', 'heal', 'legendary'], lifetime: 0.35, sizeMult: 3, lifesteal: 0.35 },];
+  { id: 'heal_beacon', name: 'Baliza Curativa', baseRarity: 'rare', damage: 3, fireRate: 6.0, projectileSpeed: 200, projectileSize: 14, color: '#39ff88', spread: 0, count: 3, pierce: 0, sound: 'shoot', tags: ['support', 'heal'], lifetime: 0.35, sizeMult: 3 },
+  { id: 'defibrillator', name: 'Desfibrilador Táctico', baseRarity: 'legendary', damage: 3, fireRate: 6.0, projectileSpeed: 200, projectileSize: 14, color: '#00f0ff', spread: 0, count: 3, pierce: 0, sound: 'shoot', tags: ['support', 'heal', 'legendary'], lifetime: 0.35, sizeMult: 3 },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Weapon Qualities — stat multipliers per tier                       */
@@ -288,10 +283,6 @@ export interface GeneratedWeapon {
   chain?: number;
   chainChance?: number;
   unstable?: boolean;
-  chain?: number;
-  chainChance?: number;
-  unstable?: boolean;
-  knockback?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -381,12 +372,6 @@ export function generateWeapon(
     burstCount: b.burstCount ?? 1,
     sound: b.sound,
     tags: b.tags,
-    lifesteal: b.lifesteal,
-    element: b.element,
-    elementChance: b.elementChance,
-    chain: b.chain,
-    chainChance: b.chainChance,
-    knockback: b.knockback,
   };
 
   if (affix) {
@@ -404,11 +389,11 @@ export function generateWeapon(
     gw.affixName = affix.name;
     gw.affixColor = affix.color;
     gw.affixDescription = affix.description;
-    gw.lifesteal = (gw.lifesteal ?? 0) + (affix.lifesteal ?? 0) || undefined;
-    gw.element = affix.element ?? gw.element;
-    gw.elementChance = affix.elementChance ?? gw.elementChance;
-    gw.chain = (gw.chain ?? 0) + (affix.chain ?? 0) || undefined;
-    gw.chainChance = affix.chainChance ?? gw.chainChance;
+    gw.lifesteal = affix.lifesteal;
+    gw.element = affix.element;
+    gw.elementChance = affix.elementChance;
+    gw.chain = affix.chain;
+    gw.chainChance = affix.chainChance;
     gw.unstable = affix.unstable;
 
     displayName = `${b.name} [${q.label} · ${affix.name}]`;
