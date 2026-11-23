@@ -1792,5 +1792,449 @@
       "fps": 12,
       "rotate": false
     }
+  },
+  "effects": {
+    "explosion_s": {
+      "image": "effects/explosion_s.png",
+      "frames": 7,
+      "fps": 18,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "explosion_m": {
+      "image": "effects/explosion_m.png",
+      "frames": 8,
+      "fps": 18,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "explosion_l": {
+      "image": "effects/explosion_l.png",
+      "frames": 9,
+      "fps": 18,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "explosion_xl": {
+      "image": "effects/explosion_xl.png",
+      "frames": 10,
+      "fps": 18,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_hit": {
+      "image": "effects/impact_hit.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_crit": {
+      "image": "effects/impact_crit.png",
+      "frames": 5,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_fire": {
+      "image": "effects/impact_fire.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_ice": {
+      "image": "effects/impact_ice.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_toxic": {
+      "image": "effects/impact_toxic.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_electric": {
+      "image": "effects/impact_electric.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_dark": {
+      "image": "effects/impact_dark.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_radiant": {
+      "image": "effects/impact_radiant.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "impact_bleed": {
+      "image": "effects/impact_bleed.png",
+      "frames": 4,
+      "fps": 22,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "muzzle_phys": {
+      "image": "effects/muzzle_phys.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_fire": {
+      "image": "effects/muzzle_fire.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_ice": {
+      "image": "effects/muzzle_ice.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_electric": {
+      "image": "effects/muzzle_electric.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_toxic": {
+      "image": "effects/muzzle_toxic.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_dark": {
+      "image": "effects/muzzle_dark.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_radiant": {
+      "image": "effects/muzzle_radiant.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "muzzle_bleed": {
+      "image": "effects/muzzle_bleed.png",
+      "frames": 3,
+      "fps": 36,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.0,
+        "y": 0.5
+      }
+    },
+    "tesla_node": {
+      "image": "effects/tesla_node.png",
+      "frames": 5,
+      "fps": 24,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "status_fire": {
+      "image": "effects/status_fire.png",
+      "frames": 4,
+      "fps": 10,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.85
+      },
+      "loop": true
+    },
+    "status_ice": {
+      "image": "effects/status_ice.png",
+      "frames": 5,
+      "fps": 5,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "loop": true
+    },
+    "status_poison": {
+      "image": "effects/status_poison.png",
+      "frames": 6,
+      "fps": 8,
+      "pixelScale": 2,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "loop": true
+    }
+  },
+  "worlds": {
+    "ceuta": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/ceuta/floor/arena_principal_a.png",
+          "worlds/ceuta/floor/arena_principal_b.png",
+          "worlds/ceuta/floor/arena_principal_c.png",
+          "worlds/ceuta/floor/arena_principal_d.png"
+        ],
+        "worn": [
+          "worlds/ceuta/floor/arena_pisada_a.png",
+          "worlds/ceuta/floor/arena_pisada_b.png"
+        ],
+        "detail": [
+          "worlds/ceuta/floor/arena_detalle_piedras.png",
+          "worlds/ceuta/floor/arena_detalle_conchas.png",
+          "worlds/ceuta/floor/arena_detalle_algas.png",
+          "worlds/ceuta/floor/arena_detalle_maderas.png"
+        ]
+      },
+      "sea": [
+        "worlds/ceuta/floor/agua_profunda_a.png",
+        "worlds/ceuta/floor/agua_profunda_b.png",
+        "worlds/ceuta/floor/agua_profunda_c.png"
+      ],
+      "shore": {
+        "n": "worlds/ceuta/shore/costa_borde_n.png",
+        "e": "worlds/ceuta/shore/costa_borde_e.png",
+        "s": "worlds/ceuta/shore/costa_borde_s.png",
+        "w": "worlds/ceuta/shore/costa_borde_o.png",
+        "nw": "worlds/ceuta/shore/costa_esq_ext_no.png",
+        "ne": "worlds/ceuta/shore/costa_esq_ext_ne.png",
+        "sw": "worlds/ceuta/shore/costa_esq_ext_so.png",
+        "se": "worlds/ceuta/shore/costa_esq_ext_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/ceuta/bridge/puente_ew_a.png",
+          "worlds/ceuta/bridge/puente_ew_b.png",
+          "worlds/ceuta/bridge/puente_ew_c.png"
+        ],
+        "ns": [
+          "worlds/ceuta/bridge/puente_ns_a.png",
+          "worlds/ceuta/bridge/puente_ns_b.png",
+          "worlds/ceuta/bridge/puente_ns_c.png"
+        ],
+        "railN": "worlds/ceuta/bridge/barandilla_h.png",
+        "railW": "worlds/ceuta/bridge/barandilla_v_oeste.png",
+        "railE": "worlds/ceuta/bridge/barandilla_v_este.png",
+        "fascia": "worlds/ceuta/bridge/liston_frontal_h.png",
+        "pile": "worlds/ceuta/bridge/pilote.png",
+        "gateH": "worlds/ceuta/bridge/cancela_cerrada_h.png",
+        "gateV": "worlds/ceuta/bridge/cancela_cerrada_v.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/ceuta/props/palmera_datilera_a.png",
+            "foot": [
+              36,
+              85
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/palmera_datilera_b.png",
+            "foot": [
+              36,
+              85
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/ceuta/props/piedra_grande.png",
+            "foot": [
+              23,
+              30
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/piedra_mediana.png",
+            "foot": [
+              16,
+              22
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/caja_madera.png",
+            "foot": [
+              13,
+              20
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/red_amontonada.png",
+            "foot": [
+              17,
+              17
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/anfora_enterrada.png",
+            "foot": [
+              10,
+              25
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/ceuta/props/guijarros_3.png",
+            "foot": [
+              11,
+              11
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/guijarros_5.png",
+            "foot": [
+              16,
+              11
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/conchas_par.png",
+            "foot": [
+              7,
+              10
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/concha_venera.png",
+            "foot": [
+              7,
+              10
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/concha_caracola.png",
+            "foot": [
+              7,
+              10
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/piedra_pequena.png",
+            "foot": [
+              11,
+              15
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/tabla_madera.png",
+            "foot": [
+              17,
+              8
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/tronco_varado.png",
+            "foot": [
+              18,
+              12
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/astillas.png",
+            "foot": [
+              7,
+              8
+            ]
+          },
+          {
+            "image": "worlds/ceuta/props/cuerda_enrollada.png",
+            "foot": [
+              9,
+              11
+            ]
+          }
+        ]
+      }
+    }
   }
 }
