@@ -300,7 +300,10 @@ export interface GameStats {
   chestPrompt?: { name: string; color: string } | null;
   portalPrompt?: { kind: string } | null;
   ended: 'victory' | 'defeat' | null;
+  /** Monedero actual de la partida (baja al gastar en mercaderes). */
   goldEarned: number;
+  /** Oro acumulado ganado en la partida; es la base del premio de monedas roguelite. */
+  goldGross?: number;
   currentRoomLabel: string;
   roomsCleared: number;
   roomsTotal: number;

@@ -366,9 +366,11 @@ export default function App() {
       setEndResult(result); setStats(s);
       setScreen(result === 'victory' ? 'victory' : 'gameover');
       setSave((prev) => {
-        const deltaGold = Math.max(0, s.goldEarned - goldAwardedRef.current);
+        // Se premia el oro bruto acumulado: gastar en mercaderes no resta oro ya ganado (ni en ciclos Endless).
+        const grossGold = s.goldGross ?? s.goldEarned;
+        const deltaGold = Math.max(0, grossGold - goldAwardedRef.current);
         let next = deltaGold > 0 ? addGold(prev, deltaGold) : prev;
-        goldAwardedRef.current = s.goldEarned;
+        goldAwardedRef.current = Math.max(goldAwardedRef.current, grossGold);
 
         const runId = runIdRef.current ?? new Date().toISOString();
         if (!runIdRef.current) runIdRef.current = runId;

@@ -185,6 +185,8 @@ export class GameEngine {
   private spawnTimer = 0;
   private ended: 'victory' | 'defeat' | null = null;
   private goldEarned = 0;
+  /** Oro ganado acumulado en la partida (no baja al gastar en mercaderes). Es el que se premia al acabar. */
+  private goldGross = 0;
   private mapNumber = 1;
   private cycle = 1;
   private scoreMultApplied = false;
@@ -217,7 +219,6 @@ export class GameEngine {
   private healsUsed = 0;
   private bossesDefeated = 0;
   private nearestWeapon: PickupEntity | null = null;
-  private nearestItem: PickupEntity | null = null;
   private closestPickup: PickupEntity | null = null;
   private stackedPickupCount = 0;
   private lootVacuum = false;
@@ -495,6 +496,7 @@ export class GameEngine {
       } : null,
       ended: this.ended,
       goldEarned: this.goldEarned,
+      goldGross: this.goldGross,
       currentRoomLabel: this.inCorridor
         ? 'Pasillo'
         : room?.label
@@ -1187,7 +1189,6 @@ export class GameEngine {
     this.portal = null;
     this.camera = { x: this.player.x, y: this.player.y, shake: 0 };
     this.nearestWeapon = null;
-    this.nearestItem = null;
     this.closestPickup = null;
     this.stackedPickupCount = 0;
     this.nearestChest = null;
@@ -1381,6 +1382,7 @@ export class GameEngine {
     this.healsUsed = 0;
     this.bossesDefeated = 0;
     this.goldEarned = getAscensionLevel(this.ascensionLevel).startingGoldBonus;
+    this.goldGross = this.goldEarned;
     this.pendingSkills = null;
     this.pendingItemPickup = null;
     this.pendingPickupChoice = false;
@@ -2267,7 +2269,7 @@ export class GameEngine {
             pr._bounceCount -= 1;
           }
         }
-        if (pr._bounceCount <= 0) {
+        if (pr._bounceCount < 0) {
           if (pr._explosionRadius && pr._explosionRadius > 0) {
             this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
           }
@@ -2673,7 +2675,9 @@ export class GameEngine {
     }
     const gain = Math.floor(e.score * this.comboMultiplier());
     this.score += gain;
-    this.goldEarned += Math.max(1, Math.floor((e.score / 8) * this.petGoldMult() * this.player.goldMult));
+    const goldDrop = Math.max(1, Math.floor((e.score / 8) * this.petGoldMult() * this.player.goldMult));
+    this.goldEarned += goldDrop;
+    this.goldGross += goldDrop;
     this.grantXp(Math.round(e.xp * this.petXpMult()));
 
     audio.play('kill');
@@ -2758,7 +2762,9 @@ export class GameEngine {
       p.xpToNext = Math.floor(55 + p.level * 38);
       const heal = Math.floor(p.maxHp * 0.15);
       p.hp = Math.min(p.maxHp, p.hp + heal);
-      this.goldEarned += Math.max(1, Math.floor((p.level * 8) * this.petGoldMult() * this.player.goldMult));
+      const lvGold = Math.max(1, Math.floor((p.level * 8) * this.petGoldMult() * this.player.goldMult));
+      this.goldEarned += lvGold;
+      this.goldGross += lvGold;
       audio.play('levelup');
       this.burstJuice(p.x, p.y, '#ffe14a', 16, 1.5, 0.15);
       this.burstJuice(p.x, p.y, '#b04dff', 10, 1.8, 0.1);
@@ -2843,6 +2849,7 @@ export class GameEngine {
     } else if (pk.kind === 'score') {
       this.score += pk.value;
       this.goldEarned += 5;
+      this.goldGross += 5;
       this.burst(pk.x, pk.y, '#ffe14a', 6);
       this.camera.shake = Math.max(this.camera.shake, 0.06);
     } else if (pk.kind === 'shield') {
@@ -2948,7 +2955,6 @@ export class GameEngine {
 
     this.stackedPickupCount = nearby.length;
     this.nearestWeapon = nearby.find((n) => n.pk.kind === 'weapon')?.pk ?? null;
-    this.nearestItem = nearby.find((n) => n.pk.kind === 'item')?.pk ?? null;
     this.closestPickup = nearby[0]?.pk ?? null;
     this.closestChestWins = !!(bestChest && (!nearby[0] || bestChestDist <= nearby[0].dist));
 
@@ -3159,7 +3165,7 @@ export class GameEngine {
             if (gained > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + gained);
           }
         }
-        if (a.kind === 'add_gold') this.goldEarned += a.value;
+        if (a.kind === 'add_gold') { this.goldEarned += a.value; this.goldGross += a.value; }
         if (a.kind === 'lose_gold') this.goldEarned -= a.value;
         if (a.kind === 'heal') {
           this.healsUsed += 1;
