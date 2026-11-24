@@ -189,7 +189,8 @@ def mode_a(pw):
     info = pg.evaluate("() => { const e = window.__engine; const c = e.chests[0]; return c ? {n: e.chests.length, x: c.x, y: c.y, cam: [e.camera.x, e.camera.y]} : null; }")
     check('A: hay un cofre en la sala inicial para probar', info is not None, info)
     if info:
-        BAND = {'chest_common': (195, 203, 232), 'chest_rare': (127, 216, 255), 'chest_legendary': (255, 210, 74)}
+        # IDs reales de partida (src/content/chests.ts); el motor los mapea a chest_common/rare/legendary del manifiesto.
+        BAND = {'chest_street': (195, 203, 232), 'chest_armory': (127, 216, 255), 'chest_boss': (255, 210, 74)}
         for defid, col in BAND.items():
             pg.evaluate(f"() => {{ const c = window.__engine.chests[0]; c.defId = '{defid}'; c.opened = false; }}"); pg.wait_for_timeout(250)
             cx, cy = int(W / 2 + info['x'] - info['cam'][0]), int(H / 2 + info['y'] - info['cam'][1])
