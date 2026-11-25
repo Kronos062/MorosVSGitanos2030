@@ -75,31 +75,77 @@ const DEFAULT_SAVE: SaveData = {
   menuMusicId: 'menu1',
 };
 
-function mergeBindings(raw?: Partial<KeyBindings>): KeyBindings {
-  return { ...DEFAULT_BINDINGS, ...(raw ?? {}) };
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const num = (v: unknown, def: number, min: number, max: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+const int = (v: unknown, def: number, min: number, max: number): number => Math.round(num(v, def, min, max));
+
+function numberRecord(v: unknown, integer = true): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isObj(v)) return out;
+  for (const [k, n] of Object.entries(v)) {
+    if (typeof n === 'number' && Number.isFinite(n) && n >= 0) out[k] = integer ? Math.floor(n) : n;
+  }
+  return out;
 }
 
-function normalizeSave(parsed: Partial<SaveData>): SaveData {
+function boolRecord(v: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!isObj(v)) return out;
+  for (const [k, b] of Object.entries(v)) if (b === true) out[k] = true;
+  return out;
+}
+
+function sanitizeHighScores(v: unknown): HighScore[] {
+  if (!Array.isArray(v)) return [];
+  const out: HighScore[] = [];
+  for (const h of v) {
+    if (!isObj(h)) continue;
+    out.push({
+      score: num(h.score, 0, 0, Number.MAX_SAFE_INTEGER),
+      wave: int(h.wave, 0, 0, 1_000_000),
+      kills: int(h.kills, 0, 0, 1_000_000),
+      characterId: typeof h.characterId === 'string' ? h.characterId : '',
+      date: typeof h.date === 'string' ? h.date : '',
+    });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, 10);
+}
+
+function mergeBindingsSafe(raw: unknown): KeyBindings {
+  const out: KeyBindings = { ...DEFAULT_BINDINGS };
+  if (!isObj(raw)) return out;
+  for (const action of Object.keys(DEFAULT_BINDINGS) as InputAction[]) {
+    const code = raw[action];
+    if (typeof code === 'string' && code.length > 0 && code.length < 32) out[action] = code;
+  }
+  return out;
+}
+
+function normalizeSave(input: unknown): SaveData {
+  const parsed: Record<string, unknown> = isObj(input) ? input : {};
+  const volume = num(parsed.volume, 0.7, 0, 1);
+  const up = isObj(parsed.upgrades) ? parsed.upgrades : {};
   return {
-    faction: parsed.faction ?? null,
-    gold: parsed.gold ?? 0,
-    armory: { pulse_pistol: true, ...(parsed.armory ?? {}) },
-    bestiary: parsed.bestiary ?? {},
+    faction: parsed.faction === 'bando_moros' || parsed.faction === 'bando_gitanos' ? parsed.faction : null,
+    gold: int(parsed.gold, 0, 0, Number.MAX_SAFE_INTEGER),
+    armory: { pulse_pistol: true, ...boolRecord(parsed.armory) },
+    bestiary: numberRecord(parsed.bestiary),
     upgrades: {
-      permHpLevel: parsed.upgrades?.permHpLevel ?? 0,
-      permDamageLevel: parsed.upgrades?.permDamageLevel ?? 0,
+      permHpLevel: int(up.permHpLevel, 0, 0, 1000),
+      permDamageLevel: int(up.permDamageLevel, 0, 0, 1000),
     },
-    highScores: parsed.highScores ?? [],
-    volume: parsed.volume ?? 0.7,
-    sfxVolume: parsed.sfxVolume ?? parsed.volume ?? 0.7,
-    bindings: mergeBindings(parsed.bindings),
-    pets: parsed.pets ?? {},
-    equippedPet: parsed.equippedPet ?? null,
-    highestAscension: parsed.highestAscension ?? 0,
-    activeAscension: parsed.activeAscension ?? 0,
-    tutorialSeen: parsed.tutorialSeen ?? false,
-    assistMode: parsed.assistMode ?? false,
-    menuMusicId: parsed.menuMusicId ?? 'menu1',
+    highScores: sanitizeHighScores(parsed.highScores),
+    volume,
+    sfxVolume: num(parsed.sfxVolume, volume, 0, 1),
+    bindings: mergeBindingsSafe(parsed.bindings),
+    pets: boolRecord(parsed.pets),
+    equippedPet: typeof parsed.equippedPet === 'string' ? parsed.equippedPet : null,
+    highestAscension: int(parsed.highestAscension, 0, 0, 99),
+    activeAscension: int(parsed.activeAscension, 0, 0, 99),
+    tutorialSeen: parsed.tutorialSeen === true,
+    assistMode: parsed.assistMode === true,
+    menuMusicId: typeof parsed.menuMusicId === 'string' ? parsed.menuMusicId : 'menu1',
   };
 }
 
@@ -107,14 +153,21 @@ export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return structuredClone(DEFAULT_SAVE);
-    return normalizeSave(JSON.parse(raw) as Partial<SaveData>);
+    return normalizeSave(JSON.parse(raw));
   } catch {
     return structuredClone(DEFAULT_SAVE);
   }
 }
 
-export function writeSave(data: SaveData): void {
-  localStorage.setItem(KEY, JSON.stringify(data));
+/** Guarda sin lanzar excepciones (cuota llena, modo privado...): el juego sigue funcionando sin persistencia. */
+export function writeSave(data: SaveData): boolean {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    return true;
+  } catch (err) {
+    console.warn('[save] No se pudo guardar la partida:', err);
+    return false;
+  }
 }
 
 export function exportSaveToJson(data: SaveData): string {
@@ -124,7 +177,11 @@ export function exportSaveToJson(data: SaveData): string {
 /** Returns null if the JSON is malformed — caller shows an error. */
 export function importSaveFromJson(json: string): SaveData | null {
   try {
-    const parsed = JSON.parse(json) as Partial<SaveData>;
+    const parsed: unknown = JSON.parse(json);
+    // Un JSON válido que no parece una partida (p. ej. {} o 123) no debe borrar el progreso.
+    if (!isObj(parsed)) return null;
+    const known = ['faction', 'gold', 'armory', 'bestiary', 'upgrades', 'highScores', 'bindings', 'pets', 'volume'];
+    if (!known.some((k) => k in parsed)) return null;
     return normalizeSave(parsed);
   } catch {
     return null;
@@ -132,6 +189,7 @@ export function importSaveFromJson(json: string): SaveData | null {
 }
 
 export function discoverWeapon(data: SaveData, weaponId: string): SaveData {
+  if (data.armory[weaponId]) return data;
   const next = { ...data, armory: { ...data.armory, [weaponId]: true } };
   writeSave(next);
   return next;
@@ -142,6 +200,17 @@ export function recordKill(data: SaveData, enemyId: string): SaveData {
     ...data,
     bestiary: { ...data.bestiary, [enemyId]: (data.bestiary[enemyId] ?? 0) + 1 },
   };
+  writeSave(next);
+  return next;
+}
+
+/** Registra varias bajas de golpe (una sola escritura y un solo render). */
+export function recordKills(data: SaveData, counts: Record<string, number>): SaveData {
+  const ids = Object.keys(counts);
+  if (ids.length === 0) return data;
+  const bestiary = { ...data.bestiary };
+  for (const id of ids) bestiary[id] = (bestiary[id] ?? 0) + counts[id];
+  const next = { ...data, bestiary };
   writeSave(next);
   return next;
 }
@@ -196,8 +265,14 @@ export function setBindings(data: SaveData, bindings: KeyBindings): SaveData {
   return next;
 }
 
+/** Asigna una tecla. Si ya la usaba otra acción, se intercambian para no dejar dos acciones en la misma tecla. */
 export function setBinding(data: SaveData, action: InputAction, code: string): SaveData {
-  const bindings = { ...data.bindings, [action]: code };
+  const bindings = { ...data.bindings };
+  const previous = bindings[action];
+  for (const other of Object.keys(bindings) as InputAction[]) {
+    if (other !== action && bindings[other] === code) bindings[other] = previous;
+  }
+  bindings[action] = code;
   return setBindings(data, bindings);
 }
 

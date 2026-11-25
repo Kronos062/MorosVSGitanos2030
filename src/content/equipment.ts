@@ -653,9 +653,10 @@ export function registerGeneratedEquip(ge: GeneratedEquipment): void {
 /** Scales a piece's mods by the quality multiplier. */
 function scaleMods(mods: StatMod[], mult: number): StatMod[] {
   return mods.map((m) => {
-    if (m.op === 'mult') return { ...m, value: +(m.value * mult).toFixed(3) };
+    // La calidad solo escala los bonos: los penalizadores (valores negativos) se mantienen, en ambos tipos de op.
+    if (m.op === 'mult') return { ...m, value: m.value > 0 ? +(m.value * mult).toFixed(3) : m.value };
     // additive: round HP/armor/etc, keep small fractions for lifesteal/crit
-    const scaled = m.value * mult;
+    const scaled = m.value > 0 ? m.value * mult : m.value;
     const rounded = Math.abs(scaled) >= 1 ? Math.round(scaled) : +scaled.toFixed(3);
     return { ...m, value: rounded };
   });

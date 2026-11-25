@@ -17,7 +17,7 @@ import {
   loadSave,
   writeSave,
   discoverWeapon,
-  recordKill,
+  recordKills,
   addGold,
   buyUpgrade,
   upsertHighScore,
@@ -360,9 +360,22 @@ export default function App() {
     engineRef.current = engine;
     if (new URLSearchParams(location.search).has('spritedebug')) (window as unknown as { __engine: GameEngine }).__engine = engine;
 
+    // Las bajas se acumulan y se guardan por lotes: antes cada baja escribía en localStorage y re-renderizaba toda la app.
+    let killBuffer: Record<string, number> = {};
+    let killTimer: number | null = null;
+    const flushKills = () => {
+      if (killTimer !== null) { window.clearTimeout(killTimer); killTimer = null; }
+      const counts = killBuffer;
+      if (Object.keys(counts).length === 0) return;
+      killBuffer = {};
+      setSave((prev) => recordKills(prev, counts));
+    };
+    window.addEventListener('pagehide', flushKills);
+
     const offStats = engine.onStats((s) => setStats(s));
     const offLevel = engine.onLevelUp((choices) => { setSkillChoices(choices); setScreen('levelup'); });
     const offEnd = engine.onEnd((result, s) => {
+      flushKills(); // el bestiario debe estar al día antes de calcular los desbloqueos de la partida
       setEndResult(result); setStats(s);
       setScreen(result === 'victory' ? 'victory' : 'gameover');
       setSave((prev) => {
@@ -394,7 +407,10 @@ export default function App() {
       });
     });
     const offWeapon = engine.onWeaponDiscover((id) => { setSave((prev) => discoverWeapon(prev, id)); });
-    const offKill = engine.onKillRecord((id) => { setSave((prev) => recordKill(prev, id)); });
+    const offKill = engine.onKillRecord((id) => {
+      killBuffer[id] = (killBuffer[id] ?? 0) + 1;
+      if (killTimer === null) killTimer = window.setTimeout(flushKills, 1500);
+    });
     const offItem = engine.onItemPickup((item, equipped, resolve) => {
       engineRef.current?.pause();
       setItemPickup({ item, equipped, resolve });
@@ -411,7 +427,12 @@ export default function App() {
       setScreen('event');
     });
 
-    return () => { offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offChoice(); offEvent(); engine.destroy(); engineRef.current = null; };
+    return () => {
+      flushKills();
+      window.removeEventListener('pagehide', flushKills);
+      offStats(); offLevel(); offEnd(); offWeapon(); offKill(); offItem(); offChoice(); offEvent();
+      engine.destroy(); engineRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -426,6 +447,14 @@ export default function App() {
       const buildCode = save.bindings.openBuild;
 
       if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
+      if (e.code === 'Escape' && screen === 'pickupchoice' && pickupChoice) {
+        e.preventDefault();
+        const res = pickupChoice.resolve;
+        setPickupChoice(null);
+        setScreen('playing');
+        res(null);
+        return;
+      }
       if ((e.code === pauseCode || e.code === 'Escape') && !showQuitConfirm && (screen === 'playing' || screen === 'paused' || screen === 'build' || screen === 'map')) {
         e.preventDefault();
         if (screen === 'playing') { engineRef.current?.pause(); setScreen('paused'); }
@@ -450,7 +479,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, save.bindings, rebinding, showQuitConfirm]);
+  }, [screen, save.bindings, rebinding, showQuitConfirm, pickupChoice]);
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
@@ -1287,6 +1316,8 @@ export default function App() {
                     onClick={() => {
                       const res = pickupChoice.resolve;
                       setPickupChoice(null);
+                      // Se vuelve al juego ANTES de resolver: si el objeto es equipo, el motor abre su propio modal justo después.
+                      setScreen('playing');
                       res(it.id);
                     }}
                   >
@@ -1315,10 +1346,11 @@ export default function App() {
                 onClick={() => {
                   const res = pickupChoice.resolve;
                   setPickupChoice(null);
+                  setScreen('playing');
                   res(null);
                 }}
               >
-                Cancelar
+                Cancelar (Esc)
               </button>
             </div>
           </div>

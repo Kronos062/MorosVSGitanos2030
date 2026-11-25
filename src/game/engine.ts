@@ -70,6 +70,8 @@ const CORRIDOR_THICK = 150;
 const COMBAT_WAVES = 3;
 const TOTAL_MAPS = 10;
 const PICKUP_INTERACT_RADIUS = 48;
+/** Segundos entre disparos consecutivos de una ráfaga (burstCount). */
+const BURST_INTERVAL = 0.07;
 
 const MAP_ROOMS_MIN = 7;
 const MAP_ROOMS_MAX = 13;
@@ -189,7 +191,8 @@ export class GameEngine {
   private goldGross = 0;
   private mapNumber = 1;
   private cycle = 1;
-  private scoreMultApplied = false;
+  /** Puntuación ya multiplicada por Ascensión/Endless en finales anteriores (el multiplicador solo afecta a lo ganado después). */
+  private scoreMultBaseline = 0;
   private runSeed = 0;
   private portal: PortalEntity | null = null;
   private pendingItemPickup: { pk: PickupEntity } | null = null;
@@ -206,7 +209,6 @@ export class GameEngine {
   private assistMode = false;
   private characterId = 'tariq';
   private pendingSkills: SkillChoice[] | null = null;
-  private queuedLevelUps = 0;
   private acquiredSkills: SkillDef[] = [];
   private onStatsCbs = new Set<(s: GameStats) => void>();
   private onLevelUpCbs = new Set<(choices: SkillChoice[]) => void>();
@@ -224,6 +226,11 @@ export class GameEngine {
   private lootVacuum = false;
   private nearestChest: ChestEntity | null = null;
   private closestChestWins = false;
+  /** Disparos de ráfaga pendientes (burstCount > 1): se lanzan con retardo real. */
+  private pendingVolleys: Array<{ delay: number; angle: number; spread: number; weaponId: string }> = [];
+  private dashDirX = 1;
+  private dashDirY = 0;
+  private lastStatsPush = 0;
   private eventEntities: InteractiveEventEntity[] = [];
   private nearestEvent: InteractiveEventEntity | null = null;
   private currentEvent: EventInstance | null = null;
@@ -263,6 +270,7 @@ export class GameEngine {
   private bindInput() {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.onBlur);
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
     this.canvas.addEventListener('pointermove', this.onPointerMove);
     this.canvas.addEventListener('pointerup', this.onPointerUp);
@@ -273,13 +281,20 @@ export class GameEngine {
 
   private onKeyDown = (e: KeyboardEvent) => {
     this.keys.add(e.code);
-    this.pressedKeys.add(e.code);
+    // Las repeticiones automáticas del teclado no cuentan como nuevas pulsaciones (E, dash...).
+    if (!e.repeat) this.pressedKeys.add(e.code);
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
     }
   };
   private onKeyUp = (e: KeyboardEvent) => {
     this.keys.delete(e.code);
+  };
+  /** Al perder el foco no llegan los keyup: se sueltan todas las teclas para que no queden "pegadas". */
+  private onBlur = () => {
+    this.keys.clear();
+    this.pressedKeys.clear();
+    this.pointer.down = false;
   };
   private onPointerDown = (e: PointerEvent) => {
     this.pointer.down = true;
@@ -393,12 +408,17 @@ export class GameEngine {
     this.pushStats();
   }
 
-  pause() { this.running = false; }
+  pause() {
+    this.running = false;
+    if (this.player) this.pushStats();
+  }
 
   resume() {
     if (this.ended || this.pendingSkills || this.pendingItemPickup || this.pendingPickupChoice) return;
     this.running = true;
     this.last = performance.now();
+    this.acc = 0;
+    this.pressedKeys.clear();
     if (!this.raf) this.raf = requestAnimationFrame(this.tick);
   }
 
@@ -419,14 +439,6 @@ export class GameEngine {
     this.recalcStats();
     if (grantsMaxHp) this.player.hp = this.player.maxHp;
     this.pendingSkills = null;
-    if (this.queuedLevelUps > 0) {
-      this.queuedLevelUps -= 1;
-      const choices = pickSkillChoices(3, this.buildSkillContext());
-      this.pendingSkills = choices;
-      for (const cb of this.onLevelUpCbs) cb(choices);
-      this.pushStats();
-      return;
-    }
     this.resume();
     this.pushStats();
   }
@@ -635,6 +647,7 @@ export class GameEngine {
     window.removeEventListener('resize', this.resize);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onBlur);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
@@ -777,6 +790,8 @@ export class GameEngine {
       if (combatCount() >= target) break;
       node.kind = 'combat';
       node.label = `Calle ${node.id}`;
+      // El evento descartado no debe contar para los límites por partida/mapa.
+      this.eventDirector.cancelEvent((node as any).eventId);
       delete (node as any).eventId;
     }
 
@@ -1130,8 +1145,8 @@ export class GameEngine {
     }
   }
 
-  private seededRandom(): () => number {
-    return () => runRandom.next('map');
+  private seededRandom(stream: 'map' | 'event' = 'map'): () => number {
+    return () => runRandom.next(stream);
   }
 
   private fullResetPlayer(charId: string) {
@@ -1169,6 +1184,8 @@ export class GameEngine {
   }
 
   private newMapLayout() {
+    // El mapa depende solo de (semilla, ciclo, nº de mapa): no de los eventos visitados antes.
+    runRandom.reseed('map', `layout:${this.cycle}:${this.mapNumber}`);
     this.currentBiome = pickBiomeForMap(this.mapNumber, TOTAL_MAPS, this.seededRandom());
     this.rooms = [];
     this.corridors = [];
@@ -1228,6 +1245,8 @@ export class GameEngine {
       weaponTags: w.tags ?? [],
       weaponElement: w.element,
       equippedSetIds: Array.from(setCounts.keys()),
+      acquiredIds: this.acquiredSkills.map((s) => s.id),
+      mapNumber: this.effectiveMapNumber(),
     };
   }
 
@@ -1363,7 +1382,8 @@ export class GameEngine {
   private resetRun() {
     this.mapNumber = 1;
     this.cycle = 1;
-    this.scoreMultApplied = false;
+    this.scoreMultBaseline = 0;
+    this.pendingVolleys = [];
     this.runSeed = runRandom.getSeed();
     this.lootMemory.reset();
     this.enemyDirector.reset();
@@ -1371,7 +1391,6 @@ export class GameEngine {
     this.runDirector.resetRun();
     this.runDirector.setAscensionLevel(this.ascensionLevel);
     this.acquiredSkills = [];
-    this.queuedLevelUps = 0;
     this.score = 0;
     this.kills = 0;
     this.combo = 0;
@@ -1458,6 +1477,8 @@ export class GameEngine {
     const realDt = Math.min((now - this.last) / 1000, 0.1);
     this.last = now;
     if (!this.running) {
+      // Las pulsaciones hechas en pausa o dentro de un modal no deben ejecutarse al reanudar.
+      this.pressedKeys.clear();
       this.render();
       return;
     }
@@ -1471,8 +1492,14 @@ export class GameEngine {
       steps++;
     }
     this.endDamageBatch();
+    // Sin tope, el tiempo acumulado tras un lag largo aceleraría el juego al recuperarse.
+    if (this.acc > this.fixedDt) this.acc = this.fixedDt;
     this.render();
-    this.pushStats();
+    // React no necesita 60 actualizaciones por segundo: el HUD se refresca ~12 veces por segundo.
+    if (now - this.lastStatsPush >= 80) {
+      this.lastStatsPush = now;
+      this.pushStats();
+    }
   };
 
   private isDown(action: InputAction): boolean {
@@ -1535,9 +1562,11 @@ export class GameEngine {
   private update(dt: number) {
     if (this.ended) return;
     this.worldTime += dt;
-    this.runDirector.update(this.buildRunTelemetry(), dt);
+    this.runDirector.update(this.buildRunTelemetry());
     const input = this.pollInput();
+    this.enemyDirector.tick(dt);
     this.updatePlayer(dt, input);
+    this.updatePendingVolleys(dt);
     this.updateProjectiles(dt);
     this.updateEnemies(dt);
     this.updatePickups(dt);
@@ -1565,6 +1594,10 @@ export class GameEngine {
     const dashJustPressed = this.isPressed('dash');
     if (dashJustPressed && p.dashCooldown <= 0 && !p.isDashing) {
       p.isDashing = true;
+      // Si no hay dirección de movimiento, el dash sale hacia donde mira el personaje.
+      const fl = Math.hypot(p.facingX, p.facingY) || 1;
+      this.dashDirX = p.facingX / fl;
+      this.dashDirY = p.facingY / fl;
       p.dashTime = 0.18;
       p.dashCooldown = p.dashCooldownMax;
       p.invuln = Math.max(p.invuln, 0.2);
@@ -1580,8 +1613,12 @@ export class GameEngine {
       if (p.dashTime <= 0) p.isDashing = false;
     }
 
-    const mx = input.moveX;
-    const my = input.moveY;
+    let mx = input.moveX;
+    let my = input.moveY;
+    if (p.isDashing && mx === 0 && my === 0) {
+      mx = this.dashDirX;
+      my = this.dashDirY;
+    }
     if (mx !== 0 || my !== 0) {
       const nx = p.x + mx * speed * dt;
       const ny = p.y + my * speed * dt;
@@ -1749,7 +1786,9 @@ export class GameEngine {
         this.startNextWave(room);
         return;
       }
-      const rng = this.seededRandom();
+      // Cada sala de evento genera su instancia de forma determinista, se visite en el orden que se visite.
+      runRandom.reseed('event', `room:${this.cycle}:${this.mapNumber}:${room.id}`);
+      const rng = this.seededRandom('event');
       const instance = this.eventDirector.generateInstance(
         evId,
         {
@@ -1866,8 +1905,9 @@ export class GameEngine {
     const list: EnemyDef[] = [
       {
         ...chosenBoss,
-        hp: Math.floor(chosenBoss.hp * (1 + room.id * 0.05) * intMult),
-        damage: Math.floor(chosenBoss.damage * intMult),
+        // Misma escala por mapa/ciclo que el resto de enemigos (EnemyDirector.scaleEnemy).
+        hp: Math.floor(chosenBoss.hp * (1 + room.id * 0.05) * (1 + (ctx.mapNumber - 1) * 0.12) * intMult),
+        damage: Math.floor(chosenBoss.damage * (1 + (ctx.mapNumber - 1) * 0.08) * intMult),
       },
       ...adds,
     ];
@@ -2196,53 +2236,76 @@ export class GameEngine {
 
   private fireWeapon(p: PlayerState, dx: number, dy: number) {
     const w = getWeapon(p.weaponId);
-    const rateMult = Math.max(0.1, 1 + (p.fireRateMult - 1));
-    p.fireCooldown = 1 / (w.fireRate * rateMult);
-    const count = w.count + p.countBonus;
+    p.fireCooldown = 1 / (w.fireRate * Math.max(0.1, p.fireRateMult));
     const baseAngle = Math.atan2(dy, dx);
-    const half = (count - 1) / 2;
     const burstN = w.burstCount && w.burstCount > 1 ? w.burstCount : 1;
     const effectiveSpread = w.spread * p.spreadMult;
 
-    for (let b = 0; b < burstN; b++) {
-      const burstDelay = (b / burstN) * 0.03;
-      for (let i = 0; i < count; i++) {
-        const spread =
-          (i - half) * effectiveSpread +
-          (runRandom.next('combat') - 0.5) * effectiveSpread * 0.3;
-        const ang = baseAngle + spread;
-        const crit = runRandom.next('combat') < p.critChance;
-        const unstableMult = w.unstable ? 0.75 + runRandom.next('combat') : 1;
-        const dmg = w.damage * p.damageMult * (crit ? p.critDamageMult : 1) * unstableMult;
-        const size = (w.projectileSize + p.projectileSizeBonus + (crit ? 2 : 0)) * (w.sizeMult ?? 1);
-        this.projectiles.push({
-          id: this.nextId++,
-          x: p.x + Math.cos(ang) * 18,
-          y: p.y + Math.sin(ang) * 18 + burstDelay * 30 * b,
-          vx: Math.cos(ang) * w.projectileSpeed,
-          vy: Math.sin(ang) * w.projectileSpeed,
-          damage: dmg,
-          color: crit ? '#ffe14a' : w.color,
-          size,
-          pierce: w.pierce + p.pierceBonus,
-          pierced: new Set(),
-          life: w.lifetime ?? 1.8,
-          owner: 'player',
-          sprite: w.baseId,
-          _bounceCount: (w.bounceCount ?? 0) + p.bounceBonus,
-          _explosionRadius: (w.explosionRadius ?? 0) + p.explosionBonus,
-          _lifesteal: w.lifesteal,
-          _element: w.element,
-          _elementChance: w.elementChance,
-          _chain: w.chain,
-          _chainChance: w.chainChance,
-          _isCrit: crit,
-        });
-      }
+    this.spawnVolley(p, w, baseAngle, effectiveSpread);
+    // Las ráfagas lanzan el resto de disparos con un retardo real entre ellos.
+    for (let b = 1; b < burstN; b++) {
+      this.pendingVolleys.push({ delay: b * BURST_INTERVAL, angle: baseAngle, spread: effectiveSpread, weaponId: p.weaponId });
     }
     this.muzzleFlash(p.x, p.y, baseAngle, w.color);
     spriteAtlas.spawnEffect(`muzzle_${w.element ?? 'phys'}`, p.x + Math.cos(baseAngle) * 14, p.y + Math.sin(baseAngle) * 14, this.worldTime, baseAngle);
     audio.play(w.sound);
+  }
+
+  private updatePendingVolleys(dt: number) {
+    if (this.pendingVolleys.length === 0) return;
+    const p = this.player;
+    const due: typeof this.pendingVolleys = [];
+    for (const v of this.pendingVolleys) {
+      v.delay -= dt;
+      if (v.delay <= 0) due.push(v);
+    }
+    if (due.length === 0) return;
+    this.pendingVolleys = this.pendingVolleys.filter((v) => v.delay > 0);
+    for (const v of due) {
+      // Si el jugador cambió de arma entre disparos de la ráfaga, la ráfaga se descarta.
+      if (v.weaponId !== p.weaponId) continue;
+      this.spawnVolley(p, getWeapon(v.weaponId), v.angle, v.spread);
+      audio.play(getWeapon(v.weaponId).sound);
+    }
+  }
+
+  private spawnVolley(p: PlayerState, w: ReturnType<typeof getWeapon>, baseAngle: number, effectiveSpread: number) {
+    const count = w.count + p.countBonus;
+    const half = (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      const spread =
+        (i - half) * effectiveSpread +
+        (runRandom.next('combat') - 0.5) * effectiveSpread * 0.3;
+      const ang = baseAngle + spread;
+      const crit = runRandom.next('combat') < p.critChance;
+      const unstableMult = w.unstable ? 0.75 + runRandom.next('combat') : 1;
+      const dmg = w.damage * p.damageMult * (crit ? p.critDamageMult : 1) * unstableMult;
+      const size = (w.projectileSize + p.projectileSizeBonus + (crit ? 2 : 0)) * (w.sizeMult ?? 1);
+      this.projectiles.push({
+        id: this.nextId++,
+        x: p.x + Math.cos(ang) * 18,
+        y: p.y + Math.sin(ang) * 18,
+        vx: Math.cos(ang) * w.projectileSpeed,
+        vy: Math.sin(ang) * w.projectileSpeed,
+        damage: dmg,
+        // Si el arma ya es amarilla, el crítico se distingue con un blanco cálido.
+        color: crit ? (w.color.toLowerCase() === '#ffe14a' ? '#fffbe0' : '#ffe14a') : w.color,
+        size,
+        pierce: w.pierce + p.pierceBonus,
+        pierced: new Set(),
+        life: w.lifetime ?? 1.8,
+        owner: 'player',
+        sprite: w.baseId,
+        _bounceCount: (w.bounceCount ?? 0) + p.bounceBonus,
+        _explosionRadius: (w.explosionRadius ?? 0) + p.explosionBonus,
+        _lifesteal: w.lifesteal,
+        _element: w.element,
+        _elementChance: w.elementChance,
+        _chain: w.chain,
+        _chainChance: w.chainChance,
+        _isCrit: crit,
+      });
+    }
   }
 
   private updateProjectiles(dt: number) {
@@ -2256,24 +2319,19 @@ export class GameEngine {
       const containingRoom = walkables.find((b) => rectsOverlapPoint(b, pr.x, pr.y, 0));
 
       if (pr._bounceCount && pr._bounceCount > 0) {
+        // Solo rebota si se dirige hacia la pared: así un disparo hecho junto a un muro, alejándose, no gasta rebotes.
         const bounds = walkables.find((b) => rectsOverlapPoint(b, pr.x, pr.y, pr.size + 40));
         if (bounds) {
-          if (pr.x < bounds.x + 30 || pr.x > bounds.x + bounds.w - 30) {
+          if ((pr.x < bounds.x + 30 && pr.vx < 0) || (pr.x > bounds.x + bounds.w - 30 && pr.vx > 0)) {
             pr.vx = -pr.vx;
             pr.x = Math.max(bounds.x + 30, Math.min(bounds.x + bounds.w - 30, pr.x));
             pr._bounceCount -= 1;
           }
-          if (pr.y < bounds.y + 30 || pr.y > bounds.y + bounds.h - 30) {
+          if ((pr.y < bounds.y + 30 && pr.vy < 0) || (pr.y > bounds.y + bounds.h - 30 && pr.vy > 0)) {
             pr.vy = -pr.vy;
             pr.y = Math.max(bounds.y + 30, Math.min(bounds.y + bounds.h - 30, pr.y));
             pr._bounceCount -= 1;
           }
-        }
-        if (pr._bounceCount < 0) {
-          if (pr._explosionRadius && pr._explosionRadius > 0) {
-            this.explodeAt(pr.x, pr.y, pr._explosionRadius, pr.damage * 0.5, pr.color);
-          }
-          continue;
         }
       }
 
@@ -2324,7 +2382,7 @@ export class GameEngine {
     }
     if (pr._isCrit && this.acquiredSkills.some((s) => s.id === 'skill_bleed_crit')) {
       e.bleedTimer = 3;
-      e.bleedDps = Math.max(2, pr.damage * 0.12) * (this.player?.burnDpsMult ?? 1);
+      e.bleedDps = Math.max(2, pr.damage * 0.12);
     }
     if (
       pr._chain &&
@@ -2496,8 +2554,8 @@ export class GameEngine {
         e.y += ny * spd * 1.3 * dt;
         if (dist < (e.explosionRadius ?? 50) * 0.5) {
           this.explodeEnemy(e);
-          e.dead = true;
-          e.hp = 0;
+          // Cuenta como baja (XP, puntuación, bestiario y botín), no desaparece sin más.
+          this.killEnemy(e);
         }
       }
 
@@ -2576,10 +2634,6 @@ export class GameEngine {
     const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
     const dmg = Math.max(1, amount * ascDmgMult - p.armor) * (this.assistMode ? 0.75 : 1);
 
-    if (this.currentEvent?.combatRules?.noDamage) {
-      this.challengeFailed = true;
-    }
-
     if (p.shield > 0) {
       p.shield -= 1;
       this.activateDamageInvulnerability(0.4);
@@ -2588,7 +2642,13 @@ export class GameEngine {
       this.camera.shake = Math.max(this.camera.shake, 0.2);
       return;
     }
+    // "Intocable": solo falla si pierdes vida; un golpe absorbido por el escudo no cuenta.
+    if (this.currentEvent?.combatRules?.noDamage) {
+      this.challengeFailed = true;
+    }
     const heavy = dmg > 18;
+    const lowThreshold = p.maxHp * 0.25;
+    const wasAboveLow = p.hp >= lowThreshold;
     p.hp -= dmg;
     this.damageTakenTotal += dmg;
     this.activateDamageInvulnerability(0.5);
@@ -2600,8 +2660,9 @@ export class GameEngine {
     } else {
       this.burst(p.x, p.y, '#ff2a4b', 10);
     }
-    if (p.hp > 0 && p.hp < p.maxHp * 0.25) {
-      this.enemyDirector.onNearDeath();
+    if (p.hp > 0 && p.hp < lowThreshold) {
+      // Solo cuenta como "casi-muerte" al cruzar el umbral, no en cada golpe mientras sigues con poca vida.
+      if (wasAboveLow) this.enemyDirector.onNearDeath();
       this.burstJuice(p.x, p.y, '#ff2a4b', 14, 1.8, 0.2);
       this.camera.shake = 0.6;
     }
@@ -2624,7 +2685,7 @@ export class GameEngine {
           e.hitFlash = 0.1;
           pr.pierced.add(e.id);
           audio.play('hit');
-          const isCrit = pr.color === '#ffe14a';
+          const isCrit = pr._isCrit === true;
           if (isCrit) {
             this.burstJuice(pr.x, pr.y, '#ffe14a', 10, 1.3, 0.15);
             this.camera.shake = Math.max(this.camera.shake, 0.15);
@@ -2781,7 +2842,7 @@ export class GameEngine {
     x: number, y: number, kind: PickupEntity['kind'],
     color: string, value: number, weaponId?: string, itemId?: string,
   ) {
-    const life = kind === 'item' || kind === 'weapon' ? Number.POSITIVE_INFINITY : 25;
+    const life = kind === 'item' || kind === 'weapon' || kind === 'relic' ? Number.POSITIVE_INFINITY : 25;
     this.pickups.push({
       id: this.nextId++, x, y, kind, color, value,
       weaponId, itemId,
@@ -3301,7 +3362,8 @@ export class GameEngine {
               this.projectiles.push({
                 id: this.nextId++, x: pet.x, y: pet.y,
                 vx: (dx / d) * 640, vy: (dy / d) * 640,
-                damage: (eff.value ?? 8) * (1 + (this.mapNumber - 1) * 0.1),
+                // Escala con el mapa efectivo (también en Endless) y con la mitad de tu bonus de daño: la mascota no se queda atrás.
+                damage: (eff.value ?? 8) * (1 + (this.effectiveMapNumber() - 1) * 0.1) * (1 + (this.player.damageMult - 1) * 0.5),
                 color: def.color, size: 4, pierce: 0, pierced: new Set(),
                 life: 1.4, owner: 'player',
               });
@@ -3318,7 +3380,7 @@ export class GameEngine {
             const radius = eff.radius ?? 160;
             const elemSyn = this.getElementSynergyMult('ice');
             for (const e of this.enemies) {
-              if (Math.hypot(e.x - pet.x, e.y - pet.y) < radius) e.slowTimer = 0.8 * elemSyn;
+              if (Math.hypot(e.x - pet.x, e.y - pet.y) < radius) e.slowTimer = Math.max(e.slowTimer ?? 0, 0.8 * elemSyn);
             }
           }
           break;
@@ -3334,9 +3396,16 @@ export class GameEngine {
             for (const e of this.enemies) {
               if (Math.hypot(e.x - pet.x, e.y - pet.y) >= radius) continue;
               const elemColor = eff.key === 'fire' ? '#ff6a00' : eff.key === 'toxic' ? '#9dff00' : '#6ef0ff';
-              if (eff.key === 'fire') { e.burnTimer = 3 * elemSyn; e.burnDps = dps * elemSyn; }
-              else if (eff.key === 'toxic') { e.poisonTimer = 4 * elemSyn; e.poisonDps = dps * elemSyn; }
-              else if (eff.key === 'ice') { e.slowTimer = 2 * elemSyn; }
+              // Nunca se sustituye un efecto más fuerte (p. ej. del arma del jugador) por uno más débil de la mascota.
+              if (eff.key === 'fire') {
+                e.burnTimer = Math.max(e.burnTimer ?? 0, 3 * elemSyn);
+                e.burnDps = Math.max(e.burnDps ?? 0, dps * elemSyn);
+              } else if (eff.key === 'toxic') {
+                e.poisonTimer = Math.max(e.poisonTimer ?? 0, 4 * elemSyn);
+                e.poisonDps = Math.max(e.poisonDps ?? 0, dps * elemSyn);
+              } else if (eff.key === 'ice') {
+                e.slowTimer = Math.max(e.slowTimer ?? 0, 2 * elemSyn);
+              }
               this.burst(e.x, e.y, elemColor, 3);
             }
           }
@@ -3415,10 +3484,10 @@ export class GameEngine {
     this.ended = result;
     this.running = false;
     const scoreMult = this.runDirector.getAscensionState()?.scoreMult ?? 1;
-    if (scoreMult !== 1 && !this.scoreMultApplied) {
-      this.score = Math.round(this.score * scoreMult);
-      this.scoreMultApplied = true;
-    }
+    // El multiplicador se aplica solo a lo ganado desde el último final (Endless: no se compone ni se pierde).
+    const gainedSinceLastEnd = this.score - this.scoreMultBaseline;
+    this.score = this.scoreMultBaseline + Math.round(gainedSinceLastEnd * scoreMult);
+    this.scoreMultBaseline = this.score;
     if (!silent) audio.play(result === 'victory' ? 'levelup' : 'death');
     const stats = this.getStats();
     for (const cb of this.onEndCbs) cb(result, stats);

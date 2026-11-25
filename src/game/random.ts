@@ -17,7 +17,12 @@ class RunRandom {
   private readonly states = new Map<RandomStream, number>();
 
   setSeed(seed: number | string): number {
-    const normalized = typeof seed === 'number' ? seed >>> 0 : this.hash(seed);
+    // Una semilla escrita como número ("123456789") equivale a ese número, así la semilla que
+    // muestra el juego (numérica) reproduce exactamente la misma partida al volver a introducirla.
+    const text = typeof seed === 'string' ? seed.trim() : '';
+    const numeric = /^\d{1,10}$/.test(text) && Number(text) <= 0xffffffff ? Number(text) : null;
+    const normalized =
+      typeof seed === 'number' ? seed >>> 0 : numeric !== null ? numeric >>> 0 : this.hash(text);
     this.seed = normalized || 1;
     this.states.clear();
     return this.seed;
@@ -25,6 +30,15 @@ class RunRandom {
 
   getSeed(): number {
     return this.seed;
+  }
+
+  /**
+   * Reinicia un flujo a un estado derivado de (semilla, flujo, clave). Sirve para que cada mapa o sala
+   * se genere igual con la misma semilla, sin depender de cuántos números aleatorios se consumieron antes
+   * (p. ej. por los eventos que se visitaron en mapas anteriores).
+   */
+  reseed(stream: RandomStream, key: string): void {
+    this.states.set(stream, this.hash(`${this.seed}:${stream}:${key}`) || 1);
   }
 
   next(stream: RandomStream): number {

@@ -144,7 +144,8 @@ export class IntensityTracker {
   private readonly maxIntensity = 100;
   private readonly minIntensity = 0;
 
-  update(ctx: DirectorContext, dt: number): void {
+  /** Una evaluación por oleada: los deltas están pensados como "por oleada". */
+  update(ctx: DirectorContext): void {
     let delta = 0;
 
     if (ctx.playerHpRatio < 0.3) delta += 8;
@@ -162,9 +163,12 @@ export class IntensityTracker {
 
     if (ctx.playerShield > 0) delta -= 1;
 
-    delta -= this.decayRate * dt;
-
     this.intensity = Math.max(this.minIntensity, Math.min(this.maxIntensity, this.intensity + delta));
+  }
+
+  /** Relajación continua con el tiempo de juego real (no depende del número de oleadas). */
+  decay(dt: number): void {
+    this.intensity = Math.max(this.minIntensity, this.intensity - this.decayRate * dt);
   }
 
   getIntensity(): number {
@@ -210,17 +214,17 @@ export class EncounterMemory {
   }
 
   compositionWeight(compId: string): number {
-    const idx = this.recentCompositions.indexOf(compId);
+    const idx = this.recentCompositions.lastIndexOf(compId);
     if (idx === -1) return 1;
     const recency = this.recentCompositions.length - 1 - idx;
-    return 0.3 + recency * 0.08;
+    return Math.min(1, 0.3 + recency * 0.08);
   }
 
   enemyWeight(enemyId: string): number {
-    const idx = this.recentEnemies.indexOf(enemyId);
+    const idx = this.recentEnemies.lastIndexOf(enemyId);
     if (idx === -1) return 1;
     const recency = this.recentEnemies.length - 1 - idx;
-    return 0.5 + recency * 0.05;
+    return Math.min(1, 0.5 + recency * 0.05);
   }
 
   reset(): void {
@@ -240,6 +244,25 @@ export class EnemyDirector {
   private damageTimer = 0;
   private bossesDefeated = 0;
   private roomsCleared = 0;
+
+  /**
+   * Avanza el tiempo de juego: los contadores "recientes" se van olvidando.
+   * (Antes solo decaían dentro de generateWave, con dt de 1/60 por oleada, y no decaían nunca.)
+   */
+  tick(dt: number): void {
+    this.intensityTracker.decay(dt);
+    this.killTimer += dt;
+    while (this.killTimer >= 3) {
+      this.killTimer -= 3;
+      this.recentKills = Math.max(0, this.recentKills - 1);
+    }
+    this.recentDamageTaken = Math.max(0, this.recentDamageTaken - 3 * dt);
+    this.damageTimer += dt;
+    while (this.damageTimer >= 10) {
+      this.damageTimer -= 10;
+      this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
+    }
+  }
 
   onKill(): void {
     this.totalKills++;
@@ -294,23 +317,11 @@ export class EnemyDirector {
   generateWave(
     ctx: DirectorContext,
     _player: PlayerState,
-    dt: number,
+    _dt: number,
     runDirector?: RunDirector,
     biome?: BiomeDef,
   ): EnemyDef[] {
-    this.intensityTracker.update(ctx, dt);
-    this.killTimer += dt;
-    this.damageTimer += dt;
-
-    if (this.killTimer > 3) {
-      this.recentKills = Math.max(0, this.recentKills - 1);
-      this.killTimer = 0;
-    }
-    if (this.damageTimer > 4) {
-      this.recentDamageTaken = Math.max(0, this.recentDamageTaken - 2);
-      this.damageTimer = 0;
-      this.nearDeathCount = Math.max(0, this.nearDeathCount - 1);
-    }
+    this.intensityTracker.update(ctx);
 
     let effectiveIntensity = this.intensityTracker.getIntensity();
     const ascState = runDirector?.getAscensionState();

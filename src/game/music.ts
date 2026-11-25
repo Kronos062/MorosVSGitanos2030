@@ -42,10 +42,25 @@ class MusicManager {
     this.crossfadeTo(file);
   }
 
+  /** Pista que se está apagando en un crossfade en curso. */
+  private outgoing: HTMLAudioElement | null = null;
+
+  private stopTrack(el: HTMLAudioElement) {
+    el.pause();
+    el.removeAttribute('src');
+    el.load(); // libera el recurso
+  }
+
   private crossfadeTo(file: string) {
     if (this.fadeInterval) {
       clearInterval(this.fadeInterval);
       this.fadeInterval = null;
+    }
+    // Si se interrumpe un crossfade, la pista que se estaba apagando se corta ya
+    // (antes se quedaba sonando a medio volumen para siempre).
+    if (this.outgoing) {
+      this.stopTrack(this.outgoing);
+      this.outgoing = null;
     }
 
     const next = new Audio(`${import.meta.env.BASE_URL}assets/music/${file}`);
@@ -57,6 +72,7 @@ class MusicManager {
     next.play().catch(() => {});
 
     const prev = this.current;
+    this.outgoing = prev;
     this.current = next;
     this.currentKey = file;
 
@@ -81,8 +97,8 @@ class MusicManager {
           this.fadeInterval = null;
         }
         if (prev) {
-          prev.pause();
-          prev.src = ''; // help garbage collection
+          this.stopTrack(prev);
+          if (this.outgoing === prev) this.outgoing = null;
         }
         if (this.current === next) {
           next.volume = this.volume;

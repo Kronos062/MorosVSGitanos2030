@@ -136,7 +136,7 @@ export class LootMemory {
   }
 
   private penalty(list: string[], id: string): number {
-    const idx = list.indexOf(id);
+    const idx = list.lastIndexOf(id);
     if (idx === -1) return 1;
     const recencyFromNewest = list.length - 1 - idx;
     return 0.35 + 0.1 * recencyFromNewest;

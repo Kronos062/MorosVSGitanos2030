@@ -50,8 +50,6 @@ export class RunDirector {
   private mood: RunMood = 'stable';
   private recentEventIds: string[] = [];
   private bossResonance: string | null = null;
-  private recentDamageTimer = 0;
-  private recentKillTimer = 0;
   private ascensionState: AscensionState | null = null;
   private activeEndlessModifierIds: string[] = [];
 
@@ -59,8 +57,6 @@ export class RunDirector {
     this.mood = 'stable';
     this.recentEventIds = [];
     this.bossResonance = null;
-    
-    
     this.ascensionState = null;
     this.activeEndlessModifierIds = [];
   }
@@ -127,11 +123,7 @@ export class RunDirector {
     return this.mood;
   }
 
-  update(telemetry: RunTelemetry, dt: number): void {
-    // Update internal timers and decay recent counters
-    
-    
-
+  update(telemetry: RunTelemetry): void {
     // Calculate Mood Score from data-driven telemetry factors
     let score = 0;
 

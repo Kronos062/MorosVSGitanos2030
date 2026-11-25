@@ -4,6 +4,10 @@ export interface SkillContext {
   weaponTags: string[];
   weaponElement?: string;
   equippedSetIds: string[];
+  /** IDs de las habilidades que ya tienes (para no repetir las únicas y variar las acumulables). */
+  acquiredIds?: string[];
+  /** Mapa efectivo (incluye ciclos Endless): cuanto más avanzas, más probables son las raras. */
+  mapNumber?: number;
 }
 
 export interface SkillDef {
@@ -93,13 +97,42 @@ function skillMatchesContext(skill: SkillDef, ctx?: SkillContext): boolean {
  * When a SkillContext is supplied, conditional skills that don't match the
  * current build are excluded from the selection.
  */
+const RARITY_BASE_WEIGHT: Record<string, number> = { common: 60, uncommon: 32, rare: 16, epic: 7, legendary: 2.5 };
+/** Cuánto crece (o baja) cada rareza al avanzar de mapa: al principio mandan las comunes, al final las épicas y legendarias. */
+const RARITY_PROGRESS_FACTOR: Record<string, number> = { common: -0.5, uncommon: 0, rare: 1, epic: 1.5, legendary: 2 };
+/** Las habilidades de estas rarezas son únicas: una vez adquiridas no vuelven a ofrecerse (salvo que no queden alternativas). */
+const UNIQUE_RARITIES = new Set(['rare', 'epic', 'legendary']);
+
+export function skillWeight(skill: SkillDef, ctx?: SkillContext): number {
+  const progress = Math.min(1, Math.max(0, ((ctx?.mapNumber ?? 1) - 1) / 9));
+  let w = (RARITY_BASE_WEIGHT[skill.rarity] ?? 20) * (1 + (RARITY_PROGRESS_FACTOR[skill.rarity] ?? 0) * progress);
+  const copies = ctx?.acquiredIds?.filter((id) => id === skill.id).length ?? 0;
+  if (copies > 0) w *= UNIQUE_RARITIES.has(skill.rarity) ? 0 : Math.pow(0.5, copies); // las acumulables pesan la mitad por copia
+  return w;
+}
+
 export function pickSkillChoices(count = 3, ctx?: SkillContext): SkillDef[] {
   const pool = SKILLS.filter((s) => skillMatchesContext(s, ctx));
   const result: SkillDef[] = [];
-  const available = [...pool];
+  const available = pool.map((skill) => ({ skill, w: skillWeight(skill, ctx) }));
+  // Si las exclusiones dejan menos opciones que huecos, las únicas ya adquiridas vuelven con poco peso.
+  if (available.filter((a) => a.w > 0).length < count) {
+    for (const a of available) if (a.w <= 0) a.w = 0.5;
+  }
   while (result.length < count && available.length > 0) {
-    const i = runRandom.int('choice', available.length);
-    result.push(available.splice(i, 1)[0]);
+    const total = available.reduce((sum, a) => sum + a.w, 0);
+    let idx = 0;
+    if (total > 0) {
+      let r = runRandom.next('choice') * total;
+      for (let i = 0; i < available.length; i++) {
+        r -= available[i].w;
+        if (r <= 0) { idx = i; break; }
+        idx = i;
+      }
+    } else {
+      idx = runRandom.int('choice', available.length);
+    }
+    result.push(available.splice(idx, 1)[0].skill);
   }
   return result;
 }

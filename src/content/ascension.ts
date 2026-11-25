@@ -213,7 +213,7 @@ export const ENDLESS_MODIFIERS: AscensionModifier[] = [
     description: 'Enemigos +20% daño. A cambio, +15% oro.',
     enemyDamageMult: 1.20, goldWeightMult: 1.15 },
   { id: 'endless_swift', label: 'Marabunta', icon: '⚡',
-    description: 'Enemigos +15% velocidad e intensidad. A cambio, +10% XP.',
+    description: 'Oleadas un 15% más intensas. A cambio, +10% XP.',
     enemyIntensityMult: 1.15, xpMult: 1.10 },
   { id: 'endless_scarce', label: 'Escasez', icon: '🩸',
     description: '-30% probabilidad de curación. A cambio, +25% probabilidad de objeto raro.',

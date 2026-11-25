@@ -17,7 +17,7 @@ export const CHESTS: ChestDef[] = [
     name: 'Cofre de Calle',
     color: '#ffe14a',
     glow: '#ff8800',
-    weaponChance: 1,
+    weaponChance: 0.4,
     basicLoot: ['heal', 'score'],
     highTier: false,
   },
@@ -26,7 +26,7 @@ export const CHESTS: ChestDef[] = [
     name: 'Cofre de Armería',
     color: '#00f0ff',
     glow: '#00c8ff',
-    weaponChance: 1,
+    weaponChance: 0.7,
     basicLoot: ['shield'],
     highTier: true,
   },
@@ -41,8 +41,16 @@ export const CHESTS: ChestDef[] = [
   },
 ];
 
+/** Nombres alternativos (los del manifiesto de sprites) → cofre real del juego. */
+const CHEST_ALIASES: Record<string, string> = {
+  chest_common: 'chest_street',
+  chest_rare: 'chest_armory',
+  chest_legendary: 'chest_boss',
+};
+
 export function getChest(id: string): ChestDef {
-  return CHESTS.find((c) => c.id === id) ?? CHESTS[0];
+  const real = CHEST_ALIASES[id] ?? id;
+  return CHESTS.find((c) => c.id === real) ?? CHESTS[0];
 }
 
 export function pickChestWeaponId(highTier: boolean): string {

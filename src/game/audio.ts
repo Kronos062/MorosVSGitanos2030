@@ -22,9 +22,18 @@ const SOUND_FILES = {
 
 type SoundId = keyof typeof SOUND_FILES;
 
+/** Máximo de elementos <audio> simultáneos por sonido (se reutilizan en vez de crear uno nuevo por disparo). */
+const POOL_SIZE = 5;
+/** Intervalo mínimo entre dos reproducciones del mismo sonido (evita saturar con escopetas, explosiones...). */
+const MIN_INTERVAL_MS = 35;
+const NO_THROTTLE = new Set<string>(['button', 'levelup', 'death', 'wave_start']);
+
 export class AudioManager {
   private volume = 0.7;
   private enabled = true;
+  private pools = new Map<string, HTMLAudioElement[]>();
+  private lastPlayed = new Map<string, number>();
+  private cursor = new Map<string, number>();
 
   setVolume(v: number) {
     this.volume = Math.max(0, Math.min(1, v));
@@ -47,8 +56,29 @@ export class AudioManager {
       return;
     }
     try {
-      const el = new Audio(`${import.meta.env.BASE_URL}assets/sounds/${file}`);
+      const now = performance.now();
+      if (!NO_THROTTLE.has(id) && now - (this.lastPlayed.get(id) ?? -1e9) < MIN_INTERVAL_MS) return;
+      this.lastPlayed.set(id, now);
+
+      let pool = this.pools.get(id);
+      if (!pool) {
+        pool = [];
+        this.pools.set(id, pool);
+      }
+      let el = pool.find((a) => a.paused || a.ended);
+      if (!el) {
+        if (pool.length < POOL_SIZE) {
+          el = new Audio(`${import.meta.env.BASE_URL}assets/sounds/${file}`);
+          pool.push(el);
+        } else {
+          // Pool lleno: se reutiliza el más antiguo en rotación.
+          const i = (this.cursor.get(id) ?? 0) % pool.length;
+          this.cursor.set(id, i + 1);
+          el = pool[i];
+        }
+      }
       el.volume = this.volume;
+      el.currentTime = 0;
       el.play().catch(() => {
         // Archivo ausente o bloqueo de autoplay — fallo silencioso.
       });
