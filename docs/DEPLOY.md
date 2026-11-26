@@ -4,6 +4,8 @@
 
 Las pull requests a `main` ejecutan la comprobación de tipos, las pruebas unitarias y el build con Node 22. Un push a `main` compila y publica `dist/` mediante el entorno `github-pages`.
 
+Después de publicar, el workflow compara el HTML y el manifiesto públicos con sus sumas SHA-256 de compilación y comprueba que se sirven un sprite y un sonido desde la ruta del juego.
+
 En la configuración de Pages del repositorio, selecciona **GitHub Actions** como origen de publicación. Para repetir el despliegue, ejecuta el workflow **Build and deploy GitHub Pages** sobre `main`.
 
 ## Opción A · Subir el sitio ya construido (recomendada)
