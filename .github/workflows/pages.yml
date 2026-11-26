@@ -13,6 +13,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      index_sha: ${{ steps.digests.outputs.index_sha }}
+      manifest_sha: ${{ steps.digests.outputs.manifest_sha }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -23,6 +26,11 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run test:unit
       - run: npm run build
+      - name: Record production checksums
+        id: digests
+        run: |
+          echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "manifest_sha=$(sha256sum dist/assets/sprites/manifest.json | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-pages-artifact@v4
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
@@ -42,6 +50,16 @@ jobs:
       group: github-pages
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Deploy
         id: deploy
         uses: actions/deploy-pages@v4
+      - name: Verify the public build and assets
+        env:
+          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+          INDEX_SHA: ${{ needs.build.outputs.index_sha }}
+          MANIFEST_SHA: ${{ needs.build.outputs.manifest_sha }}
+        run: node tests/e2e/published-smoke.mjs "$PAGE_URL" "$INDEX_SHA" "$MANIFEST_SHA"
