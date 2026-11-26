@@ -1,0 +1,1 @@
+Extracción experimental del atlas generado: 50 tiras de Bombeta y MDLR. Fondo segmentado automáticamente, escala 24x32, anclaje inferior. Pendiente revisión visual, direcciones y ejecución. No son animaciones dibujadas manualmente ni exportadas desde LibreSprite.

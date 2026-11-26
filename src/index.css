@@ -426,11 +426,8 @@ canvas.game-canvas {
 }
 
 .boss-bar {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
   width: min(480px, 80vw);
+  margin: 12px auto 0;
   background: rgba(18, 21, 32, 0.9);
   border: 1px solid rgba(255, 42, 75, 0.6);
   padding: 8px 12px;

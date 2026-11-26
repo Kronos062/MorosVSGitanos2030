@@ -362,6 +362,79 @@ img.pixel-portrait {
   text-shadow: 2px 2px 0 var(--px-ink);
 }
 
+.ability-energy {
+  align-self: center;
+  padding: 4px 6px;
+  border: 2px solid var(--px-edge);
+  background: var(--px-night);
+  color: var(--px-tile-hi);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.bestiary-roster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  text-align: left;
+}
+
+.bestiary-roster > details {
+  grid-column: 1 / -1;
+}
+
+.bestiary-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bestiary-name .pixel-icon {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  flex: none;
+}
+
+.pixel-idle {
+  display: block;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.pixel-idle[data-animated="true"] {
+  animation-name: rival-idle;
+  animation-iteration-count: infinite;
+}
+
+@keyframes rival-idle {
+  to { background-position: 100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-idle[data-animated="true"] { animation-name: none; }
+}
+
+@media (max-width: 560px) {
+  .bestiary-roster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hud-bottom {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .hud-bottom .abilities {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 /* Barras: marco duro + relleno segmentado (una marca cada 12 px) + brillo superior */
 .health-bar-bg,
 .xp-bar-bg,

@@ -1,11 +1,23 @@
 {
   "id": "ziryab",
   "type": "characters",
-  "name": "Alquimista Ziryab",
+  "name": "Aplatinado en Corán",
   "faction": "bando_moros",
-  "stats": { "hp": 90, "speed": 250, "armor": 1, "critChance": 0.15 },
+  "stats": {
+    "hp": 150,
+    "speed": 238,
+    "armor": 1,
+    "critChance": 0.15
+  },
   "startingWeapon": "laser",
   "passiveSlots": 5,
-  "sprite": { "color": "#39ff88", "glow": "#39ff88", "shape": "triangle" },
-  "description": "Maestro de la química y energía. Disparos corrosivos."
+  "sprite": {
+    "color": "#39ff88",
+    "glow": "#39ff88",
+    "shape": "triangle"
+  },
+  "description": "Maestro de la química y energía. Disparos corrosivos.",
+  "energy": 120,
+  "speedPct": 95,
+  "ultimateName": "Curación"
 }

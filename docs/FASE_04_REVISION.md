@@ -1,0 +1,1 @@
+Revision parcial: cinco orientaciones idle de Bombeta y MDLR, cuatro fotogramas identicos por tira. Espejado existente. Resto de animaciones y retratos anteriores sin cambios. Extraccion automatica del concepto, MDLR adaptado a 24x32. Pendiente revision visual y ejecucion. No modifica mecanicas.

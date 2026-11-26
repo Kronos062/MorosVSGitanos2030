@@ -1,11 +1,23 @@
 {
   "id": "patriarca",
   "type": "characters",
-  "name": "Patriarca Hierro",
+  "name": "El Patriarca",
   "faction": "bando_gitanos",
-  "stats": { "hp": 150, "speed": 220, "armor": 4, "critChance": 0.08 },
+  "stats": {
+    "hp": 160,
+    "speed": 238,
+    "armor": 4,
+    "critChance": 0.08
+  },
   "startingWeapon": "void_cannon",
   "passiveSlots": 5,
-  "sprite": { "color": "#ff2bd6", "glow": "#ffe14a", "shape": "triangle" },
-  "description": "Veterano curtido con potencia devastadora."
+  "sprite": {
+    "color": "#ff2bd6",
+    "glow": "#ffe14a",
+    "shape": "triangle"
+  },
+  "description": "Veterano curtido con potencia devastadora.",
+  "energy": 150,
+  "speedPct": 95,
+  "ultimateName": "Recarga total"
 }

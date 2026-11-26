@@ -1,0 +1,1 @@
+Pallico: 25 tiras extraidas del atlas conceptual. Segmentacion experimental, pendiente revision visual y prueba en motor. Los otros siete personajes conservan sus prototipos. No se modifican mecanicas.

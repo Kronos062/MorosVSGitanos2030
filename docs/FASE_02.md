@@ -1,0 +1,4 @@
+# Fase 2 — implementación preliminar
+Facciones visibles Moros y Gitanos; IDs persistentes intactos. Vida y energía del GDD; velocidad base elegida 250 unidades/s, multiplicada por porcentaje y redondeada. Armadura, críticos, armas iniciales y pasivas conservados.
+Ultimate Q configurable y botón táctil, 60 s de tiempo de juego. Decisiones provisionales: coste 25 energía (Patriarca gratuito), regeneración 0,25/s, oro +25%, cadencia melee +25%, alcance daga 65, control 220, explosión 180. Daga secundaria implementada como golpe adicional cercano al disparar, no sprite ni arma equipable. Sigilo suspende IA, no proyectiles existentes. Triple dash reutiliza movimiento existente. Escudo separado del equipo. No se modifican sprites.
+Validación: transpilación sintáctica de 35 archivos TS/TSX; npm ci offline falla por yallist no cacheado; tsc completo, build y pruebas de juego pendientes. No se entrega dist nuevo.

@@ -25,6 +25,8 @@ export interface AnimMeta {
   /** Nº de frames de la tira (la imagen mide `frames × anchoFrame` px). */
   frames: number;
   fps: number;
+  /** Direcciones de esta animación si difieren de las del conjunto. */
+  directions?: Dir8[];
   /** Por defecto true, salvo `death` (false). */
   loop?: boolean;
 }
@@ -108,6 +110,7 @@ export interface ObjectSpriteMeta {
 export interface PortraitMeta {
   portrait?: string;
   icon?: string;
+  idle?: AnimMeta & { image: string };
 }
 
 export interface WorldPropMeta {

@@ -6,6 +6,7 @@ import type {
   Dir8,
   EffectSpriteMeta,
   ObjectSpriteMeta,
+  PortraitMeta,
   ProjectileSpriteMeta,
   ShoreDir,
   SpriteManifest,
@@ -159,6 +160,7 @@ export class SpriteAtlas {
   private objects = new Map<string, LoadedStrip<ObjectSpriteMeta>>();
   private worlds = new Map<string, LoadedWorld>();
   private portraits = new Map<string, { portrait?: string; icon?: string }>();
+  private portraitIdles = new Map<string, LoadedStrip<AnimMeta>>();
   private actors = new WeakMap<object, ActorState>();
   private live: LiveEffect[] = [];
   private arcs: LiveArc[] = [];
@@ -207,6 +209,7 @@ export class SpriteAtlas {
     }
     for (const [id, p] of Object.entries(manifest.portraits ?? {})) {
       jobs.push(this.loadPortrait(base, id, p));
+      if (p.idle) jobs.push(this.loadStrip(base, `portrait idle ${id}`, p.idle.image, p.idle.frames, p.idle, this.portraitIdles, id));
     }
     for (const [id, meta] of Object.entries(manifest.worlds ?? {})) {
       jobs.push(this.loadWorld(base, id, meta));
@@ -224,7 +227,7 @@ export class SpriteAtlas {
     const set: LoadedSet = { meta, clips: new Map(), dirsByAnim: new Map() };
     const jobs: Promise<void>[] = [];
     for (const [animKey, am] of Object.entries(meta.animations ?? {}) as [AnimName, AnimMeta][]) {
-      for (const dir of stored) {
+      for (const dir of am.directions ?? stored) {
         const url = base + meta.clip.replace('{anim}', animKey).replace('{dir}', dir);
         jobs.push(
           loadImage(url).then((img) => {
@@ -268,7 +271,7 @@ export class SpriteAtlas {
     into.set(id, { meta, img, fw: img.width / frames, fh: img.height, frames });
   }
 
-  private async loadPortrait(base: string, id: string, p: { portrait?: string; icon?: string }) {
+  private async loadPortrait(base: string, id: string, p: PortraitMeta) {
     const out: { portrait?: string; icon?: string } = {};
     for (const key of ['portrait', 'icon'] as const) {
       const rel = p[key];
@@ -356,6 +359,14 @@ export class SpriteAtlas {
   hasEnemy(id: string) { return this.enemies.has(id); }
   getPortraitUrl(id: string): string | null { return this.portraits.get(id)?.portrait ?? null; }
   getIconUrl(id: string): string | null { return this.portraits.get(id)?.icon ?? null; }
+  getPortraitIdle(id: string) {
+    const preview = this.portraitIdles.get(id);
+    if (preview) return { url: preview.img.src, frames: preview.frames, fps: preview.meta.fps };
+    const actor = this.characters.get(id);
+    const idle = actor && this.pickClip(actor, 'idle', 'down');
+    if (!actor || !idle) return null;
+    return { url: idle.clip.img.src, frames: idle.clip.frames, fps: actor.meta.animations.idle?.fps ?? 6 };
+  }
   hasWorld(id: string): boolean { return this.worlds.has(id); }
 
   worldIslandRect(id: string, bounds: Rect): Rect | null {
