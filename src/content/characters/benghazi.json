@@ -1,11 +1,23 @@
 {
   "id": "benghazi",
   "type": "characters",
-  "name": "Jinete Benghazi",
+  "name": "Khalid Arkid",
   "faction": "bando_moros",
-  "stats": { "hp": 100, "speed": 310, "armor": 1, "critChance": 0.10 },
+  "stats": {
+    "hp": 130,
+    "speed": 262,
+    "armor": 1,
+    "critChance": 0.1
+  },
   "startingWeapon": "crossbow",
   "passiveSlots": 5,
-  "sprite": { "color": "#ffe14a", "glow": "#ffe14a", "shape": "triangle" },
-  "description": "Rápido y ágil en combate a distancia."
+  "sprite": {
+    "color": "#ffe14a",
+    "glow": "#ffe14a",
+    "shape": "triangle"
+  },
+  "description": "Rápido y ágil en combate a distancia.",
+  "energy": 130,
+  "speedPct": 105,
+  "ultimateName": "Aturdimiento"
 }

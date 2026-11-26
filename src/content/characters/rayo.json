@@ -1,11 +1,23 @@
 {
   "id": "rayo",
   "type": "characters",
-  "name": "Guitarrista Rayo",
+  "name": "Cría de Gitano",
   "faction": "bando_gitanos",
-  "stats": { "hp": 95, "speed": 270, "armor": 1, "critChance": 0.18 },
+  "stats": {
+    "hp": 120,
+    "speed": 288,
+    "armor": 1,
+    "critChance": 0.18
+  },
   "startingWeapon": "tesla_gun",
   "passiveSlots": 5,
-  "sprite": { "color": "#ffe14a", "glow": "#ffe14a", "shape": "triangle" },
-  "description": "Descargas eléctricas resonantes en cadena."
+  "sprite": {
+    "color": "#ffe14a",
+    "glow": "#ffe14a",
+    "shape": "triangle"
+  },
+  "description": "Descargas eléctricas resonantes en cadena.",
+  "energy": 110,
+  "speedPct": 115,
+  "ultimateName": "Daga secundaria"
 }

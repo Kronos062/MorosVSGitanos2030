@@ -1,5 +1,5 @@
 {
-  "_comment": "PLANTILLA para Comandante Tariq. No está activa. Cuando existan los PNG definitivos, copiar estas entradas a public/assets/sprites/manifest.json y ajustar frames/fps/socket al arte real.",
+  "_comment": "PLANTILLA para Bombeta. No está activa. Cuando existan los PNG definitivos, copiar estas entradas a public/assets/sprites/manifest.json y ajustar frames/fps/socket al arte real.",
   "version": 1,
   "characters": {
     "tariq": {

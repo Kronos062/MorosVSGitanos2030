@@ -50,6 +50,7 @@ export const DEFAULT_BINDINGS: KeyBindings = {
   moveRight: 'KeyD',
   attack: 'Mouse0',
   dash: 'ShiftLeft',
+  ultimate: 'KeyQ',
   interact: 'KeyE',
   pause: 'KeyP',
   openBuild: 'KeyB',

@@ -1,4 +1,4 @@
-import { getCharacter, type CharacterDef } from '../content/characters';
+import { getCharacter, getCharactersByFaction, type CharacterDef } from '../content/characters';
 import { spriteAtlas } from './sprites/spriteAtlas';
 import {
   getWeapon,
@@ -161,6 +161,8 @@ export class GameEngine {
   private pendingDamageInvuln = 0;
   private projectiles: Projectile[] = [];
   private enemies: EnemyEntity[] = [];
+  private opposingRoster: CharacterDef[] = [];
+  private nextOpponent = 0;
   private pickups: PickupEntity[] = [];
   private particles: Particle[] = [];
   private chests: ChestEntity[] = [];
@@ -178,6 +180,46 @@ export class GameEngine {
   private touchMove = { x: 0, y: 0, active: false };
   private touchShoot = false;
   private touchDash = false;
+  private ultimateCooldown = 0;
+  private energy = 0;
+  private ultimateShield = 0;
+  private stealth = 0;
+  private ultimateRoom = -1;
+  private tripleDash = 0;
+  private stunUntil = new Map<number, number>();
+  private touchUltimate = false;
+  setTouchUltimate() { this.touchUltimate = true; }
+
+  private activateUltimate() {
+    const p = this.player;
+    if (this.ultimateCooldown > 0 || p.isDashing || this.inCorridor || this.isPlayerInCorridor()) return;
+    const id = this.characterId;
+    if (id === 'patriarca') this.energy = getCharacter(id).energy;
+    else {
+      if (this.energy < 25) return;
+      this.energy -= 25;
+    }
+    this.ultimateCooldown = 60;
+    switch (id) {
+      case 'bronce': case 'tariq': this.ultimateShield = 3; break;
+      case 'rayo': case 'hechicera_lola': this.ultimateRoom = this.currentRoomId; break;
+      case 'bailaor_furia': this.tripleDash = 3; break;
+      case 'sombra': this.stealth = 5; break;
+      case 'benghazi': for (const e of this.enemies) if (!e.dead && Math.hypot(e.x-p.x,e.y-p.y)<=220) this.stunUntil.set(e.id,this.worldTime+5); break;
+      case 'ziryab': p.hp = Math.min(p.maxHp,p.hp+p.maxHp*0.25); break;
+      case 'alhambra': for (const e of this.enemies) if (!e.dead && !(e.phaseInvuln && e.phaseInvuln>0) && Math.hypot(e.x-p.x,e.y-p.y)<=180) { e.hp *= 0.5; e.hitFlash=0.15; } break;
+    }
+    this.burst(p.x,p.y,p.color,24);
+  }
+  private daggerStrike() {
+    const p=this.player;
+    const e=this.findNearestEnemy(p.x,p.y,65);
+    if (!e || e.dead || (e.phaseInvuln && e.phaseInvuln>0)) return;
+    e.hp -= getBaseWeapon('cutter').damage * p.damageMult;
+    e.hitFlash=0.15;
+    if(e.hp<=0) this.killEnemy(e);
+  }
+
   private score = 0;
   private kills = 0;
   private combo = 0;
@@ -214,7 +256,7 @@ export class GameEngine {
   private onLevelUpCbs = new Set<(choices: SkillChoice[]) => void>();
   private onEndCbs = new Set<(result: 'victory' | 'defeat', stats: GameStats) => void>();
   private onWeaponDiscoverCbs = new Set<(id: string) => void>();
-  private onKillCbs = new Set<(id: string) => void>();
+  private onKillCbs = new Set<(id: string, characterId: string) => void>();
   private upgrades: PermanentUpgrades = { permHpLevel: 0, permDamageLevel: 0 };
   private worldTime = 0;
   private damageTakenTotal = 0;
@@ -366,7 +408,7 @@ export class GameEngine {
     this.onWeaponDiscoverCbs.add(cb);
     return () => this.onWeaponDiscoverCbs.delete(cb);
   }
-  onKillRecord(cb: (id: string) => void) {
+  onKillRecord(cb: (id: string, characterId: string) => void) {
     this.onKillCbs.add(cb);
     return () => this.onKillCbs.delete(cb);
   }
@@ -472,6 +514,7 @@ export class GameEngine {
       level: this.player.level,
       xp: this.player.xp,
       xpToNext: this.player.xpToNext,
+      ultimateCooldown: this.ultimateCooldown, energy: this.energy, maxEnergy: getCharacter(this.characterId).energy, ultimateShield: this.ultimateShield,
       dashPct: 1 - this.player.dashCooldown / this.player.dashCooldownMax,
       score: this.score,
       wave: this.roomCombatActive ? this.roomWave : this.wave,
@@ -1151,6 +1194,11 @@ export class GameEngine {
 
   private fullResetPlayer(charId: string) {
     const char = getCharacter(charId);
+    this.energy = char.energy;
+    this.ultimateCooldown = this.ultimateShield = this.stealth = this.tripleDash = 0;
+    this.ultimateRoom = -1;
+    this.stunUntil.clear();
+    this.touchUltimate = false;
     const hpBonus = this.upgrades.permHpLevel * 10;
     const dmgBonus = 1 + this.upgrades.permDamageLevel * 0.05;
     const startWeaponId = getBaseWeapon(char.startingWeapon).id;
@@ -1184,6 +1232,8 @@ export class GameEngine {
   }
 
   private newMapLayout() {
+    this.ultimateRoom = -1;
+    this.stunUntil.clear();
     // El mapa depende solo de (semilla, ciclo, nº de mapa): no de los eventos visitados antes.
     runRandom.reseed('map', `layout:${this.cycle}:${this.mapNumber}`);
     this.currentBiome = pickBiomeForMap(this.mapNumber, TOTAL_MAPS, this.seededRandom());
@@ -1197,6 +1247,10 @@ export class GameEngine {
 
     this.projectiles = [];
     this.enemies = [];
+    this.opposingRoster = getCharactersByFaction(
+      getCharacter(this.characterId).faction === 'bando_moros' ? 'bando_gitanos' : 'bando_moros',
+    );
+    this.nextOpponent = 0;
     this.pickups = [];
     this.particles = [];
     this.chests = [];
@@ -1562,6 +1616,11 @@ export class GameEngine {
   private update(dt: number) {
     if (this.ended) return;
     this.worldTime += dt;
+    this.ultimateCooldown = Math.max(0,this.ultimateCooldown-dt);
+    this.stealth = Math.max(0,this.stealth-dt);
+    this.energy = Math.min(getCharacter(this.characterId).energy,this.energy+dt*0.25);
+    if (this.isPressed('ultimate') || this.touchUltimate) this.activateUltimate();
+    this.touchUltimate = false;
     this.runDirector.update(this.buildRunTelemetry());
     const input = this.pollInput();
     this.enemyDirector.tick(dt);
@@ -1591,8 +1650,8 @@ export class GameEngine {
     if (p.fireCooldown > 0) p.fireCooldown -= dt;
     if (p.dashCooldown > 0 && !p.isDashing) p.dashCooldown -= dt;
 
-    const dashJustPressed = this.isPressed('dash');
-    if (dashJustPressed && p.dashCooldown <= 0 && !p.isDashing) {
+    const dashJustPressed = this.isPressed('dash') || this.tripleDash > 0;
+    if (dashJustPressed && (p.dashCooldown <= 0 || this.tripleDash > 0) && !p.isDashing) {
       p.isDashing = true;
       // Si no hay dirección de movimiento, el dash sale hacia donde mira el personaje.
       const fl = Math.hypot(p.facingX, p.facingY) || 1;
@@ -1610,7 +1669,10 @@ export class GameEngine {
       speed *= 3.2;
       p.dashTime -= dt;
       this.burst(p.x, p.y, p.color, 1);
-      if (p.dashTime <= 0) p.isDashing = false;
+      if (p.dashTime <= 0) {
+        p.isDashing = false;
+        if (this.tripleDash > 0) { this.tripleDash--; this.daggerStrike(); }
+      }
     }
 
     let mx = input.moveX;
@@ -1726,6 +1788,7 @@ export class GameEngine {
     for (const r of this.rooms) {
       if (rectsOverlapPoint(r.bounds, p.x, p.y, -20)) {
         if (this.currentRoomId !== r.id) {
+          this.ultimateRoom = -1;
           this.currentRoomId = r.id;
           r.discovered = true;
           if (this.petRevealBonus() > 0) {
@@ -2204,10 +2267,13 @@ export class GameEngine {
       y = this.player.y < b.y + b.h / 2 ? b.y + b.h - margin : b.y + margin;
     }
 
+    const opponent = this.opposingRoster[this.nextOpponent++ % this.opposingRoster.length];
     this.enemies.push({
       id: this.nextId++,
       defId: def.id,
-      name: def.name,
+      characterId: opponent.id,
+      weaponId: getBaseWeapon(opponent.startingWeapon).id,
+      name: opponent.name,
       x,
       y,
       hp: def.hp,
@@ -2237,6 +2303,10 @@ export class GameEngine {
   private fireWeapon(p: PlayerState, dx: number, dy: number) {
     const w = getWeapon(p.weaponId);
     p.fireCooldown = 1 / (w.fireRate * Math.max(0.1, p.fireRateMult));
+    if (this.characterId === 'rayo' && this.ultimateRoom === this.currentRoomId) {
+      this.daggerStrike();
+      if (w.tags?.includes('melee')) p.fireCooldown /= 1.25;
+    }
     const baseAngle = Math.atan2(dy, dx);
     const burstN = w.burstCount && w.burstCount > 1 ? w.burstCount : 1;
     const effectiveSpread = w.spread * p.spreadMult;
@@ -2509,6 +2579,7 @@ export class GameEngine {
       }
       if (e.hp <= 0) { this.killEnemy(e); continue; }
 
+      if (this.stealth > 0 || (this.stunUntil.get(e.id) ?? 0) > this.worldTime) continue;
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
@@ -2546,7 +2617,7 @@ export class GameEngine {
             pierced: new Set(),
             life: 3,
             owner: 'enemy',
-            sprite: e.defId,
+            sprite: e.weaponId,
           });
         }
       } else if (e.aiProfile === 'bomber_rush') {
@@ -2634,6 +2705,12 @@ export class GameEngine {
     const ascDmgMult = this.runDirector.getAscensionState()?.enemyDamageMult ?? 1;
     const dmg = Math.max(1, amount * ascDmgMult - p.armor) * (this.assistMode ? 0.75 : 1);
 
+    if (this.ultimateShield > 0) {
+      this.ultimateShield--;
+      this.activateDamageInvulnerability(0.4);
+      this.burst(p.x,p.y,'#00f0ff',10);
+      return;
+    }
     if (p.shield > 0) {
       p.shield -= 1;
       this.activateDamageInvulnerability(0.4);
@@ -2723,6 +2800,7 @@ export class GameEngine {
 
   private killEnemy(e: EnemyEntity) {
     if (e.dead) return;
+    this.stunUntil.delete(e.id);
     e.dead = true;
     e.hp = 0;
     this.kills += 1;
@@ -2736,7 +2814,7 @@ export class GameEngine {
     }
     const gain = Math.floor(e.score * this.comboMultiplier());
     this.score += gain;
-    const goldDrop = Math.max(1, Math.floor((e.score / 8) * this.petGoldMult() * this.player.goldMult));
+    const goldDrop = Math.max(1, Math.floor((e.score / 8) * this.petGoldMult() * this.player.goldMult * (this.characterId === 'hechicera_lola' && this.ultimateRoom === this.currentRoomId ? 1.25 : 1)));
     this.goldEarned += goldDrop;
     this.goldGross += goldDrop;
     this.grantXp(Math.round(e.xp * this.petXpMult()));
@@ -2752,7 +2830,7 @@ export class GameEngine {
       this.burstJuice(this.player.x, this.player.y, '#ffe14a', 12, 1.6, 0.2);
       this.camera.shake = Math.max(this.camera.shake, 0.25);
     }
-    for (const cb of this.onKillCbs) cb(e.defId);
+    for (const cb of this.onKillCbs) cb(e.defId, e.characterId);
 
     if (this.player.lifesteal > 0) {
       this.player.hp = Math.min(
@@ -3166,6 +3244,7 @@ export class GameEngine {
           const prevDef = getEquipment(previousId);
           pending.pk.itemId = previousId;
           pending.pk.color = prevDef.color;
+          this.pickupSlotCache.delete(pending.pk);
         } else {
           pending.pk.life = 0;
         }
@@ -3604,20 +3683,28 @@ export class GameEngine {
 
     for (const e of this.enemies) {
       const scale = e.spawnAnim > 0 ? 1 - e.spawnAnim * 1.5 : 1;
+      const actorScale = e.isBoss ? 1.65 : 1;
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.scale(Math.max(0.2, scale), Math.max(0.2, scale));
-      const enemySprite = spriteAtlas.hasEnemy(e.defId) && spriteAtlas.drawEnemy(ctx, e.defId, e, 0, 0, {
+      ctx.save();
+      ctx.scale(actorScale, actorScale);
+      const faceX = this.player.x - e.x;
+      const faceY = this.player.y - e.y;
+      const enemySprite = spriteAtlas.drawCharacter(ctx, e.characterId, e, 0, 0, {
         now: this.worldTime,
-        faceX: this.player.x - e.x,
-        faceY: this.player.y - e.y,
+        faceX,
+        faceY,
         hp: e.hp,
         dead: e.hp <= 0,
         flash: e.hitFlash > 0,
-        footOffset: e.size * 0.8,
+        footOffset: e.size * 0.8 / actorScale,
         trackX: e.x,
         trackY: e.y,
+        weaponId: e.weaponId,
+        aimAngle: Math.atan2(faceY, faceX),
       });
+      ctx.restore();
       if (!enemySprite) {
         ctx.shadowColor = e.glow;
         ctx.shadowBlur = e.isBoss ? 28 : 14;
@@ -3637,10 +3724,11 @@ export class GameEngine {
       }
       if (e.hp < e.maxHp || e.isBoss) {
         const bw = e.size * 2;
+        const barY = enemySprite ? e.size * 0.8 - 64 * actorScale - 6 : -e.size - 12;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(-bw / 2, -e.size - 12, bw, 4);
+        ctx.fillRect(-bw / 2, barY, bw, 4);
         ctx.fillStyle = e.isBoss ? '#ffe14a' : '#ff2a4b';
-        ctx.fillRect(-bw / 2, -e.size - 12, bw * (e.hp / e.maxHp), 4);
+        ctx.fillRect(-bw / 2, barY, bw * (e.hp / e.maxHp), 4);
       }
       ctx.restore();
     }

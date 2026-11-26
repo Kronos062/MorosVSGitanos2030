@@ -16,6 +16,9 @@ export interface CharacterDef {
   name: string;
   faction: Faction;
   stats: { hp: number; speed: number; armor: number; critChance: number };
+  energy: number;
+  speedPct: number;
+  ultimateName: string;
   startingWeapon: string;
   sprite: { color: string; glow: string; shape: string };
   description: string;
@@ -80,9 +83,10 @@ export function describePassive(character: CharacterDef): string {
 export const CHARACTERS: CharacterDef[] = [
   {
     id: 'tariq',
-    name: 'Comandante Tariq',
+    name: 'Bombeta',
     faction: 'bando_moros',
-    stats: { hp: 111, speed: 230, armor: 3, critChance: 0.08 },
+    stats: { hp: 110, speed: 262, armor: 3, critChance: 0.08 },
+    energy: 100, speedPct: 105, ultimateName: 'Escudo triple',
     startingWeapon: 'iron_python',
     sprite: { color: '#00f0ff', glow: '#00f0ff', shape: 'triangle' },
     description: 'Líder táctico. Gran armadura inicial y resistencia.',
@@ -96,9 +100,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'ziryab',
-    name: 'Alquimista Ziryab',
+    name: 'Aplatinado en Corán',
     faction: 'bando_moros',
-    stats: { hp: 77, speed: 250, armor: 1, critChance: 0.15 },
+    stats: { hp: 150, speed: 238, armor: 1, critChance: 0.15 },
+    energy: 120, speedPct: 95, ultimateName: 'Curación',
     startingWeapon: 'proton_beam',
     sprite: { color: '#39ff88', glow: '#39ff88', shape: 'triangle' },
     description: 'Maestro de la química y energía. Disparos corrosivos.',
@@ -109,9 +114,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'benghazi',
-    name: 'Jinete Benghazi',
+    name: 'Khalid Arkid',
     faction: 'bando_moros',
-    stats: { hp: 85, speed: 310, armor: 1, critChance: 0.1 },
+    stats: { hp: 130, speed: 262, armor: 1, critChance: 0.1 },
+    energy: 130, speedPct: 105, ultimateName: 'Aturdimiento',
     startingWeapon: 'rail_scout',
     sprite: { color: '#ffe14a', glow: '#ffe14a', shape: 'triangle' },
     description: 'Rápido y ágil en combate a distancia.',
@@ -122,9 +128,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'sombra',
-    name: 'Sombra de Córdoba',
+    name: 'Mujer Harám',
     faction: 'bando_moros',
-    stats: { hp: 72, speed: 290, armor: 0, critChance: 0.25 },
+    stats: { hp: 120, speed: 288, armor: 0, critChance: 0.25 },
+    energy: 120, speedPct: 115, ultimateName: 'Sigilo',
     startingWeapon: 'blade_launcher',
     sprite: { color: '#b04dff', glow: '#b04dff', shape: 'triangle' },
     description: 'Asesino sigiloso con alta probabilidad crítica.',
@@ -135,9 +142,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'alhambra',
-    name: 'Guardián Alhambra',
+    name: 'MOHAB',
     faction: 'bando_moros',
-    stats: { hp: 136, speed: 200, armor: 5, critChance: 0.05 },
+    stats: { hp: 160, speed: 250, armor: 5, critChance: 0.05 },
+    energy: 140, speedPct: 100, ultimateName: 'Explosión',
     startingWeapon: 'scatter_pump',
     sprite: { color: '#0099ff', glow: '#00f0ff', shape: 'triangle' },
     description: 'Baluarte inexpugnable de alta supervivencia.',
@@ -148,9 +156,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'bailaor_furia',
-    name: 'Bailaor Furia',
+    name: 'Gitano MDLR',
     faction: 'bando_gitanos',
-    stats: { hp: 94, speed: 280, armor: 2, critChance: 0.12 },
+    stats: { hp: 140, speed: 300, armor: 2, critChance: 0.12 },
+    energy: 130, speedPct: 120, ultimateName: 'Triple desplazamiento',
     startingWeapon: 'flame_thrower',
     sprite: { color: '#ff2bd6', glow: '#ff2bd6', shape: 'triangle' },
     description: 'Ataques de fuego frenéticos con alto ritmo.',
@@ -161,9 +170,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'rayo',
-    name: 'Guitarrista Rayo',
+    name: 'Cría de Gitano',
     faction: 'bando_gitanos',
-    stats: { hp: 81, speed: 270, armor: 1, critChance: 0.18 },
+    stats: { hp: 120, speed: 288, armor: 1, critChance: 0.18 },
+    energy: 110, speedPct: 115, ultimateName: 'Daga secundaria',
     startingWeapon: 'tesla_gun',
     sprite: { color: '#ffe14a', glow: '#ffe14a', shape: 'triangle' },
     description: 'Descargas eléctricas resonantes en cadena.',
@@ -174,9 +184,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'bronce',
-    name: 'Campero Bronce',
+    name: 'Pallico',
     faction: 'bando_gitanos',
-    stats: { hp: 106, speed: 240, armor: 3, critChance: 0.1 },
+    stats: { hp: 110, speed: 262, armor: 3, critChance: 0.1 },
+    energy: 100, speedPct: 105, ultimateName: 'Escudo triple',
     startingWeapon: 'hunting_rifle',
     sprite: { color: '#ff8800', glow: '#ff8800', shape: 'triangle' },
     description: 'Especialista en emboscadas y rifles de largo alcance.',
@@ -187,9 +198,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'hechicera_lola',
-    name: 'Hechicera Lola',
+    name: 'Gitana del Romero',
     faction: 'bando_gitanos',
-    stats: { hp: 77, speed: 260, armor: 0, critChance: 0.2 },
+    stats: { hp: 130, speed: 250, armor: 0, critChance: 0.2 },
+    energy: 120, speedPct: 100, ultimateName: 'Botín extra',
     startingWeapon: 'arc_discharger',
     sprite: { color: '#ff3b5c', glow: '#ff3b5c', shape: 'triangle' },
     description: 'Mística misteriosa de gran potencia mística.',
@@ -200,9 +212,10 @@ export const CHARACTERS: CharacterDef[] = [
   },
   {
     id: 'patriarca',
-    name: 'Patriarca Hierro',
+    name: 'El Patriarca',
     faction: 'bando_gitanos',
-    stats: { hp: 128, speed: 220, armor: 4, critChance: 0.08 },
+    stats: { hp: 160, speed: 238, armor: 4, critChance: 0.08 },
+    energy: 150, speedPct: 95, ultimateName: 'Recarga total',
     startingWeapon: 'void_cannon',
     sprite: { color: '#ff2bd6', glow: '#ffe14a', shape: 'triangle' },
     description: 'Veterano curtido con potencia devastadora.',

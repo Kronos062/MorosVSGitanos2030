@@ -3,7 +3,7 @@ import { CharacterPortrait } from './components/CharacterPortrait';
 import { EquipIcon } from './components/EquipIcon';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
-import { RARITY_COLORS, WEAPON_BASES } from './content/weapons';
+import { getBaseWeapon, RARITY_COLORS, WEAPON_BASES } from './content/weapons';
 import { ASCENSION_LEVELS } from './content/ascension';
 import { BESTIARY_LORE } from './content/enemies';
 import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
@@ -50,6 +50,10 @@ const emptyStats: GameStats = {
   minimap: null, build: null,
 };
 
+function rivalRecordKey(characterId: string) {
+  return `rival:${characterId}`;
+}
+
 const BINDING_ROWS: Array<{ action: InputAction; label: string }> = [
   { action: 'moveUp', label: 'Arriba' },
   { action: 'moveDown', label: 'Abajo' },
@@ -57,6 +61,7 @@ const BINDING_ROWS: Array<{ action: InputAction; label: string }> = [
   { action: 'moveRight', label: 'Derecha' },
   { action: 'attack', label: 'Atacar' },
   { action: 'dash', label: 'Dash' },
+  { action: 'ultimate', label: 'Ultimate' },
   { action: 'interact', label: 'Interactuar' },
   { action: 'pause', label: 'Pausa' },
   { action: 'openBuild', label: 'Build' },
@@ -398,7 +403,10 @@ export default function App() {
         }
         const start = runStartRef.current;
         const newWeapons = Object.keys(prev.armory).filter((id) => prev.armory[id] && !start.armory[id]);
-        const newBestiary = Object.keys(prev.bestiary).filter((id) => (prev.bestiary[id] ?? 0) > 0 && (start.bestiary[id] ?? 0) === 0);
+        const newBestiary = CHARACTERS.filter(({ id }) => {
+          const key = rivalRecordKey(id);
+          return (prev.bestiary[key] ?? 0) > 0 && (start.bestiary[key] ?? 0) === 0;
+        }).map(({ id }) => id);
         const newAscension = next.highestAscension > start.highestAscension ? next.highestAscension : null;
         const newHighScore = s.score > start.topScore;
         setRunUnlocks({ weapons: newWeapons, bestiary: newBestiary, ascension: newAscension, newHighScore });
@@ -407,8 +415,12 @@ export default function App() {
       });
     });
     const offWeapon = engine.onWeaponDiscover((id) => { setSave((prev) => discoverWeapon(prev, id)); });
-    const offKill = engine.onKillRecord((id) => {
+    const offKill = engine.onKillRecord((id, characterId) => {
       killBuffer[id] = (killBuffer[id] ?? 0) + 1;
+      if (characterId) {
+        const key = rivalRecordKey(characterId);
+        killBuffer[key] = (killBuffer[key] ?? 0) + 1;
+      }
       if (killTimer === null) killTimer = window.setTimeout(flushKills, 1500);
     });
     const offItem = engine.onItemPickup((item, equipped, resolve) => {
@@ -570,7 +582,7 @@ export default function App() {
         <div className="hud">
           <div className="hud-top">
             <div className="hud-panel">
-              <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ color: stats.biomeColor, fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
+              <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
               <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
@@ -640,6 +652,8 @@ export default function App() {
               <div className="health-text">HP {Math.ceil(stats.hp)}/{stats.maxHp}{stats.shield > 0 ? ` · ESCUDO ${stats.shield}` : ''}</div>
             </div>
             <div className="abilities">
+              <div className="ability" title={`Energía ${Math.floor(stats.energy ?? 0)}/${stats.maxEnergy ?? 0}`}><span>✦ {Math.ceil(stats.ultimateCooldown ?? 0) || ((stats.energy ?? 0) >= 25 || (stats.maxEnergy === 150) ? 'OK' : 'EN')}</span><span className="ability-key">{codeLabel(save.bindings.ultimate)}</span></div>
+              <span className="ability-energy">EN {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}{stats.ultimateShield ? ` · ESC ${stats.ultimateShield}` : ''}</span>
               <div className="ability">💨<div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
               <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
             </div>
@@ -648,7 +662,7 @@ export default function App() {
       )}
 
       {screen === 'playing' && (
-        <div className="touch-controls">
+        <div className="touch-controls"><button type="button" className="touch-btn" onClick={() => engineRef.current?.setTouchUltimate()}>✦</button>
           <div className="joystick" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd}><div className="joystick-thumb" ref={joyThumbRef} /></div>
           <div className="touch-buttons">
             <button type="button" className="touch-btn dash" onPointerDown={(e) => { e.preventDefault(); engineRef.current?.setTouchDash(true); }} onPointerUp={() => engineRef.current?.setTouchDash(false)} onPointerCancel={() => engineRef.current?.setTouchDash(false)}>💨</button>
@@ -743,7 +757,7 @@ export default function App() {
                   <button type="button" key={c.id} className={`char-card ${selectedChar === c.id ? 'selected' : ''}`} onClick={() => { setSelectedChar(c.id); audio.play('button'); }} style={{ borderColor: selectedChar === c.id ? c.sprite.color : undefined }}>
                     <CharacterPortrait id={c.id} variant="icon" />
                     <div className="name" style={{ color: c.sprite.color }}>{c.name}</div>
-                    <div className="faction">{c.faction === 'bando_moros' ? '◆ BANDO MOROS' : '◆ BANDO GITANOS'}</div>
+                    <div className="faction">{c.faction === 'bando_moros' ? '◆ MOROS' : '◆ GITANOS'}</div>
                   </button>
                 ))}
               </div>
@@ -752,7 +766,7 @@ export default function App() {
                 <strong style={{ color: selected.sprite.color }}>{selected.name}</strong>
                 <span style={{ color: '#8891b8' }}> · {selected.faction === 'bando_moros' ? 'Moros' : 'Gitanos'}</span>
                 <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>
-                <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>HP {selected.stats.hp} · SPD {selected.stats.speed} · ARM {selected.stats.armor} · CRIT {Math.round(selected.stats.critChance * 100)}%</p>
+                <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>HP {selected.stats.hp} · EN {selected.energy} · SPD {selected.speedPct}% · ARM {selected.stats.armor} · CRIT {Math.round(selected.stats.critChance * 100)}%</p>
                 <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ fontSize: '0.7rem', color: '#8891b8', letterSpacing: '0.1em' }}>PASIVA</div>
                   <div style={{ marginTop: 4, fontWeight: 800, color: selected.sprite.color }}>
@@ -884,17 +898,38 @@ export default function App() {
         {screen === 'bestiary' && (
           <div className="screen">
             <div className="screen-content">
-              <h2 className="section-title" style={{ color: '#ff3b5c' }}>BESTIARIO DE ENEMIGOS</h2>
-              <div className="list-scroll">
-                {Object.entries(BESTIARY_LORE).map(([id, info]) => {
-                  const kills = save.bestiary[id] ?? 0;
-                  return (
-                    <div key={id} className="item-card" style={{ borderColor: 'rgba(255,59,92,0.3)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={{ fontWeight: 800 }}>{info.name}</span><span style={{ color: kills > 0 ? '#39ff88' : '#888', fontSize: '0.75rem' }}>{kills > 0 ? `${kills} ELIMINADOS` : 'NO DESCUBIERTO'}</span></div>
-                      <p style={{ marginTop: 6, fontSize: '0.8rem', color: '#94a3b8' }}>{kills > 0 ? info.desc : 'Derrota a este enemigo en combate para desbloquear su registro.'}</p>
+              <h2 className="section-title" style={{ color: '#ff3b5c' }}>BESTIARIO DE RIVALES</h2>
+              <div className="list-scroll bestiary-roster">
+                {(['bando_moros', 'bando_gitanos'] as const).map((faction) => (
+                  <section key={faction}>
+                    <h3>{factionName(faction)}</h3>
+                    {getCharactersByFaction(faction).map((rival) => {
+                      const kills = save.bestiary[rivalRecordKey(rival.id)] ?? 0;
+                      return (
+                        <article key={rival.id} className="item-card">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                            <strong className="bestiary-name"><CharacterPortrait id={rival.id} variant="idle" /> {rival.name}</strong>
+                            <span style={{ color: kills > 0 ? '#39ff88' : 'var(--px-dim)', fontSize: '0.75rem' }}>
+                              {kills > 0 ? `BAJAS: ${kills}` : 'SIN BAJAS'}
+                            </span>
+                          </div>
+                          <p style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--px-dim)' }}>
+                            {getBaseWeapon(rival.startingWeapon).name}
+                          </p>
+                        </article>
+                      );
+                    })}
+                  </section>
+                ))}
+                <details>
+                  <summary>Perfiles de combate</summary>
+                  {Object.entries(BESTIARY_LORE).filter(([id]) => (save.bestiary[id] ?? 0) > 0).map(([id, info]) => (
+                    <div key={id} className="item-card">
+                      <strong>{info.name}</strong> · {save.bestiary[id]} bajas
+                      <p style={{ color: 'var(--px-dim)', fontSize: '0.8rem' }}>{info.desc}</p>
                     </div>
-                  );
-                })}
+                  ))}
+                </details>
               </div>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
             </div>
@@ -1501,10 +1536,10 @@ export default function App() {
                         <div style={{ fontSize: '0.72rem', color: '#8891b8', letterSpacing: '0.1em' }}>ENEMIGOS DESCUBIERTOS (BESTIARIO)</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                           {runUnlocks.bestiary.map((id) => {
-                            const info = BESTIARY_LORE[id];
+                            const rival = getCharacter(id);
                             return (
                               <span key={id} style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 3, border: '1px solid rgba(255,59,92,0.3)', color: '#ff3b5c' }}>
-                                👹 {info?.name ?? id}
+                                {rival.name}
                               </span>
                             );
                           })}

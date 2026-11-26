@@ -33,6 +33,8 @@ export interface Projectile {
 export interface EnemyEntity {
   id: number;
   defId: string;
+  characterId: string;
+  weaponId: string;
   name: string;
   x: number;
   y: number;
@@ -204,6 +206,7 @@ export type InputAction =
   | 'moveRight'
   | 'interact'
   | 'attack'
+  | 'ultimate'
   | 'dash'
   | 'pause'
   | 'openBuild'
@@ -286,6 +289,10 @@ export interface GameStats {
   xp: number;
   xpToNext: number;
   dashPct: number;
+  ultimateCooldown?: number;
+  energy?: number;
+  maxEnergy?: number;
+  ultimateShield?: number;
   score: number;
   wave: number;
   kills: number;

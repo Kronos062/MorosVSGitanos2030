@@ -1930,7 +1930,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1940,7 +1940,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1950,7 +1950,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1960,7 +1960,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1970,7 +1970,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1980,7 +1980,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -1990,7 +1990,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -2000,7 +2000,7 @@
       "fps": 36,
       "pixelScale": 2,
       "anchor": {
-        "x": 0.0,
+        "x": 0,
         "y": 0.5
       }
     },
@@ -2234,6 +2234,634 @@
             ]
           }
         ]
+      }
+    }
+  },
+  "characters": {
+    "tariq": {
+      "clip": "characters/tariq/tariq_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": false,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 28,
+          "loop": false
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -10
+        },
+        "down_right": {
+          "x": 5,
+          "y": -10
+        },
+        "down": {
+          "x": 4,
+          "y": -9
+        },
+        "up_right": {
+          "x": 5,
+          "y": -12,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -12,
+          "behind": true
+        }
+      },
+      "directions": [
+        "down",
+        "down_right",
+        "right",
+        "up_right",
+        "up",
+        "up_left",
+        "left",
+        "down_left"
+      ]
+    },
+    "bronce": {
+      "clip": "characters/bronce/bronce_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": false,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 28,
+          "loop": false
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        "death": {
+          "frames": 5,
+          "fps": 8,
+          "loop": false
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -10
+        },
+        "down_right": {
+          "x": 5,
+          "y": -10
+        },
+        "down": {
+          "x": 4,
+          "y": -9
+        },
+        "up_right": {
+          "x": 5,
+          "y": -12,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -12,
+          "behind": true
+        }
+      },
+      "directions": [
+        "down",
+        "down_right",
+        "right",
+        "up_right",
+        "up",
+        "up_left",
+        "left",
+        "down_left"
+      ]
+    },
+    "rayo": {
+      "clip": "characters/rayo/rayo_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "hechicera_lola": {
+      "clip": "characters/hechicera_lola/hechicera_lola_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "bailaor_furia": {
+      "clip": "characters/bailaor_furia/bailaor_furia_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": false,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 28,
+          "loop": false
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -10
+        },
+        "down_right": {
+          "x": 5,
+          "y": -10
+        },
+        "down": {
+          "x": 4,
+          "y": -9
+        },
+        "up_right": {
+          "x": 5,
+          "y": -12,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -12,
+          "behind": true
+        }
+      },
+      "directions": [
+        "down",
+        "down_right",
+        "right",
+        "up_right",
+        "up",
+        "up_left",
+        "left",
+        "down_left"
+      ]
+    },
+    "patriarca": {
+      "clip": "characters/patriarca/patriarca_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "sombra": {
+      "clip": "characters/sombra/sombra_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "benghazi": {
+      "clip": "characters/benghazi/benghazi_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "ziryab": {
+      "clip": "characters/ziryab/ziryab_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    },
+    "alhambra": {
+      "clip": "characters/alhambra/alhambra_{anim}_{dir}.png",
+      "pixelScale": 2,
+      "mirror": true,
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "fps": 6
+        },
+        "walk": {
+          "frames": 6,
+          "fps": 10
+        },
+        "roll": {
+          "frames": 5,
+          "fps": 14
+        },
+        "hurt": {
+          "frames": 3,
+          "fps": 10
+        },
+        "death": {
+          "frames": 6,
+          "fps": 8
+        }
+      },
+      "weaponSocket": {
+        "right": {
+          "x": 6,
+          "y": -14
+        },
+        "down_right": {
+          "x": 5,
+          "y": -13
+        },
+        "down": {
+          "x": 4,
+          "y": -12
+        },
+        "up_right": {
+          "x": 5,
+          "y": -15,
+          "behind": true
+        },
+        "up": {
+          "x": 4,
+          "y": -16,
+          "behind": true
+        }
+      }
+    }
+  },
+  "portraits": {
+    "tariq": {
+      "portrait": "portraits/tariq_portrait.png",
+      "icon": "portraits/tariq_icon.png"
+    },
+    "bronce": {
+      "portrait": "portraits/bronce_portrait.png",
+      "icon": "portraits/bronce_icon.png"
+    },
+    "rayo": {
+      "portrait": "portraits/rayo_portrait.png",
+      "icon": "portraits/rayo_icon.png",
+      "idle": {
+        "image": "portraits/idle/rayo.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "hechicera_lola": {
+      "portrait": "portraits/hechicera_lola_portrait.png",
+      "icon": "portraits/hechicera_lola_icon.png",
+      "idle": {
+        "image": "portraits/idle/hechicera_lola.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "bailaor_furia": {
+      "portrait": "portraits/bailaor_furia_portrait.png",
+      "icon": "portraits/bailaor_furia_icon.png"
+    },
+    "patriarca": {
+      "portrait": "portraits/patriarca_portrait.png",
+      "icon": "portraits/patriarca_icon.png",
+      "idle": {
+        "image": "portraits/idle/patriarca.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "sombra": {
+      "portrait": "portraits/sombra_portrait.png",
+      "icon": "portraits/sombra_icon.png",
+      "idle": {
+        "image": "portraits/idle/sombra.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "benghazi": {
+      "portrait": "portraits/benghazi_portrait.png",
+      "icon": "portraits/benghazi_icon.png",
+      "idle": {
+        "image": "portraits/idle/benghazi.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "ziryab": {
+      "portrait": "portraits/ziryab_portrait.png",
+      "icon": "portraits/ziryab_icon.png",
+      "idle": {
+        "image": "portraits/idle/ziryab.png",
+        "frames": 4,
+        "fps": 5
+      }
+    },
+    "alhambra": {
+      "portrait": "portraits/alhambra_portrait.png",
+      "icon": "portraits/alhambra_icon.png",
+      "idle": {
+        "image": "portraits/idle/alhambra.png",
+        "frames": 4,
+        "fps": 5
       }
     }
   }
