@@ -19,6 +19,7 @@ export interface CharacterDef {
   energy: number;
   speedPct: number;
   ultimateName: string;
+  ultimateDescription: string;
   startingWeapon: string;
   sprite: { color: string; glow: string; shape: string };
   description: string;
@@ -87,6 +88,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_moros',
     stats: { hp: 110, speed: 262, armor: 3, critChance: 0.08 },
     energy: 100, speedPct: 105, ultimateName: 'Escudo triple',
+    ultimateDescription: 'Absorbe los próximos tres impactos.',
     startingWeapon: 'iron_python',
     sprite: { color: '#00f0ff', glow: '#00f0ff', shape: 'triangle' },
     description: 'Líder táctico. Gran armadura inicial y resistencia.',
@@ -104,6 +106,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_moros',
     stats: { hp: 150, speed: 238, armor: 1, critChance: 0.15 },
     energy: 120, speedPct: 95, ultimateName: 'Curación',
+    ultimateDescription: 'Recupera un 25 % de tu vida máxima.',
     startingWeapon: 'proton_beam',
     sprite: { color: '#39ff88', glow: '#39ff88', shape: 'triangle' },
     description: 'Maestro de la química y energía. Disparos corrosivos.',
@@ -118,6 +121,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_moros',
     stats: { hp: 130, speed: 262, armor: 1, critChance: 0.1 },
     energy: 130, speedPct: 105, ultimateName: 'Aturdimiento',
+    ultimateDescription: 'Aturde a los rivales cercanos durante 5 segundos.',
     startingWeapon: 'rail_scout',
     sprite: { color: '#ffe14a', glow: '#ffe14a', shape: 'triangle' },
     description: 'Rápido y ágil en combate a distancia.',
@@ -132,6 +136,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_moros',
     stats: { hp: 120, speed: 288, armor: 0, critChance: 0.25 },
     energy: 120, speedPct: 115, ultimateName: 'Sigilo',
+    ultimateDescription: 'Los rivales dejan de perseguirte durante 5 segundos.',
     startingWeapon: 'blade_launcher',
     sprite: { color: '#b04dff', glow: '#b04dff', shape: 'triangle' },
     description: 'Asesino sigiloso con alta probabilidad crítica.',
@@ -146,6 +151,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_moros',
     stats: { hp: 160, speed: 250, armor: 5, critChance: 0.05 },
     energy: 140, speedPct: 100, ultimateName: 'Explosión',
+    ultimateDescription: 'Reduce a la mitad la vida actual de los rivales cercanos que puedan recibir daño.',
     startingWeapon: 'scatter_pump',
     sprite: { color: '#0099ff', glow: '#00f0ff', shape: 'triangle' },
     description: 'Baluarte inexpugnable de alta supervivencia.',
@@ -160,6 +166,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_gitanos',
     stats: { hp: 140, speed: 300, armor: 2, critChance: 0.12 },
     energy: 130, speedPct: 120, ultimateName: 'Triple desplazamiento',
+    ultimateDescription: 'Encadena tres esquivas. Al terminar cada una, golpea con la daga a un rival cercano.',
     startingWeapon: 'flame_thrower',
     sprite: { color: '#ff2bd6', glow: '#ff2bd6', shape: 'triangle' },
     description: 'Ataques de fuego frenéticos con alto ritmo.',
@@ -174,6 +181,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_gitanos',
     stats: { hp: 120, speed: 288, armor: 1, critChance: 0.18 },
     energy: 110, speedPct: 115, ultimateName: 'Daga secundaria',
+    ultimateDescription: 'Añade un golpe de daga cercano al atacar durante esta sala.',
     startingWeapon: 'tesla_gun',
     sprite: { color: '#ffe14a', glow: '#ffe14a', shape: 'triangle' },
     description: 'Descargas eléctricas resonantes en cadena.',
@@ -188,6 +196,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_gitanos',
     stats: { hp: 110, speed: 262, armor: 3, critChance: 0.1 },
     energy: 100, speedPct: 105, ultimateName: 'Escudo triple',
+    ultimateDescription: 'Absorbe los próximos tres impactos.',
     startingWeapon: 'hunting_rifle',
     sprite: { color: '#ff8800', glow: '#ff8800', shape: 'triangle' },
     description: 'Especialista en emboscadas y rifles de largo alcance.',
@@ -202,6 +211,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_gitanos',
     stats: { hp: 130, speed: 250, armor: 0, critChance: 0.2 },
     energy: 120, speedPct: 100, ultimateName: 'Botín extra',
+    ultimateDescription: 'Las bajas en esta sala otorgan un 25 % más de oro.',
     startingWeapon: 'arc_discharger',
     sprite: { color: '#ff3b5c', glow: '#ff3b5c', shape: 'triangle' },
     description: 'Mística misteriosa de gran potencia mística.',
@@ -216,6 +226,7 @@ export const CHARACTERS: CharacterDef[] = [
     faction: 'bando_gitanos',
     stats: { hp: 160, speed: 238, armor: 4, critChance: 0.08 },
     energy: 150, speedPct: 95, ultimateName: 'Recarga total',
+    ultimateDescription: 'Recupera toda tu energía.',
     startingWeapon: 'void_cannon',
     sprite: { color: '#ff2bd6', glow: '#ffe14a', shape: 'triangle' },
     description: 'Veterano curtido con potencia devastadora.',

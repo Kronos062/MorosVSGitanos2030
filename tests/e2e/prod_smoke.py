@@ -15,7 +15,9 @@ with sync_playwright() as pw:
     pg.get_by_role('button').filter(has_text='MOROS').first.click(); pg.wait_for_timeout(300)
     if pg.get_by_role('button', name='ENTENDIDO').count(): pg.get_by_role('button', name='ENTENDIDO').click(); pg.wait_for_timeout(300)
     pg.get_by_role('button').filter(has_text='JUGAR').first.click(); pg.wait_for_timeout(400)
-    pg.get_by_role('button', name='COMBATIR').click(); pg.wait_for_timeout(1500)
+    pg.locator('.char-card').first.click()
+    pg.get_by_role('button', name='Seleccionar', exact=True).click()
+    pg.get_by_role('button', name='Jugar', exact=True).click(); pg.wait_for_timeout(1500)
     px = pg.evaluate("() => { const c = document.querySelector('canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 400) if (d[i] + d[i+1] + d[i+2] > 60) n++; return n; }")
     b.close()
 sounds = [u for u in ok_assets if '/sounds/' in u or '/music/' in u]

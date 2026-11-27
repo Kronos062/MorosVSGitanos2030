@@ -1,0 +1,146 @@
+:root {
+  --px-ink: #0c1018;
+  --px-night: #171f2b;
+  --px-panel: #212c3a;
+  --px-panel-hi: #2d3c4b;
+  --px-edge: #566b7b;
+  --px-edge-hi: #94afb9;
+  --px-bone: #f4eddf;
+  --px-dim: #bacbd2;
+  --px-gold: #e9b965;
+}
+
+.screen {
+  background-color: #101722;
+  background-image: conic-gradient(from 45deg, #172230 25%, transparent 0 50%, #172230 0 75%, transparent 0);
+  background-size: 24px 24px;
+}
+
+.screen-content {
+  border: 2px solid var(--px-edge);
+  border-top-color: var(--px-gold);
+  box-shadow: 0 5px 0 2px var(--px-ink), inset 0 0 0 2px var(--px-ink);
+}
+
+.section-title {
+  color: var(--px-gold);
+  border-bottom: 1px solid var(--px-edge);
+  text-align: left;
+}
+
+.main-menu-content .menu-grid { border-top: 1px solid var(--px-edge); }
+.main-menu-content .gold-box {
+  width: fit-content;
+  margin-inline: auto;
+  padding: 8px 16px;
+  border-width: 1px;
+  box-shadow: none;
+}
+.main-menu-content .menu-grid > .menu-btn:not(.primary) {
+  border-width: 2px;
+  box-shadow: inset 0 -2px 0 var(--px-ink);
+}
+.item-card, .char-card, .build-cell, .binding-row, .hud-panel, .boss-bar, .weapon-prompt {
+  border-width: 2px;
+  box-shadow: inset 0 -2px 0 var(--px-ink);
+}
+
+.section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--px-edge);
+  text-align: left;
+}
+
+.section-nav button {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--px-edge);
+  background: var(--px-panel);
+  color: var(--px-dim);
+  cursor: pointer;
+}
+
+.section-nav button[aria-pressed='true'] {
+  background: var(--px-panel-hi);
+  border-bottom: 3px solid var(--px-gold);
+  color: var(--px-bone);
+}
+
+.section-nav button:focus-visible, .character-sheet button:focus-visible {
+  outline: 2px solid var(--px-tile-hi);
+  outline-offset: 2px;
+}
+
+.options-layout, .build-sections { grid-template-columns: minmax(0, 1fr); }
+.options-layout { border-top: 0; padding-top: 0; }
+.options-column[hidden], .build-column[hidden] { display: none; }
+.bestiary-profiles { grid-column: 1 / -1; }
+
+.screen-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.screen-actions .menu-btn { min-width: 110px; min-height: 44px; }
+.faction-choices, .pause-summary { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
+.pause-summary li { padding: 4px 8px; background: var(--px-panel); border: 1px solid var(--px-edge); }
+.roster-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.roster-grid .char-card { min-width: 0; min-height: 104px; padding: 8px; }
+
+.character-sheet {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(690px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 20px;
+  overflow: auto;
+  background: var(--px-night);
+  border: 2px solid var(--px-edge);
+  border-top-color: var(--px-gold);
+  color: var(--px-bone);
+  text-align: left;
+}
+
+.character-sheet::backdrop { background: rgb(8 12 18 / 78%); }
+.character-sheet-body { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 18px; }
+.character-sheet-art { display: grid; place-content: center; justify-items: center; background: var(--px-panel); text-align: center; color: var(--px-dim); }
+.character-sheet-art .pixel-idle { width: 128px; height: 128px; }
+.character-sheet h2 { font-size: 1.8rem; color: var(--px-gold); margin-bottom: 8px; }
+.character-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; }
+.character-stats div { display: flex; gap: 4px; }
+.character-stats dt, .character-power small { color: var(--px-dim); }
+.character-power { border-top: 1px solid var(--px-edge); margin-top: 8px; padding-top: 6px; }
+.character-power h3 { color: var(--px-tile-hi); }
+.difficulty-character { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.difficulty-field { display: grid; gap: 4px; width: min(100%, 340px); margin: 8px auto; }
+.difficulty-field select { width: 100%; min-height: 44px; }
+.difficulty-description { color: var(--px-dim); }
+.difficulty-modifiers { margin: 6px 0; color: var(--px-gold); }
+.difficulty-seed { margin-top: 10px; color: var(--px-dim); }
+.difficulty-seed input { width: 100%; border: 1px solid var(--px-edge); padding: 8px; background: var(--px-ink); color: var(--px-bone); }
+
+@media (max-width: 560px) {
+  .run-setup { padding: 12px; }
+  .roster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .roster-grid .char-card .name { font-size: 14px; overflow-wrap: anywhere; }
+  .character-sheet { padding: 12px; }
+  .character-sheet-body { grid-template-columns: 72px minmax(0, 1fr); gap: 9px; }
+  .character-sheet-art .pixel-idle { width: 64px; height: 64px; }
+  .character-sheet h2 { font-size: 1.3rem; }
+  .character-stats { gap: 2px 8px; }
+}
+
+@media (max-height: 440px) and (orientation: landscape) {
+  .run-setup { padding: 8px 16px; }
+  .run-setup .section-title { margin-bottom: 5px; }
+  .roster-grid .char-card { min-height: 79px; padding: 4px; }
+  .roster-grid .pixel-idle, .difficulty-character .pixel-idle { width: 48px; height: 48px; }
+  .run-setup .screen-actions { margin-top: 8px; }
+}
