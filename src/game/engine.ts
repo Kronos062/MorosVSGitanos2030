@@ -1,4 +1,5 @@
 import { getCharacter, getCharactersByFaction, type CharacterDef } from '../content/characters';
+import { drawPetSprite } from './sprites/petSprites';
 import { spriteAtlas } from './sprites/spriteAtlas';
 import {
   getWeapon,
@@ -3801,24 +3802,7 @@ export class GameEngine {
 
     const petDef = this.getEquippedPetDef();
     if (petDef && this.pet) {
-      const ps = petDef.stats.size;
-      ctx.save();
-      ctx.translate(this.pet.x, this.pet.y);
-      ctx.shadowColor = petDef.color;
-      ctx.shadowBlur = 14;
-      ctx.fillStyle = petDef.color;
-      ctx.beginPath();
-      ctx.arc(0, 0, ps, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.font = `${ps * 1.6}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(petDef.icon, 0, 1);
-      ctx.textBaseline = 'middle';
-      ctx.fillText(petDef.icon, 0, 1);
-      ctx.textBaseline = 'alphabetic';
-      ctx.restore();
+      drawPetSprite(ctx, petDef, this.pet.x, this.pet.y, this.worldTime);
     }
 
     for (const pt of this.particles) {

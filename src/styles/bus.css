@@ -85,7 +85,7 @@
   color: var(--bus-light);
 }
 
-.bus-header-actions, .bus-movement, .bus-dialog-actions {
+.bus-header-actions, .bus-dialog-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -103,7 +103,6 @@
   cursor: pointer;
 }
 
-.bus-movement button { touch-action: none; }
 .bus-controls p { text-align: center; font-size: .8rem; }
 .bus-controls .bus-interact:not(:disabled) { background: #d6b071; color: #211a13; }
 .bus-controls .bus-interact:disabled { opacity: .62; cursor: default; }
@@ -112,10 +111,20 @@
 .bus-interior {
   position: relative;
   isolation: isolate;
+  container-type: size;
+  display: grid;
+  place-items: center;
   overflow: hidden;
   border: 2px solid #445b62;
   border-radius: 9px;
-  background: #99aea4;
+  background: #111a23;
+}
+
+.bus-stage {
+  position: relative;
+  container-type: inline-size;
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
 }
 
 .bus-architecture {
@@ -145,8 +154,8 @@
 }
 
 .bus-stop {
-  width: 48px;
-  height: 48px;
+  width: clamp(44px, 11cqw, 114px);
+  height: clamp(44px, 16cqw, 140px);
   transform: translate(-50%, -80%);
   background: transparent;
   cursor: pointer;
@@ -154,16 +163,16 @@
 
 .bus-actor {
   display: block;
-  width: 80px;
-  height: 80px;
+  width: 25cqw;
+  height: 25cqw;
   image-rendering: pixelated;
 }
 
 .bus-stop .bus-actor {
   position: absolute;
   left: 50%;
-  bottom: -2px;
-  transform: translateX(-50%);
+  top: 80%;
+  transform: translate(-50%, -90%);
   pointer-events: none;
 }
 
@@ -202,17 +211,15 @@
   transform: rotate(45deg);
 }
 
-.bus-movement {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(48px, auto));
-  grid-template-areas: '. north .' 'west south east';
-  gap: 3px;
-}
+.bus-controls .bus-interact { margin-left: auto; }
+.bus-touch.touch-controls { z-index: 1; }
+.bus-controls { position: relative; z-index: 2; pointer-events: none; }
+.bus-controls button { pointer-events: auto; }
 
-.bus-moveUp { grid-area: north; }
-.bus-moveLeft { grid-area: west; }
-.bus-moveDown { grid-area: south; }
-.bus-moveRight { grid-area: east; }
+@media (hover: none) and (pointer: coarse) {
+  .bus-controls p, .bus-interact kbd { display: none; }
+  .bus-controls .bus-interact { min-width: 112px; min-height: 52px; }
+}
 .bus-dialog {
   position: fixed;
   inset: auto 0 max(14px, env(safe-area-inset-bottom));

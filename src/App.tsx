@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from './components/CharacterPortrait';
 import { EquipIcon } from './components/EquipIcon';
+import { PetPortrait } from './components/PetPortrait';
+import { TouchJoystick } from './components/TouchJoystick';
 import { BusLobby, type BusService } from './components/BusLobby';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
@@ -312,7 +314,6 @@ export default function App() {
     ascension: number | null;
     newHighScore: boolean;
   }>({ weapons: [], bestiary: [], ascension: null, newHighScore: false });
-  const joyOrigin = useRef<{ id: number; x: number; y: number } | null>(null);
   const runStartRef = useRef<{ armory: Record<string, boolean>; bestiary: Record<string, number>; highestAscension: number; topScore: number }>({
     armory: {}, bestiary: {}, highestAscension: 0, topScore: 0,
   });
@@ -371,10 +372,6 @@ export default function App() {
   }, []);
 
   useEffect(() => { engineRef.current?.setBindings(save.bindings); }, [save.bindings]);
-
-  useEffect(() => {
-    if (screen !== 'playing') joyOrigin.current = null;
-  }, [screen]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -583,26 +580,6 @@ export default function App() {
     audio.play('button');
   };
 
-  const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (joyOrigin.current) return;
-    joyOrigin.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onJoyMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const anchor = joyOrigin.current;
-    if (!anchor || e.pointerId !== anchor.id) return;
-    const dx = e.clientX - anchor.x;
-    const dy = e.clientY - anchor.y;
-    const length = Math.hypot(dx, dy);
-    const speed = Math.min(1, Math.max(0, (length - 4) / 24));
-    const scale = length > 0 ? speed / length : 0;
-    engineRef.current?.setTouchMove(dx * scale, dy * scale, speed > 0);
-  };
-  const onJoyEnd = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (joyOrigin.current?.id !== e.pointerId) return;
-    joyOrigin.current = null;
-    engineRef.current?.setTouchMove(0, 0, false);
-  };
   const onTouchActionPointerDown = (action: 'dash' | 'ultimate') => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === 'mouse') return;
     e.preventDefault();
@@ -709,7 +686,7 @@ export default function App() {
             <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('map'); }}>Mapa</button>
             <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('paused'); }}>Pausa</button>
           </div>
-          <div className="joystick" aria-hidden="true" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd} onLostPointerCapture={onJoyEnd} />
+          <TouchJoystick onMove={(x, y) => engineRef.current?.setTouchMove(x, y, x !== 0 || y !== 0)} />
           <div className="touch-buttons">
             <button type="button" className="touch-btn" disabled={!nearbyPrompt} onClick={() => engineRef.current?.pressTouchAction('interact')}>Acción</button>
             <button type="button" className="touch-btn touch-ultimate" aria-label="Ultimate"
@@ -988,7 +965,7 @@ export default function App() {
                     <div key={pet.id} className="shop-row" style={{ borderColor: `${PET_RARITY_COLORS[pet.rarity]}55` }}>
                       <div>
                         <div style={{ fontWeight: 800, color: PET_RARITY_COLORS[pet.rarity] }}>
-                          {pet.icon} {pet.name} <span style={{ fontSize: '0.65rem', color: '#8891b8' }}>{pet.rarity.toUpperCase()}</span>
+                          <PetPortrait pet={pet} /> {pet.name} <span style={{ fontSize: '0.65rem', color: '#8891b8' }}>{pet.rarity.toUpperCase()}</span>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{pet.ability}</div>
                       </div>
@@ -1021,7 +998,7 @@ export default function App() {
                   <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 4 }}>EQUIPADA</div>
                   {eqPet ? (
                     <>
-                      <div style={{ fontWeight: 800, color: PET_RARITY_COLORS[eqPet.rarity] }}>{eqPet.icon} {eqPet.name}</div>
+                      <div style={{ fontWeight: 800, color: PET_RARITY_COLORS[eqPet.rarity] }}><PetPortrait pet={eqPet} /> {eqPet.name}</div>
                       <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 4 }}>{eqPet.description}</div>
                       <div style={{ fontSize: '0.78rem', color: eqPet.color, marginTop: 4 }}>Habilidad: {eqPet.ability}</div>
                       <button type="button" className="menu-btn" style={{ marginTop: 8 }} onClick={() => onEquipPet(null)}>Desequipar</button>
@@ -1043,7 +1020,7 @@ export default function App() {
                     return (
                       <div key={pet.id} className="item-card" style={{ borderColor: `${PET_RARITY_COLORS[pet.rarity]}55` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 800, color: PET_RARITY_COLORS[pet.rarity] }}>{pet.icon} {pet.name}</span>
+                          <span style={{ fontWeight: 800, color: PET_RARITY_COLORS[pet.rarity] }}><PetPortrait pet={pet} /> {pet.name}</span>
                           <button type="button" className={`menu-btn binding-btn ${isEq ? 'primary' : ''}`} onClick={() => onEquipPet(isEq ? null : pet.id)}>{isEq ? 'Equipada' : 'Equipar'}</button>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{pet.description}</div>

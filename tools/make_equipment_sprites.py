@@ -1,75 +1,61 @@
-"""Genera los sprites pixel art de equipo: 20 sets x 4 ranuras (casco, pechera, pantalón, botas) + 4 genéricos.
-Uso: python3 tools/make_equipment_sprites.py
-Escribe public/assets/sprites/objects/equip_<setId>_<slot>.png (16x16) y fusiona las claves en el manifiesto.
-
-Cada pieza usa el color EXACTO del set (cuerpo), una variante oscura y otra clara (sombreado/brillo) y un emblema blanco
-propio de cada set (5x5 en la pechera, recortado por filas en casco y pantalón; las botas no llevan emblema). La rareza se muestra fuera
-del sprite (marco/base del color de rareza), no cambiando el dibujo."""
-import json, os, re, sys
-from PIL import Image
+"""Genera el pixel art de las cuatro piezas de cada conjunto de equipo."""
+import os, re, sys
 sys.path.insert(0, os.path.dirname(__file__))
-from make_world_sprites import Grid, hx, INK, ROOT
+from make_world_sprites import Grid, hx, ROOT
 
 OUT = os.path.join(ROOT, 'public', 'assets', 'sprites', 'objects')
 def mix(a, b, t): return tuple(int(round(a[i] * (1 - t) + b[i] * t)) for i in range(3))
-FIX = {'s': (195, 203, 232), 'S': (116, 128, 176), 'D': (58, 66, 104), 'w': (255, 244, 214), 'g': (255, 210, 74), 'G': (200, 144, 28)}
-
-SLOTS = {
- 'helm': [
-  '.....MMMM.....',
-  '...MMLLMMMm...',
-  '..MMLMMMMMMm..',
-  '.MMLMMMMMMMMm.',
-  '.MMMMMMMMMMMm.',
-  '.MMMMMMMMMMMm.',
-  '.MDDDDDDDDDDm.',
-  '.MDwDDDDDDDDm.',
-  '.MMMMMMMMMMMm.',
-  '.MM........Mm.',
-  '.mm........mm.',
- ],
- 'chest': [
-  '.MMMM....MMMM.',
-  'MMLMMMssMMMMMm',
-  'MLMMMMMMMMMMMm',
-  'MMMMMMMMMMMMmm',
-  '.MMMMMMMMMMMm.',
-  '.MMMMMMMMMMMm.',
-  '.MMMMMMMMMMmm.',
-  '.mDDDDDDDDDDm.',
-  '.MMMMMMMMMMMm.',
-  '..MMMMMMMMMm..',
-  '..mmmmmmmmmm..',
- ],
- 'pants': [
-  '.DDDDDDDDDDDD.',
-  '.MMMMMMMMMMMm.',
-  '.MLMMMMMMMMMm.',
-  '.MMMMMMMMMMMm.',
-  '.MMMMM..MMMMm.',
-  '.MMMMM..MMMMm.',
-  '.MMMMM..MMMMm.',
-  '.MMMMM..MMMMm.',
-  '.MMMMM..MMMMm.',
-  '.mmmmm..mmmmm.',
-  '.SSSSS..SSSSS.',
- ],
- 'boots': [
-  '..MMM....MMM..',
-  '..MLM....MMM..',
-  '..MMM....MMM..',
-  '..sss....sss..',
-  '..MMM....MMM..',
-  '..MMM....MMM..',
-  '.MMMMM..MMMMM.',
-  'MMMMMMM.MMMMMM',
-  'MMMMMMM.MMMMMM',
-  'mmmmmmm.mmmmmm',
-  'SSSSSSS.SSSSSS',
- ],
+# Siluetas de 14×14. Cada perfil cambia el corte de las cuatro piezas.
+PROFILES = {
+    'plate': {
+        'helm': '....LLLL...... ...LMMMMm..... ..LMMMMMMm.... .LMLMMMMMMm... .MMMMMMMGMMm.. .MMMMDDDDMMm.. .MMMMDwDDMMm.. ..MMMDDDDMMm.. ..MMMMGMMMMm.. ..mMMMMMMMmm.. ...mmMMMMmm...',
+        'chest': 'LLMm......mMLL LMMMMmmmmMMMMm MLLMMMMMMMMMMm MMMMMG..GMMMMm .MMMMMMMMMMmm. .MLMMMMMMMmmm. .MMMMMMMMMMmm. ..GMMDDMMMGm.. ..MMMMMMMMmm.. ...mMMMMMmm... ...SSSSSSSS...',
+        'pants': '..LLSSSSSSmm.. ..MGMMMMMMGm.. ..MMMMMMMMmm.. .MMMMMMMMMMm.. .MMMMM.MMMMm.. .MLMMM.MMLMm.. .LGMMM.MGMMm.. .MMMMm.MMMmm.. .MMMMm.MMMmm.. .mMmmm.mMmmm.. .SSSSS.SSSSS..',
+        'boots': '...LL....LL... ..LMMm..LMMm.. ..MGMM..MGMM.. ..MMMM..MMMM.. ..MLMm..MLMm.. .MMMMm.MMMMm.. .MMMGm.MMMGm.. LMMMMmLMMMMmm. MMMMMmMMMMMmm. mmmmmm.mmmmmm. SSSSSS.SSSSSS.',
+    },
+    'scout': {
+        'helm': '.....LL....... ...LLMMMM..... ..LMLMMMMm.... ..MMMMMMMMm... .LMMMMMMMMmm.. .MMMMMMMMMMmm. .MMDwDDDDMMm.. .mMDDDDDDMm... ..MMMMMMMMm... ..mMMMMMMmm...',
+        'chest': '...LM....ML... ..LMMmmmmMMm.. .LMMMLLLMMMMm. .MMMGMMMMGMMm. ..MMMMMMMMMm.. ..MLMSSMMMMm.. ..MMLMMMSSMm.. ..MMDGGDMMMm.. ..MMMMMMMMMm.. ...mmmmmmmm...',
+        'pants': '..LDDDDDDDDm.. ..MMGGGGMMMm.. ..MMLMMMMMMm.. ..MMMMMMMMMm.. ..MMMm.MMMMm.. ..MMMM.MMMMm.. ..MMMM.MMMMm.. ..MLMm.MMLMm.. ..mMMm.MMMmm.. ...SS...SSS...',
+        'boots': '...LM....LM... ...MMm...MMm.. ...MGm...MGm.. ...MMm...MMm.. ..LMMm..LMMm.. ..MMMM..MMMM.. .LMMMM.LMMMM.. .MMMMm.MMMMmm. .SSSSS.SSSSSS.',
+    },
+    'rig': {
+        'helm': '.......L...... ......LM...... ...LLLMMmm.... ..LMMMMMMMm... .LMMDDDDMMM... .MMDwGwDDMMm.. .MMDGGGDDMMm.. .MMDDDDDDMMm.. .mMMLMLMMMMm.. ..mmmmmmmmm...',
+        'chest': '.Sm........mS. LMMm......mMML LMMMMmmmmMMMMm MGMMMMGGMGMMGm .MLDDDDDDDMm.. .MMDGwGGDDMm.. .MMDGGGGDDMm.. .MMDDDDDDDMm.. .MMMMMMMMMMm.. .mMGmmmmGMmm.. ..SSSSSSSSS...',
+        'pants': '...LMMMMMMm... ..MMGGGGMMMm.. .LMMMMMMMMMm.. .MLMMMMMLMMm.. .MLMMm.MLMMm.. .MGGMm.MGGMm.. .MDDMm.MDDMm.. .MMMMm.MMMMm.. .MLMMm.MLMMm.. .mmmmm.mmmmm.. ..SSSS.SSSS...',
+        'boots': '..LLL...LLL... ..MMm...MMm... ..MGm...MGm... ..MDm...MDm... ..MLM...MLM... ..MMM...MMM... .LMMMM.LMMMM.. MMMMMmMMMMMm.. MGMMMmMGMMMm.. SSSSSSSSSSSS..',
+    },
+    'woven': {
+        'helm': '......L....... ....LLLM...... ...LLMMMMm.... ..LMLMMMMMm... .LMMMMMMMMMm.. .MMMGDDDGMMm.. .MMDwDDDDMMm.. .MMDDDDDDMMm.. ..MMDDDDMMm... ..MMMmmMMmm... ...mm...mm....',
+        'chest': '.LMm......mML. LMMLMmmmmMLMMm MMMMLGGLMMMMMm .MMMLMMGMMMMm. .MMMMLMGMMMMm. ..MMMMLMMMm... ..MMMMMLMMm... ..MMMGGGMMm... ..MMMMMMMMm... .MMMMMMMMMMm.. .mmmm..mmmm...',
+        'pants': '..GDDDDDDDDG.. .LMMMMMMMMMMm. .MMMMMMMMMMMm. .MLMMMMMLMMMm. ..MMMm.MMMMm.. ..MMMM.MMMMm.. ..MLMm.MMLMm.. ..MMMM.MMMMm.. ..MMMM.MMMMm.. ..mmMm.MMmmm.. ..SSSS.SSSSS..',
+        'boots': '...LL....LL... ...MM....MM... ..LMm...LMm... ..MGm...MGm... ..MMm...MMm... ..MGM...MGM... ..MMMM..MMMM.. .LMMMM.LMMMM.. .MMMMm.MMMMmm. .SSSSS.SSSSSS.',
+    },
 }
-# (x, y, (fila_inicial, fila_final)) del emblema 5x5 en cada ranura: se recorta en filas para encajar en la zona lisa de la pieza
-EMB = {'chest': (4, 2, (0, 5)), 'helm': (5, 1, (0, 4)), 'pants': (4, 1, (1, 4)), 'boots': None}
+
+# Base y herrajes propios de cada conjunto, incluso cuando comparten color de habilidad.
+STYLES = {
+    'set_berserker': ('plate', '#813d2d', '#d28b51'),
+    'set_sniper': ('scout', '#435664', '#8fbec6'),
+    'set_asesino': ('woven', '#353047', '#ae649a'),
+    'set_tank': ('plate', '#354e6b', '#8fa8c2'),
+    'set_vampiro': ('woven', '#55283b', '#d6a5a1'),
+    'set_ingeniero': ('rig', '#565b58', '#d1b153'),
+    'set_piromano': ('rig', '#70443a', '#f49352'),
+    'set_criomante': ('woven', '#526a82', '#bde6e5'),
+    'set_electricista': ('rig', '#273e53', '#81def4'),
+    'set_toxicologo': ('rig', '#3d5039', '#9bcc54'),
+    'set_explorador': ('scout', '#3f644d', '#b4d27c'),
+    'set_artillero': ('plate', '#705139', '#deaa54'),
+    'set_comando': ('scout', '#314337', '#96aa75'),
+    'set_fanatico': ('plate', '#674358', '#e89bba'),
+    'set_mercenario': ('scout', '#6a4a38', '#cf9957'),
+    'set_medico': ('rig', '#748481', '#a8dbb5'),
+    'set_cazador': ('scout', '#415d68', '#6ebdc5'),
+    'set_tecnomante': ('rig', '#3c405b', '#66c4db'),
+    'set_caotico': ('woven', '#5e426f', '#ca91e2'),
+    'set_cuantico': ('plate', '#345c6e', '#83dde1'),
+}
 
 EMBLEMS = {
  'set_berserker':    ['1...1', '1.1.1', '.111.', '..1..', '..1..'],
@@ -98,47 +84,46 @@ def parse_sets():
     s = open(os.path.join(ROOT, 'src', 'content', 'equipment.ts'), encoding='utf8').read()
     return re.findall(r"setId: '(set_[a-z0-9_]+)', name: '([^']+)', color: '(#[0-9a-fA-F]{6})'", s)
 
-def render(slot, color, emblem):
-    base = hx(color)
-    pal = dict(FIX); pal['M'] = base; pal['m'] = mix(base, (10, 12, 30), 0.45); pal['L'] = mix(base, (255, 255, 255), 0.5)
-    rows = SLOTS[slot]; g = Grid(14, len(rows))
+def render(slot, profile, base, trim, emblem):
+    metal, detail = hx(base), hx(trim)
+    palette = {
+        'M': metal, 'm': mix(metal, (17, 21, 29), .55),
+        'L': mix(metal, (245, 235, 220), .43), 'D': (34, 42, 50),
+        'S': mix(metal, (24, 28, 33), .72), 'G': detail,
+        'w': mix(detail, (255, 255, 239), .6),
+    }
+    rows = PROFILES[profile][slot].split()
+    g = Grid(16, 16)
+    y0 = (16 - len(rows)) // 2
     for y, row in enumerate(rows):
-        assert len(row) == 14, (slot, y, len(row))
         for x, ch in enumerate(row):
-            if ch != '.': g.set(x, y, pal[ch])
-    if emblem and EMB[slot]:
-        ex, ey, (r0, r1) = EMB[slot]
-        for j, r in enumerate(emblem[r0:r1]):
-            for i, c in enumerate(r):
-                if c == '1': g.set(ex + i, ey + j, pal['w'])
-    return g.outlined()
+            if ch != '.':
+                g.set(x + 1, y + y0, palette[ch])
+    if emblem and slot == 'chest':
+        for y, row in enumerate(emblem):
+            for x, mark in enumerate(row):
+                if mark == '1' and (x + 6, y + 5) in g.p:
+                    g.set(x + 6, y + 5, detail)
+    outlined = g.outlined()
+    # Pad all slots identically so a mixed set stays aligned on the inventory grid.
+    result = Grid(18, 18)
+    result.p.update(outlined.p)
+    return result
+
 
 def build():
     sets = parse_sets()
-    assert len(sets) == 20, len(sets)
-    missing = [s[0] for s in sets if s[0] not in EMBLEMS]
-    assert not missing, missing
-    meta = {}
-    def save(key, g):
-        g.image().save(f'{OUT}/{key}.png')
-        meta[key] = {'image': f'objects/{key}.png', 'frames': 1, 'pixelScale': 2, 'anchor': {'x': 0.5, 'y': 0.5}}
-    for sid, name, color in sets:
-        for slot in SLOTS: save(f'equip_{sid}_{slot}', render(slot, color, EMBLEMS[sid]))
-    for slot in SLOTS: save(f'equip_generic_{slot}', render(slot, '#94a3b8', None))
-    mp = os.path.join(ROOT, 'public', 'assets', 'sprites', 'manifest.json')
-    m = json.load(open(mp)); m['version'] = 1; m.setdefault('objects', {}).update(meta)
-    json.dump(m, open(mp, 'w'), indent=2); open(mp, 'a').write('\n')
-    # vista previa: 20 sets x 4 ranuras
-    S = 6; cell = 16 * S + 6
-    sheet = Image.new('RGB', (4 * cell + 8, 20 * cell // 2 + 16), (52, 64, 110))
-    for i, (sid, name, color) in enumerate(sets):
-        col0 = (i % 2) * 4 * (cell // 2 + 0)
-    sheet = Image.new('RGB', (8 * cell + 8, 10 * cell + 8), (52, 64, 110))
-    for i, (sid, name, color) in enumerate(sets):
-        ox = (i % 2) * 4 * cell + 4; oy = (i // 2) * cell + 4
-        for j, slot in enumerate(SLOTS):
-            im = Image.open(f'{OUT}/equip_{sid}_{slot}.png'); b = im.resize((im.width * S, im.height * S), Image.NEAREST)
-            sheet.paste(b, (ox + j * cell, oy), b)
-    sheet.save('/tmp/equip_preview.png'); print('ok', len(meta), 'piezas', sheet.size)
+    missing = [sid for sid, _, _ in sets if sid not in STYLES or sid not in EMBLEMS]
+    if missing:
+        raise ValueError(f'Conjuntos sin diseño: {missing}')
+    for sid, _, _ in sets:
+        profile, base, trim = STYLES[sid]
+        for slot in PROFILES[profile]:
+            render(slot, profile, base, trim, EMBLEMS[sid]).image().save(f'{OUT}/equip_{sid}_{slot}.png')
+    for slot in PROFILES['scout']:
+        render(slot, 'scout', '#566575', '#a1b1be', None).image().save(f'{OUT}/equip_generic_{slot}.png')
+    print('ok', len(sets) * 4 + 4, 'piezas de equipo')
 
-if __name__ == '__main__': build()
+
+if __name__ == '__main__':
+    build()
