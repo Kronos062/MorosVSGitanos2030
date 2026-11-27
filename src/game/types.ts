@@ -435,6 +435,7 @@ export interface SkillChoice {
 export type GameScreen =
   | 'menu'
   | 'chars'
+  | 'bus'
   | 'faction'
   | 'armory'
   | 'bestiary'

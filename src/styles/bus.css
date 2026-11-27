@@ -1,0 +1,293 @@
+.overlay .screen.bus-start {
+  background: radial-gradient(ellipse at 50% 65%, #293c38, #101a20 60%, #090e15);
+}
+
+.overlay .screen.bus-start::before {
+  background: repeating-linear-gradient(0deg, transparent 0 4px, #070d1236 4px 5px);
+}
+
+.bus-start .bus-start-content .game-title {
+  color: #f4ddaf !important;
+  text-wrap: balance;
+}
+
+.bus-start-content .menu-grid {
+  max-width: 420px;
+  margin-inline: auto;
+  grid-template-columns: 1fr 1fr;
+}
+
+.overlay .screen .section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.overlay .screen .section-nav button:not(.menu-btn) {
+  min-height: 44px;
+  padding: 6px 12px;
+  color: #e4ece8;
+  background: #263238;
+  border: 1px solid #718b89;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.overlay .screen .section-nav button:not(.menu-btn)[aria-pressed="true"] {
+  color: #211a13;
+  background: #d6b071;
+  border-color: #eed39b;
+}
+
+.overlay .screen .bestiary-tabs .menu-btn {
+  flex: 1 1 130px;
+}
+
+.bestiary-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bestiary-name .pixel-idle {
+  width: 44px;
+  height: 44px;
+}
+
+.bus-lobby {
+  --bus-light: #ecc98b;
+  --bus-text: #f1ead8;
+  --bus-metal: #23333b;
+  --bus-line: #627e83;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: #10191e;
+  color: var(--bus-text);
+}
+
+.bus-lobby[hidden] { display: none; }
+
+.bus-header, .bus-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.bus-header h1 {
+  font: 700 clamp(1.15rem, 4vw, 2rem) var(--px-font);
+  color: var(--bus-light);
+}
+
+.bus-header-actions, .bus-movement, .bus-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bus-header button, .bus-controls button, .bus-dialog button {
+  min-height: 44px;
+  padding: 6px 12px;
+  background: linear-gradient(#30434c, #202d35);
+  border: 1px solid var(--bus-line);
+  border-bottom: 3px solid #111b21;
+  border-radius: 4px;
+  color: var(--bus-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bus-movement button { touch-action: none; }
+.bus-controls p { text-align: center; font-size: .8rem; }
+.bus-controls .bus-interact:not(:disabled) { background: #d6b071; color: #211a13; }
+.bus-controls .bus-interact:disabled { opacity: .62; cursor: default; }
+.bus-interact kbd { margin-left: 8px; font-size: .75em; }
+
+.bus-interior {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 2px solid #445b62;
+  border-radius: 18px 24px 8px 8px;
+  background:
+    linear-gradient(#26383d 0 12%, transparent 12% 76%, #18252c 76%),
+    repeating-linear-gradient(90deg, #3a4b50 0 12%, #31444b 12% 12.7%);
+  box-shadow: inset 0 0 55px #0e1519;
+}
+
+.bus-interior::before {
+  content: '';
+  position: absolute;
+  inset: 7% 7% auto;
+  height: 3px;
+  background: var(--bus-light);
+  box-shadow: 0 0 18px #eabd69;
+}
+
+.bus-windows {
+  position: absolute;
+  inset: 17% 6% 41%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(5px, 1.5vw, 20px);
+}
+
+.bus-window {
+  border: 3px solid #141e25;
+  border-radius: 11px;
+  box-shadow: 0 0 0 1px #728283, inset 0 0 12px #121a29;
+  background:
+    linear-gradient(150deg, #b4cff323, transparent 32%),
+    repeating-linear-gradient(90deg, transparent 0 8px, #e2b579 8px 10px, transparent 10px 34px) 0 79% / 136px 3px repeat-x,
+    repeating-linear-gradient(90deg, #171f35 0 30px, #242c41 30px 52px, #142132 52px 68px) 0 100% / 136px 34% repeat-x,
+    linear-gradient(#223255, #534764 70%, #bc795b);
+  animation: bus-road 4s linear infinite;
+}
+
+@keyframes bus-road {
+  to { background-position: 0 0, -272px 79%, -136px 100%, 0 0; }
+}
+
+.bus-floor {
+  position: absolute;
+  inset: 65% 0 0;
+  background:
+    linear-gradient(transparent 18%, #dbc08e 18% 20%, transparent 20% 77%, #a8916e 77% 78%, transparent 78%),
+    repeating-linear-gradient(90deg, #3b4446 0 9%, #343d40 9% 9.4%);
+  border-top: 4px solid #152127;
+  box-shadow: inset 0 12px 20px #101a2082;
+}
+
+.bus-lobby .pixel-idle, .bestiary-name .pixel-idle {
+  display: inline-block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.bus-lobby .pixel-idle[data-animated="true"], .bestiary-name .pixel-idle[data-animated="true"] {
+  animation-name: bus-idle;
+  animation-iteration-count: infinite;
+}
+
+@keyframes bus-idle { to { background-position: 100% 0; } }
+
+.bus-stop, .bus-player {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.bus-stop {
+  left: var(--stop-x);
+  bottom: 36%;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: min(15%, 144px);
+  background: transparent;
+  color: var(--bus-text);
+  cursor: pointer;
+}
+
+.bus-stop .pixel-idle, .bus-player .pixel-idle, .bus-dialog .pixel-idle,
+.bus-stop .pixel-icon, .bus-player .pixel-icon, .bus-dialog .pixel-icon {
+  width: clamp(37px, 17vh, 110px);
+  height: clamp(37px, 17vh, 110px);
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.bus-stop-label {
+  display: block;
+  padding: 3px 6px;
+  background: #162229;
+  border: 1px solid #607d83;
+  border-radius: 3px;
+  font-size: clamp(.61rem, 1.5vw, .9rem);
+  font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.bus-stop[data-nearby="true"] .bus-stop-label, .bus-stop:hover .bus-stop-label {
+  background: var(--bus-light);
+  border-color: var(--bus-light);
+  color: #211a13;
+}
+
+.bus-silhouette {
+  display: inline-block;
+  width: clamp(34px, 13vh, 85px);
+  aspect-ratio: .8;
+  background: #13191e;
+  filter: drop-shadow(0 0 2px #edc98a);
+  clip-path: polygon(30% 2%, 70% 2%, 82% 16%, 82% 44%, 72% 54%, 91% 67%, 100% 85%, 100% 100%, 0 100%, 0 85%, 9% 67%, 28% 54%, 18% 44%, 18% 16%);
+}
+
+.bus-door-art {
+  display: block;
+  width: min(90%, 64px);
+  height: clamp(36px, 20vh, 146px);
+  border: 3px solid #8ca39d;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(90deg, transparent 48%, #14252d 48% 53%, transparent 53%), linear-gradient(#273f4d 65%, #65553a 65% 73%, #364950 73%);
+}
+
+.bus-player {
+  bottom: 6%;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 1px #0008);
+}
+
+.bus-player::before {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: auto;
+  background: var(--bus-light);
+  transform: rotate(45deg);
+}
+
+.bus-player-sprite { display: block; }
+
+.bus-dialog {
+  position: fixed;
+  inset: auto 0 max(14px, env(safe-area-inset-bottom));
+  width: min(690px, calc(100% - 28px));
+  max-height: calc(100dvh - 28px);
+  margin: 0 auto;
+  padding: 14px;
+  color: var(--bus-text);
+  background: #19252b;
+  border: 1px solid var(--bus-line);
+  border-top: 3px solid var(--bus-light);
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.bus-dialog[open] { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; }
+.bus-dialog::backdrop { background: #07111599; }
+.bus-dialog h2 { color: var(--bus-light); font: 700 1.15rem var(--px-font); }
+.bus-dialog p { margin-top: 4px; }
+.bus-dialog-actions { margin-top: 10px; }
+
+@media (max-height: 500px) {
+  .bus-lobby { gap: 6px; }
+  .bus-controls p { display: none; }
+}
+
+@media (max-width: 620px) {
+  .bus-stop { bottom: 39%; }
+  .bus-stop-label { padding-inline: 2px; }
+  .bus-header button, .bus-controls button { padding-inline: 8px; font-size: .8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bus-window, .bus-lobby .pixel-idle[data-animated="true"] { animation: none; }
+}

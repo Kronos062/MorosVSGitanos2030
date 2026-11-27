@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from './components/CharacterPortrait';
 import { EquipIcon } from './components/EquipIcon';
+import { BusLobby, type BusService } from './components/BusLobby';
 import { CHARACTERS, getCharacter, getCharactersByFaction, factionColor, factionName, formatPassiveMod } from './content/characters';
 import type { Faction } from './content/characters';
 import { getBaseWeapon, RARITY_COLORS, WEAPON_BASES } from './content/weapons';
@@ -289,6 +290,7 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [screen, setScreen] = useState<GameScreen>('menu');
+  const [busService, setBusService] = useState<BusService | null>(null);
   const [optionsOrigin, setOptionsOrigin] = useState<'menu' | 'paused'>('menu');
   const [optionSection, setOptionSection] = useState('audio');
   const [bestiarySection, setBestiarySection] = useState<Faction | 'profiles'>('bando_moros');
@@ -466,8 +468,8 @@ export default function App() {
         if (e.code === 'Escape') { setRebinding(null); return; }
         setSave((prev) => setBinding(prev, rebinding, e.code)); setRebinding(null); audio.play('button'); return;
       }
-      if (e.code === 'Enter' && screen === 'menu' && save.faction && save.tutorialSeen) {
-        setScreen('chars'); audio.play('button');
+      if (e.code === 'Enter' && screen === 'menu' && !e.repeat && !(e.target instanceof HTMLButtonElement)) {
+        setScreen(save.faction ? 'chars' : 'faction'); audio.play('button');
       }
       const pauseCode = save.bindings.pause;
       const mapCode = save.bindings.openMap;
@@ -523,7 +525,7 @@ export default function App() {
     engineRef.current?.start(selectedChar, save.upgrades, save.bindings, save.equippedPet, seedInput.trim() || undefined, save.activeAscension, save.assistMode);
     setSeedInput('');
     setEndResult(null); setSkillChoices([]); setScreen('playing');
-  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.armory, save.bestiary, save.highestAscension, save.highScores, seedInput]);
+  }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.assistMode, save.armory, save.bestiary, save.highestAscension, save.highScores, seedInput]);
 
   const onBuyPet = (petId: string, cost: number) => {
     const next = buyPet(save, petId, cost);
@@ -535,6 +537,12 @@ export default function App() {
   };
 
   const backToMenu = useCallback(() => { audio.play('button'); engineRef.current?.pause(); setScreen('menu'); }, []);
+  const returnToBus = () => { audio.play('button'); setBusService(null); setScreen('bus'); };
+  const openBusService = (service: BusService) => {
+    audio.play('button');
+    setBusService(service);
+    setScreen(service);
+  };
   const chooseSkill = (id: string) => {
     audio.play('levelup');
     engineRef.current?.applySkill(id);
@@ -557,7 +565,7 @@ export default function App() {
     setSave(next);
     const chars = getCharactersByFaction(f);
     if (chars.length > 0) setSelectedChar(chars[0].id);
-    setScreen('menu');
+    setScreen('chars');
   };
 
   const doSwitchFaction = () => {
@@ -715,8 +723,14 @@ export default function App() {
         </div>
       )}
 
+      {(screen === 'bus' || screen === 'ascension' || (busService !== null && screen === busService)) && (
+        <BusLobby active={screen === 'bus'} character={selected} roster={availableChars}
+          bindings={save.bindings} onService={openBusService} onDepart={startGame}
+          onDifficulty={() => setScreen('ascension')} onMenu={backToMenu} />
+      )}
+
       <div className="overlay">
-        {!hasFaction && screen === 'menu' && (
+        {screen === 'faction' && (
           <div className="screen">
             <div className="screen-content">
               <h1 className="game-title">MOROS VS GITANOS</h1>
@@ -731,11 +745,12 @@ export default function App() {
                   <span className="faction-sigil" aria-hidden="true">G</span><strong>GITANOS</strong><small>RITMO · AUDACIA</small>
                 </button>
               </div>
+              <div className="screen-actions"><button type="button" className="menu-btn" onClick={backToMenu}>Volver</button></div>
             </div>
           </div>
         )}
 
-        {(showTutorial || (!save.tutorialSeen && screen === 'menu' && hasFaction)) && (
+        {(showTutorial || (!save.tutorialSeen && screen === 'chars' && hasFaction)) && (
           <div className="screen" style={{ zIndex: 20 }}>
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>CÓMO JUGAR</h2>
@@ -762,28 +777,14 @@ export default function App() {
           </div>
         )}
 
-        {screen === 'menu' && hasFaction && (
-          <div className="screen">
-            <div className="screen-content main-menu-content">
+        {screen === 'menu' && (
+          <div className="screen bus-start">
+            <div className="screen-content bus-start-content">
                 <h1 className="game-title">MOROS VS GITANOS</h1>
                 <h2 className="game-subtitle">2 0 3 0</h2>
-                <div className="gold-box">
-                  <div className="label">MONEDAS ROGUELITE</div>
-                  <div className="value"><CoinMark /> {save.gold.toLocaleString()}</div>
-                </div>
-                <div style={{ textAlign: 'center', marginBottom: 8, color: factionColor(save.faction!), fontWeight: 700, letterSpacing: '0.1em' }}>
-                  {factionLabel(save.faction!)}
-                </div>
                 <div className="menu-grid">
-                <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); setScreen('chars'); }}>Jugar</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('armory'); }}>Armería</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('bestiary'); }}>Bestiario</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('shop'); }}>Tienda</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('pets'); }}>Mascotas</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('controls'); }}>Controles</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('scores'); }}>Puntuaciones</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setOptionsOrigin('menu'); setScreen('options'); }}>Opciones</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setShowCodex(true); }}>Códice</button>
+                <button type="button" className="menu-btn primary" onClick={() => { audio.play('button'); setScreen(hasFaction ? 'chars' : 'faction'); }}>Jugar</button>
+                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setOptionsOrigin('menu'); setScreen('options'); }}>Ajustes</button>
               </div>
             </div>
           </div>
@@ -838,7 +839,7 @@ export default function App() {
                   <div className="screen-actions">
                     <button type="button" className="menu-btn" onClick={() => setShowCharacterSheet(false)}>Cambiar</button>
                     <button type="button" className="menu-btn primary" onClick={() => {
-                      audio.play('button'); setShowCharacterSheet(false); setScreen('ascension');
+                      audio.play('button'); setShowCharacterSheet(false); setScreen('bus');
                     }}>Seleccionar</button>
                   </div>
                 </dialog>
@@ -883,8 +884,7 @@ export default function App() {
                     value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
                 </details>
                 <div className="screen-actions">
-                  <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('chars'); }}>Volver</button>
-                  <button type="button" className="menu-btn primary" onClick={startGame}>Jugar</button>
+                  <button type="button" className="menu-btn primary" onClick={returnToBus}>Volver al autobús</button>
                 </div>
               </div>
             </div>
@@ -908,7 +908,10 @@ export default function App() {
                   );
                 })}
               </div>
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <div className="screen-actions">
+                <button type="button" className="menu-btn" onClick={() => setShowCodex(true)}>Códice de sinergias</button>
+                <button type="button" className="menu-btn" onClick={returnToBus}>Volver al autobús</button>
+              </div>
             </div>
           </div>
         )}
@@ -917,9 +920,9 @@ export default function App() {
           <div className="screen">
             <div className="screen-content">
               <h2 className="section-title">Bestiario de rivales</h2>
-              <nav className="section-nav" aria-label="Secciones del bestiario">
+              <nav className="section-nav bestiary-tabs" aria-label="Secciones del bestiario">
                 {([['bando_moros', 'Moros'], ['bando_gitanos', 'Gitanos'], ['profiles', 'Perfiles de combate']] as const).map(([id, label]) => (
-                  <button type="button" key={id} aria-pressed={bestiarySection === id} onClick={() => setBestiarySection(id)}>{label}</button>
+                  <button type="button" className={bestiarySection === id ? 'menu-btn primary' : 'menu-btn'} key={id} aria-pressed={bestiarySection === id} onClick={() => setBestiarySection(id)}>{label}</button>
                 ))}
               </nav>
               <div className="list-scroll bestiary-roster">
@@ -951,7 +954,7 @@ export default function App() {
                 </section>
                 )}
               </div>
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" onClick={returnToBus}>Volver al autobús</button>
             </div>
           </div>
         )}
@@ -989,7 +992,7 @@ export default function App() {
                 })}
               </div>
 
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" onClick={returnToBus}>Volver al autobús</button>
             </div>
           </div>
         )}
@@ -1041,7 +1044,7 @@ export default function App() {
                   })}
                 </div>
 
-                <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+                <button type="button" className="menu-btn full-width" onClick={returnToBus}>Volver al autobús</button>
               </div>
             </div>
           );
@@ -1063,7 +1066,7 @@ export default function App() {
                 <p><strong>Acción:</strong> interactúa con el objeto cercano</p>
                 <p><strong>Esquiva y Ultimate:</strong> toca para activar</p>
               </div>
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" onClick={() => setScreen('options')}>Volver a ajustes</button>
             </div>
           </div>
         )}
@@ -1077,7 +1080,7 @@ export default function App() {
                   save.highScores.map((hs, i) => (<div key={`${hs.date}-${i}`} className="highscore-row"><span className="highscore-rank">#{i + 1}</span><span>Ol. {hs.wave} · {hs.kills} kills · {getCharacter(hs.characterId).name}</span><span className="highscore-value">{hs.score.toLocaleString()}</span></div>))
                 )}
               </div>
-              <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" onClick={returnToBus}>Volver al autobús</button>
             </div>
           </div>
         )}
@@ -1201,6 +1204,7 @@ export default function App() {
                   </div>
 
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setShowTutorial(true); }}>Ver tutorial</button>
+                  <button type="button" className="menu-btn full-width" onClick={() => setScreen('controls')}>Ver controles</button>
                 </div>
               </div>
 
@@ -1662,4 +1666,3 @@ export default function App() {
     </div>
   );
 }
-
