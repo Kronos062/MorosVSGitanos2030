@@ -967,7 +967,7 @@
         "x": 4,
         "y": 6
       },
-      "muzzle": 7,
+      "muzzle": 9,
       "pixelScale": 2
     },
     "crimson_sidearm": {
@@ -1372,7 +1372,7 @@
         "x": 5,
         "y": 8
       },
-      "muzzle": 11,
+      "muzzle": 15,
       "pixelScale": 2
     },
     "chrono_disruptor": {
@@ -1444,7 +1444,7 @@
         "x": 4,
         "y": 10
       },
-      "muzzle": 4,
+      "muzzle": 8,
       "pixelScale": 2
     },
     "judgment": {

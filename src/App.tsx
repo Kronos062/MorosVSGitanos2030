@@ -903,11 +903,15 @@ export default function App() {
           <div className="screen">
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>ARMERÍA DE ARMAS</h2>
-              <div className="list-scroll" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div className="list-scroll armory-grid">
                 {WEAPON_BASES.map((w) => {
                   const discovered = !!save.armory[w.id];
                   return (
                     <div key={w.id} className={`item-card ${discovered ? '' : 'dim'}`} style={{ borderColor: discovered ? w.color : 'rgba(255,255,255,0.1)' }}>
+                      {discovered && (
+                        <img className="armory-weapon-sprite" src={`${import.meta.env.BASE_URL}assets/sprites/weapons/${w.id}.png`}
+                          alt="" loading="lazy" draggable={false} />
+                      )}
                       <div style={{ fontWeight: 800, color: discovered ? w.color : '#888' }}>{discovered ? w.name : '???????'}</div>
                       <div style={{ fontSize: '0.75rem', color: '#8891b8', marginTop: 4 }}>
                         {discovered ? (<><div>Daño base: <strong>{w.damage}</strong> · Cadencia: {w.fireRate}/s</div><div>Proy: {w.count} · Perf: {w.pierce} · Tags: {w.tags.join(', ')}</div><div style={{ marginTop: 2, opacity: 0.7 }}>La calidad se determina al generar el arma.</div></>) : (<div>Arma desconocida</div>)}
