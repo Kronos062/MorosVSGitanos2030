@@ -142,25 +142,29 @@
 
 .bus-stop, .bus-player {
   position: absolute;
-  transform: translate(-50%, -91%);
-  transform-origin: 50% 100%;
 }
 
 .bus-stop {
-  display: grid;
-  justify-items: center;
-  min-width: 48px;
-  min-height: 48px;
+  width: 48px;
+  height: 48px;
+  transform: translate(-50%, -80%);
   background: transparent;
-  color: var(--bus-text);
   cursor: pointer;
 }
 
 .bus-actor {
   display: block;
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   image-rendering: pixelated;
+}
+
+.bus-stop .bus-actor {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .bus-dialog :is(.pixel-idle, .pixel-icon) {
@@ -169,33 +173,8 @@
   object-fit: contain;
 }
 
-.bus-stop-label {
-  position: absolute;
-  top: 15px;
-  transform: translateY(-50%);
-  padding: 3px 7px;
-  background: #15242dee;
-  border: 1px solid #799d9b;
-  border-radius: 3px;
-  font: 700 clamp(.72rem, 1.5vw, .93rem) var(--px-font);
-  white-space: nowrap;
-}
-
-.bus-stop-door .bus-stop-label, .bus-stop-driver .bus-stop-label {
-  top: auto;
-  bottom: 3px;
-  transform: none;
-}
-
-.bus-stop-driver .bus-stop-label {
-  right: calc(50% + 18px);
-  bottom: 12px;
-}
-
-.bus-stop[data-nearby="true"] .bus-stop-label, .bus-stop:hover .bus-stop-label {
-  background: var(--bus-light);
-  border-color: var(--bus-light);
-  color: #211a13;
+.bus-stop:hover .bus-actor, .bus-stop[data-nearby="true"] .bus-actor {
+  filter: drop-shadow(0 0 1px #f5dda5);
 }
 
 .bus-silhouette {
@@ -207,6 +186,7 @@
 }
 
 .bus-player {
+  transform: translate(-50%, -90%);
   pointer-events: none;
   filter: drop-shadow(0 3px 1px #0008);
 }
@@ -261,7 +241,6 @@
 
 @media (max-width: 620px) {
 
-  .bus-stop-label { padding-inline: 2px; }
   .bus-header button, .bus-controls button { padding-inline: 8px; font-size: .8rem; }
 }
 

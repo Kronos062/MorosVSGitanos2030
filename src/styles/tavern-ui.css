@@ -208,7 +208,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .faction-gitanos { color: #d79872 !important; border-color: #a96348 !important; background: linear-gradient(145deg, rgb(132 71 46 / 36%), rgb(25 20 18 / 62%)) !important; }
 .faction-choice:hover { transform: translateY(-3px); filter: brightness(1.2); }
 
-.char-grid.roster-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px 18px; max-height: min(38vh, 330px); }
+.overlay .screen .character-roster { max-height: none; }
+.char-grid.roster-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  text-align: center;
+}
+.roster-grid .char-card { flex: 0 0 clamp(88px, 15vw, 135px); }
 .overlay .screen .roster-grid .char-card { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 10px 4px; background: transparent; border: 0; border-bottom: 1px solid rgb(198 154 85 / 22%); border-radius: 0; box-shadow: none; }
 .overlay .screen .roster-grid .char-card :is(.pixel-idle, .pixel-icon) {
   display: block;
