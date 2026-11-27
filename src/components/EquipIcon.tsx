@@ -11,7 +11,7 @@ export function EquipIcon({
   if (!url) return <>{fallback ?? null}</>;
   return (
     <span className="equip-tile" style={frame ? { borderColor: frame } : undefined}>
-      <span className="px-ico" style={{ backgroundImage: `url("${url}")`, width: size, height: size }} />
+      <img className="equip-sprite" src={url} width={size} height={size} alt="" draggable={false} />
     </span>
   );
 }

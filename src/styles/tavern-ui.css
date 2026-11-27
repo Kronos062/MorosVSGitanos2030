@@ -403,6 +403,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .touch-pause-weapon { display: none; }
 
+.pet-sprite {
+  display: inline-block;
+  width: 36px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  vertical-align: middle;
+}
+
+.equip-tile {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid #4f555e;
+  background: #262b31;
+  vertical-align: middle;
+}
+
+.equip-sprite {
+  display: block;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .armory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));

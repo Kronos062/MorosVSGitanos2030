@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
 import type { CharacterDef } from '../content/characters';
 import { codeLabel } from '../game/persistence';
 import type { KeyBindings } from '../game/types';
 import { CharacterPortrait } from './CharacterPortrait';
+import { TouchJoystick } from './TouchJoystick';
 import { BusActor, BusInterior, busPlacement, busWalkable, type BusPoint } from './BusInterior';
 import '../styles/bus.css';
 
@@ -25,10 +25,10 @@ const STATIONS: { point: BusPoint; services: BusService[] }[] = [
 ];
 
 const DIRECTIONS = [
-  { action: 'moveUp', key: 'ArrowUp', label: 'Avanzar', x: 0, depth: -1 },
-  { action: 'moveLeft', key: 'ArrowLeft', label: 'Izquierda', x: -1, depth: 0 },
-  { action: 'moveDown', key: 'ArrowDown', label: 'Retroceder', x: 0, depth: 1 },
-  { action: 'moveRight', key: 'ArrowRight', label: 'Derecha', x: 1, depth: 0 },
+  { action: 'moveUp', key: 'ArrowUp', x: 0, depth: -1 },
+  { action: 'moveLeft', key: 'ArrowLeft', x: -1, depth: 0 },
+  { action: 'moveDown', key: 'ArrowDown', x: 0, depth: 1 },
+  { action: 'moveRight', key: 'ArrowRight', x: 1, depth: 0 },
 ] as const;
 
 function moveOnFloor(point: BusPoint, dx: number, dz: number) {
@@ -64,7 +64,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
   const [talking, setTalking] = useState<Stop | null>(null);
   const [approaching, setApproaching] = useState<string | null>(null);
   const pressed = useRef(new Set<string>());
-  const touch = useRef(new Map<number, BusPoint>());
+  const touch = useRef<BusPoint>({ x: 0, depth: 0 });
   const route = useRef<BusPoint[]>([]);
   const stops: Stop[] = roster.filter(member => member.id !== character.id).slice(0, STATIONS.length).map((passenger, index) => {
     const { point, services } = STATIONS[index];
@@ -97,7 +97,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     const up = (event: KeyboardEvent) => pressed.current.delete(event.code);
     const clear = () => {
       pressed.current.clear();
-      touch.current.clear();
+      touch.current = { x: 0, depth: 0 };
       route.current = [];
     };
     const onBlur = () => { clear(); setApproaching(null); };
@@ -105,14 +105,14 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     let previous = performance.now();
     const walk = (now: number) => {
       const directions = DIRECTIONS.filter(({ key, action }) => pressed.current.has(key) || pressed.current.has(bindings[action]));
-      const inputs = [...directions, ...touch.current.values()];
-      const dx = Math.sign(inputs.reduce((sum, input) => sum + input.x, 0));
-      const dz = Math.sign(inputs.reduce((sum, input) => sum + input.depth, 0));
+      const touchMoving = touch.current.x !== 0 || touch.current.depth !== 0;
+      const dx = touchMoving ? touch.current.x : directions.reduce((sum, input) => sum + input.x, 0);
+      const dz = touchMoving ? touch.current.depth : directions.reduce((sum, input) => sum + input.depth, 0);
       const distance = .57 * Math.min((now - previous) / 1000, .05);
       previous = now;
       const current = positionRef.current;
       if (dx || dz) {
-        const step = distance / Math.hypot(dx, dz);
+        const step = distance / Math.max(1, Math.hypot(dx, dz));
         place(moveOnFloor(current, dx * step * 1.7, dz * step));
       } else if (route.current.length) {
         const [target] = route.current;
@@ -162,13 +162,6 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const holdDirection = (direction: BusPoint) => (event: PointerEvent<HTMLButtonElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    route.current = [];
-    setApproaching(null);
-    touch.current.set(event.pointerId, direction);
-  };
-  const releaseDirection = (event: PointerEvent<HTMLButtonElement>) => { touch.current.delete(event.pointerId); };
   const chooseStop = (stop: Stop) => {
     if (stop === nearest) {
       interact();
@@ -189,6 +182,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
         </div>
       </header>
       <div className="bus-interior">
+        <div className="bus-stage">
         {active && <BusInterior />}
         {stops.map(stop => (
           <button type="button" key={stop.id} className={`bus-stop bus-stop-${stop.id === 'door' || stop.id === 'driver' ? stop.id : 'passenger'}`}
@@ -201,29 +195,26 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
         <div className="bus-player" aria-hidden="true" style={busPlacement(position)}>
           {active && <BusActor id={character.id} point={position} face={facing} />}
         </div>
+        </div>
       </div>
       <footer className="bus-controls">
-        <div className="bus-movement">
-          {DIRECTIONS.map(direction => (
-            <button type="button" key={direction.action} aria-label={direction.label} className={`bus-${direction.action}`}
-              onPointerDown={holdDirection(direction)} onPointerUp={releaseDirection} onPointerCancel={releaseDirection}
-              onLostPointerCapture={releaseDirection}
-              onClick={event => {
-                if (event.detail !== 0) return;
-                route.current = [];
-                setApproaching(null);
-                place(moveOnFloor(positionRef.current, direction.x * .1, direction.depth * .06));
-              }}>
-              {direction.label}
-            </button>
-          ))}
-        </div>
-        <p>Acércate a un pasajero o a la puerta.</p>
+        <p>Flechas o teclas configuradas para moverte.</p>
         <button type="button" className="bus-interact" disabled={!nearest} onClick={interact}>
           {nearest?.id === 'door' ? 'Bajar y jugar' : nearest ? 'Hablar' : 'Interactuar'}
           <kbd>{codeLabel(bindings.interact)}</kbd>
         </button>
       </footer>
+      {active && !talking && (
+        <div className="touch-controls bus-touch">
+          <TouchJoystick onMove={(x, depth) => {
+            touch.current = { x, depth };
+            if (x || depth) {
+              route.current = [];
+              setApproaching(null);
+            }
+          }} />
+        </div>
+      )}
       {talking && (
         <dialog className="bus-dialog" aria-labelledby="bus-speaker" onCancel={() => setTalking(null)}
           ref={dialog => { if (dialog && !dialog.open) dialog.showModal(); }}>
