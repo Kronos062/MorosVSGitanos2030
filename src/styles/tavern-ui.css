@@ -217,11 +217,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* Hoja centrada: ficha a la izquierda, retrato protagonista a la derecha. */
 .overlay .screen dialog.character-sheet {
   position: fixed;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
   width: min(900px, calc(100vw - 36px));
   max-width: 900px;
   max-height: min(90dvh, 680px);
-  margin: auto;
+  margin: 0;
+  transform: translate(-50%, -50%);
   padding: clamp(18px, 3vw, 32px);
   overflow: auto;
   color: var(--tavern-bone);
