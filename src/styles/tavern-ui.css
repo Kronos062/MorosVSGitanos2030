@@ -347,10 +347,19 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .main-menu-content > .menu-grid { gap: 3px 10px; }
   .overlay .screen .screen-content.main-menu-content > .menu-grid .menu-btn { min-height: 40px; padding: 6px 9px; }
   .overlay .screen .screen-content.main-menu-content > .menu-grid .menu-btn.primary { min-height: 46px; }
-  .overlay .screen dialog.character-sheet { max-height: 92dvh; }
-  .character-sheet-body { grid-template-columns: minmax(0, 1.2fr) minmax(180px, .8fr); }
-  .character-sheet-art { min-height: 210px; }
-  .character-sheet-art .pixel-idle { width: min(34vh, 220px); height: min(34vh, 220px); }
+  .overlay .screen dialog.character-sheet { width: calc(100vw - 20px); max-height: calc(100dvh - 16px); padding: 10px 16px; }
+  .character-sheet-body { grid-template-columns: minmax(0, 1.2fr) minmax(140px, .8fr); gap: 10px; }
+  .character-sheet-info h2 { margin-bottom: 5px; font-size: 1.35rem; }
+  .character-stats { gap: 0 12px; margin-bottom: 6px; }
+  .character-stats div { padding: 3px 0; font-size: .78rem; }
+  .character-sheet-art { min-height: 0; gap: 6px; }
+  .character-sheet-art .pixel-idle { width: min(28vh, 150px); height: min(28vh, 150px); }
+  .character-power { margin-top: 6px; padding-top: 5px; }
+  .character-power h3 { margin-bottom: 2px; font-size: .84rem; }
+  .character-power p { font-size: .75rem; line-height: 1.35; }
+  .character-power small { margin-top: 2px; font-size: .68rem; }
+  .character-sheet .screen-actions { margin-top: 8px; }
+  .character-sheet .screen-actions .menu-btn { min-height: 38px; padding: 7px 12px; font-size: .82rem; }
   .hud { padding: 8px; font-size: 12px; }
   .hud-top { gap: 6px; }
   .hud-panel { min-width: 112px; padding: 6px 8px; }
