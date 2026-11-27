@@ -187,6 +187,11 @@
   transform: none;
 }
 
+.bus-stop-driver .bus-stop-label {
+  right: calc(50% + 18px);
+  bottom: 12px;
+}
+
 .bus-stop[data-nearby="true"] .bus-stop-label, .bus-stop:hover .bus-stop-label {
   background: var(--bus-light);
   border-color: var(--bus-light);
