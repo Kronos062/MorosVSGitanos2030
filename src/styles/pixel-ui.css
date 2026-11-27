@@ -411,6 +411,17 @@ img.pixel-portrait {
   animation-iteration-count: infinite;
 }
 
+.char-card .pixel-idle {
+  margin: 0 auto 6px;
+}
+
+.detail-box .pixel-idle {
+  float: left;
+  width: 96px;
+  height: 96px;
+  margin: 0 14px 8px 0;
+}
+
 @keyframes rival-idle {
   to { background-position: 100% 0; }
 }
