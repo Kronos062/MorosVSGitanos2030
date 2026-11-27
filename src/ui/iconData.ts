@@ -792,5 +792,24 @@ export const ICON_BITMAPS: Record<string, string[]> = {
   ".....kkggkk.....",
   ".......kk.......",
   "................"
+ ],
+ "orb": [
+  "................",
+  "......kkkk......",
+  "....kkrrrrkk....",
+  "...krrrrrrrrk...",
+  "..krrrwwrrrrrk..",
+  ".krrrwwwrrrrrrk.",
+  ".krrrwwbccccbkk.",
+  "krrrrrbbcccccck.",
+  "krrrrrbbcccccck.",
+  ".krrrwwbccccbkk.",
+  ".krrrwwwwwwwwk..",
+  "..krrrwwwwwwk...",
+  "...krrrrrrrk....",
+  "....kkrrrrkk....",
+  "......kkkk......",
+  "................"
  ]
 };
+

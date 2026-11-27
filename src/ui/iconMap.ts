@@ -1,6 +1,6 @@
 /**
  * Emoji → icono pixel art (claves de iconData.ts).
- * Los emojis que no aparecen aquí (flechas, ⌨, 🔴, 🔵…) se dejan tal cual.
+ * Los iconos de contenido se convierten aquí en sprites pixelados.
  * Varios emojis comparten icono: se prefiere un set pequeño y coherente a 126 dibujos sueltos.
  */
 const GROUPS: Record<string, string> = {
@@ -48,9 +48,11 @@ const GROUPS: Record<string, string> = {
   chip: '💻🔋🔌',
   phone: '📱',
   ring: '💍📿',
+  orb: '🔴🔵',
 };
 
 export const EMOJI_TO_ICON: Record<string, string> = {};
 for (const [icon, chars] of Object.entries(GROUPS)) {
   for (const ch of Array.from(chars)) EMOJI_TO_ICON[ch] = icon;
 }
+
