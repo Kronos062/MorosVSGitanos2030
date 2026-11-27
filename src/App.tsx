@@ -280,6 +280,7 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [screen, setScreen] = useState<GameScreen>('menu');
+  const [optionsOrigin, setOptionsOrigin] = useState<'menu' | 'paused'>('menu');
   const [save, setSave] = useState<SaveData>(() => loadSave());
   const [selectedChar, setSelectedChar] = useState('tariq');
   const [stats, setStats] = useState<GameStats>(emptyStats);
@@ -572,7 +573,11 @@ export default function App() {
     engineRef.current?.setTouchMove(dx / max, dy / max, true);
   };
 
-  const interactLabel = codeLabel(save.bindings.interact);
+  const nearbyPrompt = stats.portalPrompt
+    ? { name: stats.portalPrompt.kind, color: '#ffe14a' }
+    : stats.eventPrompt ?? stats.chestPrompt ?? (stats.stackedPickupCount >= 2
+      ? { name: `Elegir objeto (${stats.stackedPickupCount})`, color: '#ffe14a' }
+      : stats.weaponPrompt ?? stats.itemPrompt);
 
   return (
     <div id="game-root">
@@ -585,9 +590,9 @@ export default function App() {
               <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
               <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
-              <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
-              <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
-              <div className="stat-row"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
+              <div className="stat-row hud-detail-stat"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
+              <div className="stat-row hud-detail-stat"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
+              <div className="stat-row hud-detail-stat"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
             </div>
             <div className="hud-panel">
               <div className="stat-row"><span className="stat-label">Combo</span><span className="stat-value">x{stats.multiplier.toFixed(2)}</span></div>
@@ -617,23 +622,6 @@ export default function App() {
               </div>
             </div>
           )}
-          {stats.portalPrompt && (<div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] {stats.portalPrompt.kind}</div>)}
-          {!stats.portalPrompt && stats.eventPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.eventPrompt.color }}>[{interactLabel}] {stats.eventPrompt.name}</div>)}
-          {!stats.portalPrompt && !stats.eventPrompt && stats.chestPrompt && (<div className="weapon-prompt" style={{ borderColor: stats.chestPrompt.color }}>[{interactLabel}] {stats.chestPrompt.name}</div>)}
-          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount >= 2 && (
-            <div className="weapon-prompt" style={{ borderColor: '#ffe14a' }}>[{interactLabel}] ELEGIR OBJETO ({stats.stackedPickupCount})</div>
-          )}
-          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount < 2 && stats.weaponPrompt && (
-            <div className="weapon-prompt" style={{ borderColor: stats.weaponPrompt.color }}>[{interactLabel}] {stats.weaponPrompt.name}</div>
-          )}
-          {!stats.portalPrompt && !stats.eventPrompt && !stats.chestPrompt && stats.stackedPickupCount < 2 && !stats.weaponPrompt && stats.itemPrompt && (
-            <div className="weapon-prompt" style={{ borderColor: stats.itemPrompt.color }}>[{interactLabel}] {stats.itemPrompt.name}</div>
-          )}
-          {stats.stackedPickupCount > 1 && (
-            <div className="weapon-prompt" style={{ borderColor: '#ffe14a', bottom: 142 }}>
-              {stats.stackedPickupCount} objetos aquí — pulsa [{interactLabel}] para elegir
-            </div>
-          )}
           {stats.activeChallenge && (
             <div className="boss-bar" style={{ borderColor: stats.activeChallenge.failed ? 'rgba(255,42,75,0.6)' : 'rgba(255,204,0,0.5)' }}>
               <div className="name" style={{ color: stats.activeChallenge.failed ? 'var(--hazard-red)' : 'var(--street-yellow)' }}>
@@ -646,27 +634,46 @@ export default function App() {
             </div>
           )}
           <div className="hud-bottom">
-            <div className="health-bar-container">
-              <div className="health-bar-bg"><div className="health-bar-fill" style={{ width: `${Math.max(0, (stats.hp / stats.maxHp) * 100)}%` }} /></div>
-              <div className="xp-bar-bg"><div className="xp-bar-fill" style={{ width: `${Math.max(0, (stats.xp / stats.xpToNext) * 100)}%` }} /></div>
-              <div className="health-text">HP {Math.ceil(stats.hp)}/{stats.maxHp}{stats.shield > 0 ? ` · ESCUDO ${stats.shield}` : ''}</div>
-            </div>
-            <div className="abilities">
-              <div className="ability" title={`Energía ${Math.floor(stats.energy ?? 0)}/${stats.maxEnergy ?? 0}`}><span>✦ {Math.ceil(stats.ultimateCooldown ?? 0) || ((stats.energy ?? 0) >= 25 || (stats.maxEnergy === 150) ? 'OK' : 'EN')}</span><span className="ability-key">{codeLabel(save.bindings.ultimate)}</span></div>
-              <span className="ability-energy">EN {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}{stats.ultimateShield ? ` · ESC ${stats.ultimateShield}` : ''}</span>
-              <div className="ability">💨<div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
-              <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
+            {nearbyPrompt && (
+              <div className="weapon-prompt" style={{ borderColor: nearbyPrompt.color }}>
+                <span className="keyboard-hint">[{codeLabel(save.bindings.interact)}] </span>{nearbyPrompt.name}
+              </div>
+            )}
+            <div className="hud-bottom-row">
+              <div className="health-bar-container">
+                <div className="health-bar-bg"><div className="health-bar-fill" style={{ width: `${Math.max(0, (stats.hp / stats.maxHp) * 100)}%` }} /></div>
+                <div className="xp-bar-bg"><div className="xp-bar-fill" style={{ width: `${Math.max(0, (stats.xp / stats.xpToNext) * 100)}%` }} /></div>
+                <div className="health-text">HP {Math.ceil(stats.hp)}/{stats.maxHp}{stats.shield > 0 ? ` · ESCUDO ${stats.shield}` : ''}</div>
+              </div>
+              <div className="abilities">
+                <div className="ability" title={`Energía ${Math.floor(stats.energy ?? 0)}/${stats.maxEnergy ?? 0}`}><span>✦ {Math.ceil(stats.ultimateCooldown ?? 0) || ((stats.energy ?? 0) >= 25 || (stats.maxEnergy === 150) ? 'OK' : 'EN')}</span><span className="ability-key">{codeLabel(save.bindings.ultimate)}</span></div>
+                <span className="ability-energy">EN {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}{stats.ultimateShield ? ` · ESC ${stats.ultimateShield}` : ''}</span>
+                <div className="ability">💨<div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
+                <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {screen === 'playing' && (
-        <div className="touch-controls"><button type="button" className="touch-btn" onClick={() => engineRef.current?.setTouchUltimate()}>✦</button>
-          <div className="joystick" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd}><div className="joystick-thumb" ref={joyThumbRef} /></div>
+        <div className="touch-controls">
+          <div className="touch-toolbar">
+            <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('map'); }}>Mapa</button>
+            <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('paused'); }}>Pausa</button>
+          </div>
+          <div className="joystick" aria-hidden="true" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd} onLostPointerCapture={onJoyEnd}><div className="joystick-thumb" ref={joyThumbRef} /></div>
           <div className="touch-buttons">
-            <button type="button" className="touch-btn dash" onPointerDown={(e) => { e.preventDefault(); engineRef.current?.setTouchDash(true); }} onPointerUp={() => engineRef.current?.setTouchDash(false)} onPointerCancel={() => engineRef.current?.setTouchDash(false)}>💨</button>
-            <button type="button" className="touch-btn" onPointerDown={(e) => { e.preventDefault(); engineRef.current?.setTouchShoot(true); }} onPointerUp={() => engineRef.current?.setTouchShoot(false)} onPointerCancel={() => engineRef.current?.setTouchShoot(false)}>⚔️</button>
+            <button type="button" className="touch-btn" disabled={!nearbyPrompt} onClick={() => engineRef.current?.pressTouchAction('interact')}>Acción</button>
+            <button type="button" className="touch-btn" aria-label="Ultimate" onClick={() => engineRef.current?.pressTouchAction('ultimate')}>
+              {stats.ultimateCooldown ? `${Math.ceil(stats.ultimateCooldown)} s` : 'Ultimate'}
+            </button>
+            <button type="button" className="touch-btn dash" onClick={() => engineRef.current?.pressTouchAction('dash')}>Esquiva</button>
+            <button type="button" className="touch-btn touch-fire"
+              onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); engineRef.current?.setTouchShoot(true); }}
+              onPointerUp={() => engineRef.current?.setTouchShoot(false)}
+              onPointerCancel={() => engineRef.current?.setTouchShoot(false)}
+              onLostPointerCapture={() => engineRef.current?.setTouchShoot(false)}>Disparar</button>
           </div>
         </div>
       )}
@@ -719,7 +726,7 @@ export default function App() {
 
         {screen === 'menu' && hasFaction && (
           <div className="screen">
-            <div className="screen-content">
+            <div className="screen-content main-menu-content">
               <h1 className="game-title">MOROS VS GITANOS</h1>
               <h2 className="game-subtitle">2 0 3 0</h2>
               <div className="gold-box">
@@ -737,12 +744,8 @@ export default function App() {
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('pets'); }}>Mascotas</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('controls'); }}>Controles</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('scores'); }}>Puntuaciones</button>
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('options'); }}>Opciones</button>
+                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setOptionsOrigin('menu'); setScreen('options'); }}>Opciones</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setShowCodex(true); }}>Códice</button>
-              </div>
-              <div className="footer-text">
-                <p>ROGUELIKE DE ACCIÓN · DATA-DRIVEN · CALLES 2030</p>
-                <p style={{ marginTop: 8, opacity: 0.7 }}>ENTER para comenzar</p>
               </div>
             </div>
           </div>
@@ -1032,11 +1035,16 @@ export default function App() {
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#00f0ff' }}>CONTROLES Y TECLAS</h2>
               <div className="controls-info">
+                <div className="keyboard-settings">
                 <h3>⌨ Teclado actual</h3>
                 {BINDING_ROWS.map((row) => (<p key={row.action}><strong>{codeLabel(save.bindings[row.action])}:</strong> {row.label}</p>))}
                 <p style={{ marginTop: 8, opacity: 0.75 }}>Cambia las teclas en Opciones.</p>
+                </div>
                 <h3>📱 Táctil</h3>
-                <p><strong>Joystick izq.:</strong> Movimiento</p><p><strong>Botón ⚔️:</strong> Disparar</p><p><strong>Botón 💨:</strong> Dash</p>
+                <p><strong>Joystick:</strong> movimiento</p>
+                <p><strong>Disparar:</strong> mantén pulsado para apuntar al rival más cercano</p>
+                <p><strong>Acción:</strong> interactúa con el objeto cercano</p>
+                <p><strong>Esquiva y Ultimate:</strong> toca para activar</p>
               </div>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
             </div>
@@ -1063,7 +1071,9 @@ export default function App() {
               <h2 className="section-title" style={{ color: '#00f0ff', textAlign: 'center', marginBottom: 16 }}>OPCIONES</h2>
               <div className="options-layout">
                 <div className="options-column">
-                  <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 12px', fontSize: '1rem' }}>CONFIGURAR CONTROLES</h3>
+                  <h3 className="options-heading">Controles</h3>
+                  <p className="touch-instructions">Usa el mando izquierdo para moverte. Mantén Disparar para apuntar al rival más cercano y toca Acción para abrir cofres o recoger objetos.</p>
+                  <div className="keyboard-settings">
                   {rebinding && (<p style={{ color: '#00f0ff', marginBottom: 10 }}>Pulsa una tecla para «{BINDING_ROWS.find((r) => r.action === rebinding)?.label}» (ESC cancela)</p>)}
                   <div className="bindings-list">
                     {BINDING_ROWS.map((row) => (
@@ -1071,17 +1081,18 @@ export default function App() {
                     ))}
                   </div>
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => { audio.play('button'); setSave((prev) => resetBindings(prev)); setRebinding(null); }}>Restablecer controles</button>
+                  </div>
                 </div>
 
                 <div className="options-column">
                   <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 10px', fontSize: '1rem' }}>AUDIO</h3>
                   <div className="volume-row">
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música:</span>
-                    <span>🔊</span><input type="range" min={0} max={1} step={0.05} value={save.volume} onChange={(e) => onVolume(Number(e.target.value))} /><span>{Math.round(save.volume * 100)}%</span>
+                    <input aria-label="Volumen de música" type="range" min={0} max={1} step={0.05} value={save.volume} onChange={(e) => onVolume(Number(e.target.value))} /><span>{Math.round(save.volume * 100)}%</span>
                   </div>
                   <div className="volume-row" style={{ marginTop: 0 }}>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Efectos:</span>
-                    <span>🔉</span><input type="range" min={0} max={1} step={0.05} value={save.sfxVolume} onChange={(e) => onSfxVolume(Number(e.target.value))} /><span>{Math.round(save.sfxVolume * 100)}%</span>
+                    <input aria-label="Volumen de efectos" type="range" min={0} max={1} step={0.05} value={save.sfxVolume} onChange={(e) => onSfxVolume(Number(e.target.value))} /><span>{Math.round(save.sfxVolume * 100)}%</span>
                   </div>
                   <div className="volume-row" style={{ marginTop: 0 }}>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música de menú:</span>
@@ -1165,7 +1176,7 @@ export default function App() {
                 </div>
               </div>
 
-              <button type="button" className="menu-btn full-width" style={{ marginTop: 8 }} onClick={backToMenu}>Volver</button>
+              <button type="button" className="menu-btn full-width" style={{ marginTop: 8 }} onClick={() => { audio.play('button'); setRebinding(null); setScreen(optionsOrigin); }}>Volver</button>
             </div>
           </div>
         )}
@@ -1213,6 +1224,7 @@ export default function App() {
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); engineRef.current?.resume(); setScreen('playing'); }}>Continuar</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setBuildOrigin('paused'); setScreen('build'); }}>Build</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('map'); }}>Mapa</button>
+                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setOptionsOrigin('paused'); setScreen('options'); }}>Opciones</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setShowQuitConfirm(true); }}>Menú principal</button>
               </div>
 

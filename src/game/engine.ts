@@ -54,7 +54,7 @@ import type {
   SkillChoice,
 } from './types';
 import { audio } from './audio';
-import { DEFAULT_BINDINGS, type PermanentUpgrades } from './persistence';
+import { codeLabel, DEFAULT_BINDINGS, type PermanentUpgrades } from './persistence';
 import { EnemyDirector, type DirectorContext } from './enemyDirector';
 import { EventDirector, EVENT_DEFS } from './eventDirector';
 import { RunDirector, type RunTelemetry } from './runDirector';
@@ -110,7 +110,6 @@ type InputState = {
   left: boolean;
   right: boolean;
   shoot: boolean;
-  dash: boolean;
   interact: boolean;
   aimX: number;
   aimY: number;
@@ -179,7 +178,8 @@ export class GameEngine {
   private pointer = { x: 0, y: 0, down: false };
   private touchMove = { x: 0, y: 0, active: false };
   private touchShoot = false;
-  private touchDash = false;
+  private touchActions = new Set<InputAction>();
+  private readonly touchLayout = window.matchMedia('(hover: none) and (pointer: coarse)');
   private ultimateCooldown = 0;
   private energy = 0;
   private ultimateShield = 0;
@@ -187,8 +187,6 @@ export class GameEngine {
   private ultimateRoom = -1;
   private tripleDash = 0;
   private stunUntil = new Map<number, number>();
-  private touchUltimate = false;
-  setTouchUltimate() { this.touchUltimate = true; }
 
   private activateUltimate() {
     const p = this.player;
@@ -322,10 +320,11 @@ export class GameEngine {
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
+    if (e.target instanceof HTMLElement && e.target.closest('input, select, textarea, [contenteditable="true"]')) return;
     this.keys.add(e.code);
     // Las repeticiones automáticas del teclado no cuentan como nuevas pulsaciones (E, dash...).
     if (!e.repeat) this.pressedKeys.add(e.code);
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    if (this.running && ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
     }
   };
@@ -337,6 +336,7 @@ export class GameEngine {
     this.keys.clear();
     this.pressedKeys.clear();
     this.pointer.down = false;
+    this.clearTouchInput();
   };
   private onPointerDown = (e: PointerEvent) => {
     this.pointer.down = true;
@@ -388,7 +388,14 @@ export class GameEngine {
 
   setTouchMove(x: number, y: number, active: boolean) { this.touchMove = { x, y, active }; }
   setTouchShoot(v: boolean) { this.touchShoot = v; }
-  setTouchDash(v: boolean) { this.touchDash = v; }
+  pressTouchAction(action: 'dash' | 'interact' | 'ultimate') {
+    if (this.running) this.touchActions.add(action);
+  }
+  private clearTouchInput() {
+    this.setTouchMove(0, 0, false);
+    this.setTouchShoot(false);
+    this.touchActions.clear();
+  }
   setBindings(bindings: KeyBindings) { this.bindings = { ...bindings }; }
   getBindings(): KeyBindings { return { ...this.bindings }; }
 
@@ -452,6 +459,7 @@ export class GameEngine {
 
   pause() {
     this.running = false;
+    this.clearTouchInput();
     if (this.player) this.pushStats();
   }
 
@@ -1198,7 +1206,7 @@ export class GameEngine {
     this.ultimateCooldown = this.ultimateShield = this.stealth = this.tripleDash = 0;
     this.ultimateRoom = -1;
     this.stunUntil.clear();
-    this.touchUltimate = false;
+    this.clearTouchInput();
     const hpBonus = this.upgrades.permHpLevel * 10;
     const dmgBonus = 1 + this.upgrades.permDamageLevel * 0.05;
     const startWeaponId = getBaseWeapon(char.startingWeapon).id;
@@ -1533,6 +1541,7 @@ export class GameEngine {
     if (!this.running) {
       // Las pulsaciones hechas en pausa o dentro de un modal no deben ejecutarse al reanudar.
       this.pressedKeys.clear();
+      this.clearTouchInput();
       this.render();
       return;
     }
@@ -1564,11 +1573,12 @@ export class GameEngine {
 
   private isPressed(action: InputAction): boolean {
     const code = this.bindings[action];
-    return this.pressedKeys.has(code);
+    return this.pressedKeys.has(code) || this.touchActions.has(action);
   }
 
   private consumeEdges() {
     this.pressedKeys.clear();
+    this.touchActions.clear();
   }
 
   private pollInput(): InputState {
@@ -1588,7 +1598,6 @@ export class GameEngine {
       my /= len;
     }
     const shoot = this.isDown('attack') || this.touchShoot;
-    const dash = this.isDown('dash') || this.touchDash;
     const interact = this.isPressed('interact');
 
     const viewW = window.innerWidth;
@@ -1603,7 +1612,6 @@ export class GameEngine {
       left: mx < 0,
       right: mx > 0,
       shoot,
-      dash,
       interact,
       aimX: worldX,
       aimY: worldY,
@@ -1619,8 +1627,7 @@ export class GameEngine {
     this.ultimateCooldown = Math.max(0,this.ultimateCooldown-dt);
     this.stealth = Math.max(0,this.stealth-dt);
     this.energy = Math.min(getCharacter(this.characterId).energy,this.energy+dt*0.25);
-    if (this.isPressed('ultimate') || this.touchUltimate) this.activateUltimate();
-    this.touchUltimate = false;
+    if (this.isPressed('ultimate')) this.activateUltimate();
     this.runDirector.update(this.buildRunTelemetry());
     const input = this.pollInput();
     this.enemyDirector.tick(dt);
@@ -3863,21 +3870,22 @@ export class GameEngine {
     ctx.fillStyle = '#ffe14a';
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
+    const interactHint = this.touchLayout.matches ? '' : `[${codeLabel(this.bindings.interact)}] `;
     if (this.portal?.active && Math.hypot(this.portal.x - p.x, this.portal.y - p.y) < 60) {
       const lbl = this.portal.kind === 'final' ? 'PORTAL FINAL' : 'DESCENDER';
-      ctx.fillText(`[E] ${lbl}`, this.portal.x, this.portal.y - 42);
+      ctx.fillText(interactHint + lbl, this.portal.x, this.portal.y - 42);
     } else if (this.nearestEvent) {
-      ctx.fillText(`[E] ${this.nearestEvent.instance.name.toUpperCase()}`, this.nearestEvent.x, this.nearestEvent.y - 28);
+      ctx.fillText(interactHint + this.nearestEvent.instance.name.toUpperCase(), this.nearestEvent.x, this.nearestEvent.y - 28);
     } else if (this.nearestChest && this.closestChestWins) {
-      ctx.fillText(`[E] ABRIR ${this.nearestChest.name.toUpperCase()}`, this.nearestChest.x, this.nearestChest.y - 28);
+      ctx.fillText(`${interactHint}ABRIR ${this.nearestChest.name.toUpperCase()}`, this.nearestChest.x, this.nearestChest.y - 28);
     } else if (this.stackedPickupCount >= 2) {
       const targetY = (this.closestPickup?.y ?? p.y) - 22;
       const targetX = this.closestPickup?.x ?? p.x;
-      ctx.fillText(`[E] ELEGIR OBJETO (${this.stackedPickupCount})`, targetX, targetY);
+      ctx.fillText(`${interactHint}ELEGIR OBJETO (${this.stackedPickupCount})`, targetX, targetY);
     } else if (this.closestPickup?.kind === 'weapon') {
-      ctx.fillText('[E] CAMBIAR ARMA', this.closestPickup.x, this.closestPickup.y - 22);
+      ctx.fillText(interactHint + 'CAMBIAR ARMA', this.closestPickup.x, this.closestPickup.y - 22);
     } else if (this.closestPickup?.kind === 'item') {
-      ctx.fillText('[E] EQUIPAR OBJETO', this.closestPickup.x, this.closestPickup.y - 22);
+      ctx.fillText(interactHint + 'EQUIPAR OBJETO', this.closestPickup.x, this.closestPickup.y - 22);
     }
 
     const room = this.rooms.find((r) => r.id === this.currentRoomId);

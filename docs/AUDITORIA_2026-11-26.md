@@ -104,3 +104,9 @@ El fuente incluye los recursos activos y los editables disponibles de MDLR. El r
 - Las fichas muestran sprites de cuerpo entero con escalado pixelado. Bombeta, Pallico y Gitano MDLR reproducen su animación frontal de partida. Los otros siete tienen un ciclo de respiración de cuatro fotogramas preparado a partir de sus poses de la lámina aprobada. Estas siete tiras se usan en el bestiario.
 - La prueba en Chrome confirmó el archivo correcto y el avance de los fotogramas en las diez fichas. Con movimiento reducido, las fichas quedan en la primera pose. Pasaron TypeScript, las dos suites unitarias y la compilación de Vite.
 - La actualización de producción incluye el HTML, el manifiesto y las siete tiras nuevas. Aplicar sobre la revisión 7 conservando las rutas de `assets`.
+
+## Fase 9 · Interfaz táctil
+
+- En pantallas táctiles, el HUD coloca la vida, energía y avisos encima de los mandos y reduce los datos secundarios en horizontal. El mapa y la pausa se abren desde la parte superior. Las opciones se pueden abrir desde la pausa y volver a la partida.
+- Las pulsaciones táctiles de Acción, Esquiva y Ultimate usan las mismas acciones del motor que el teclado. El disparo se mantiene al sostener el botón y se libera al soltarlo incluso si el dedo sale del botón. Se restablece la entrada táctil al pausar o perder el foco.
+- En Chrome con emulación táctil se probó el desplazamiento de opciones con un gesto, el volumen, el joystick, el mapa, la pausa, la ultimate, la esquiva, la apertura del cofre y el disparo. Se comprobó el HUD en 390 × 844 y 844 × 390. Falta validar en un iPhone y un Android físicos.
