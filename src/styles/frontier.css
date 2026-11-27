@@ -147,6 +147,7 @@
   letter-spacing: 0.025em;
   line-height: 1.25;
   text-align: center;
+  text-shadow: none;
   text-transform: none;
   transition: transform 110ms steps(2, end), color 110ms linear, background-color 110ms linear, border-color 110ms linear, box-shadow 110ms linear;
 }
