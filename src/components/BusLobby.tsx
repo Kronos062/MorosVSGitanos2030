@@ -196,7 +196,6 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
             aria-label={stop.passenger ? `${stop.passenger.name}, ${stop.label}` : stop.label}
             onClick={() => chooseStop(stop)}>
             {active && stop.passenger && <BusActor id={stop.passenger.id} point={stop.point} face={{ x: 0, depth: 1 }} />}
-            <span className="bus-stop-label">{stop.label}</span>
           </button>
         ))}
         <div className="bus-player" aria-hidden="true" style={busPlacement(position)}>

@@ -69,12 +69,12 @@ function paintBus(ctx: CanvasRenderingContext2D, tick: number) {
   rect('#17262d', 98, 26, 2, 5);
   rect('#17262d', 110, 26, 2, 5);
   rect('#17262d', 100, 31, 10, 2);
-  rect('#534b42', 99, 38, 13, 8);
-  rect('#202732', 99, 34, 13, 7);
-  rect('#343849', 102, 30, 8, 8);
-  rect('#525263', 103, 30, 6, 2);
-  rect('#7a6d5d', 99, 33, 2, 3);
-  rect('#7a6d5d', 110, 33, 2, 3);
+  rect('#534b42', 96, 38, 19, 10);
+  rect('#202732', 96, 34, 19, 9);
+  rect('#343849', 100, 29, 11, 10);
+  rect('#525263', 101, 29, 9, 2);
+  rect('#7a6d5d', 96, 32, 3, 4);
+  rect('#7a6d5d', 112, 32, 3, 4);
 
   rect('#253f46', 236, 18, 29, 32);
   rect('#839c99', 238, 21, 25, 25);
@@ -127,9 +127,9 @@ export function BusActor({ id, point, face }: { id: string; point: BusPoint; fac
     const actor = {};
     let frame = 0;
     const paint = (time: number) => {
-      ctx.clearRect(0, 0, 144, 144);
+      ctx.clearRect(0, 0, 80, 80);
       const { point: current, face: direction } = pose.current;
-      spriteAtlas.drawCharacter(ctx, id, actor, 72, 111, {
+      spriteAtlas.drawCharacter(ctx, id, actor, 40, 57, {
         now: time / 1000, hp: 1, faceX: direction.x, faceY: direction.depth,
         trackX: current.x * 320, trackY: current.depth * 320,
       });
@@ -138,5 +138,5 @@ export function BusActor({ id, point, face }: { id: string; point: BusPoint; fac
     frame = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(frame);
   }, [id]);
-  return <canvas className="bus-actor" ref={canvasRef} width={144} height={144} aria-hidden="true" />;
+  return <canvas className="bus-actor" ref={canvasRef} width={80} height={80} aria-hidden="true" />;
 }

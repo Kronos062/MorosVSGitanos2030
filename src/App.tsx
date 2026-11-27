@@ -800,7 +800,7 @@ export default function App() {
 
         {screen === 'chars' && (
           <div className="screen">
-            <div className="screen-content run-setup">
+            <div className="screen-content run-setup character-roster">
               <h2 className="section-title">Elige personaje</h2>
               <div className="char-grid roster-grid">
                 {availableChars.map((character) => (
