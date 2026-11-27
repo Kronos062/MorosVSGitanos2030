@@ -26,6 +26,38 @@ def palette(accent):
     p['A'] = a; p['B'] = mix(a, (10, 12, 30), 0.5); p['C'] = mix(a, (255, 255, 255), 0.55)
     return p
 
+FINISHES = {
+    'steel': ((202, 207, 206), (137, 151, 155), (84, 96, 101), (45, 58, 64)),
+    'blued': ((163, 176, 181), (105, 125, 135), (61, 78, 89), (34, 47, 58)),
+    'sand': ((207, 191, 156), (163, 142, 104), (106, 90, 64), (48, 51, 49)),
+    'field': ((180, 188, 154), (132, 145, 111), (81, 97, 73), (40, 51, 45)),
+}
+
+# Material y proporciones son los primeros rasgos de identificación. Los tonos
+# del catálogo se reservan para marcas pequeñas y partes activas de energía.
+FINISH_BY_ID = {
+    'iron_python': 'steel', 'street_judge': 'blued', 'six_shooter_v2': 'sand',
+    'mk_carbine': 'sand', 'ak_milspec': 'field', 'honey_badger': 'blued',
+    'hunting_rifle': 'steel', 'antimateriel': 'sand', 'rail_scout': 'field',
+    'street_sawed': 'steel', 'double_hammer': 'sand', 'sawed_spas': 'field',
+    'lmg_pork': 'field', 'mg_beltfed': 'sand', 'rpg_junk': 'field',
+    'crimson_sidearm': 'steel', 'frost_cannon': 'steel', 'riot_shield': 'field',
+}
+POLYMER = {'zip9', 'rattler45', 'street_buzz', 'vector_x', 'uzi_cyber', 'kriss_vector',
+           'mk_carbine', 'honey_badger', 'sawed_spas', 'antimateriel'}
+ENERGY_FAMILIES = {'blaster', 'railgun', 'tesla', 'cryo', 'voidcannon', 'bladelauncher', 'beacon'}
+
+def weapon_palette(weapon, family):
+    pal = palette(weapon['color'])
+    chosen = FINISH_BY_ID.get(weapon['id'], 'steel' if family in ENERGY_FAMILIES else 'blued')
+    pal.update(zip(('w', 's', 'S', 'D'), FINISHES[chosen]))
+    pal['n'], pal['N'] = ((94, 101, 98), (47, 55, 55)) if weapon['id'] in POLYMER else ((155, 105, 66), (87, 56, 39))
+    pal['G'], pal['g'], pal['y'] = (145, 109, 58), (201, 163, 92), (228, 190, 128)
+    if family not in ENERGY_FAMILIES and 'energy' not in weapon['tags']:
+        pal['A'] = mix(pal['A'], pal['S'], .76)
+        pal['C'] = mix(pal['A'], pal['s'], .5)
+    return pal
+
 # ───────────────────────── lienzo relativo a la empuñadura ─────────────────────────
 OX, OY = 28, 20
 class Rel:
@@ -33,6 +65,8 @@ class Rel:
     def R(s, x, y, w, h, c):
         s.g.rect(OX + x, OY + y, w, h, s.pal[c])
     def P(s, x, y, c): s.g.set(OX + x, OY + y, s.pal[c])
+    def cut(s, x, y):
+        s.g.p.pop((OX + x, OY + y), None)
     def D(s, cx, cy, r, c):
         for yy in range(-r - 1, r + 2):
             for xx in range(-r - 1, r + 2):
@@ -45,19 +79,28 @@ class Rel:
         return c.outlined(), (OX - x0 + 1, OY - y0 + 1)
 
 # ───────────────────────── siluetas de armas ─────────────────────────
-def pistol(r, L=9, cell=False):
+def pistol(r, L=9, cell=False, compact=False):
     r.R(-2, 0, 3, 5, 'n'); r.R(-3, 3, 3, 2, 'n'); r.R(-2, 0, 1, 5, 'N')
     r.R(-1, -2, 5, 2, 'S'); r.P(3, 0, 'D'); r.R(1, 0, 2, 1, 'D')
     r.R(-3, -4, L, 3, 's'); r.R(-3, -4, L, 1, 'w'); r.R(-3, -2, L, 1, 'S')
     r.R(L - 4, -3, 2, 1, 'D')
     if cell: r.R(0, -3, 4, 1, 'A'); r.P(0, -4, 'C'); r.P(L - 3, -2, 'A')
-    else: r.R(0, -3, L - 5, 1, 'A')
+    else:
+        r.R(-1, -3, 3, 1, 'D')
+        r.P(0, -2, 's'); r.P(L - 5, -3, 'S')
+    r.cut(-3, -4)
+    r.P(-2, 2, 's'); r.P(-1, 3, 'N')
+    if compact:
+        r.cut(-3, 4); r.cut(-2, 4); r.cut(-1, 4)
+    elif not cell:
+        r.R(2, -1, 3, 1, 'D'); r.P(4, 0, 'D')
     r.P(L - 3, -5, 'D')
     return L - 3
 def revolver(r, L=10):
     r.R(-3, 0, 3, 6, 'n'); r.R(-4, 3, 3, 3, 'n'); r.R(-3, 0, 1, 6, 'N')
     r.R(-1, -3, 5, 3, 'S'); r.R(1, -6, 4, 5, 's'); r.R(1, -6, 4, 1, 'w')
-    for yy in (-5, -3): r.P(2, yy, 'D'); r.P(4, yy, 'D')
+    r.R(1, -3, 4, 1, 'S')
+    for xx in (2, 4): r.R(xx, -5, 1, 2, 'D')
     r.P(-2, -5, 'D'); r.P(-2, -4, 'D')
     r.R(5, -4, L - 4, 2, 's'); r.R(5, -4, L - 4, 1, 'w'); r.R(5, -2, L - 4, 1, 'S')
     r.R(6, -3, L - 6, 1, 'A'); r.P(L, -5, 'D'); r.P(3, 1, 'D')
@@ -70,6 +113,8 @@ def smg(r, mag=5, stock=True, cell=False):
     if stock: r.R(-9, -3, 6, 1, 'S'); r.R(-9, -2, 1, 2, 'S')
     r.R(0, -3, 6, 1, 'A'); r.P(4, -5, 's')
     if cell: r.R(2, -2, 4, 1, 'C')
+    else: r.R(4, -3, 3, 1, 'D'); r.P(6, -2, 's')
+    r.P(-1, mag - 2, 'S')
     return 11
 def ar(r, L=14, curved=False, optic=False):
     r.R(-5, -4, 12, 4, 'S'); r.R(-5, -4, 12, 1, 's')
@@ -80,7 +125,9 @@ def ar(r, L=14, curved=False, optic=False):
         r.R(3, 5, 2, 1, 'A')
     else: r.R(1, 0, 2, 5, 'D'); r.R(1, 4, 2, 1, 'A')
     r.R(-12, -3, 7, 3, 'n'); r.R(-12, -3, 7, 1, 'N'); r.R(-12, 0, 2, 1, 'N')
-    r.R(-1, -3, 7, 1, 'A')
+    r.R(-1, -3, 4, 1, 'D'); r.P(2, -2, 's')
+    for xx in range(7, L - 1, 2): r.P(xx, -3, 's')
+    r.R(-11, -2, 4, 1, 'n')
     if optic: r.R(-1, -7, 5, 3, 's'); r.P(4, -6, 'A')
     else: r.P(L + 2, -5, 'D'); r.P(0, -5, 'D')
     return L + 2
@@ -92,9 +139,12 @@ def shotgun(r, kind='double', L=14):
     r.R(-10, -2, 8, 3, 'n'); r.R(-10, -2, 8, 1, 'N'); r.R(-10, 1, 2, 2, 'N')
     r.R(-2, -4, 5, 5, 'S'); r.R(-2, -4, 5, 1, 's')
     r.R(3, -4, L, 2, 's'); r.R(3, -2, L, 2, 'D'); r.R(3, -4, L, 1, 'w')
-    if kind == 'pump': r.R(7, 0, 5, 2, 'n'); r.R(7, 0, 5, 1, 'N')
+    if kind == 'pump':
+        r.R(7, 0, 5, 2, 'n')
+        for xx in (7, 9, 11): r.R(xx, 0, 1, 2, 'N')
     else: r.R(7, 0, 3, 1, 'n')
-    r.R(4, -3, L - 4, 1, 'A'); r.R(L + 2, -4, 2, 4, 'S'); r.P(0, 1, 'D')
+    r.R(4, -3, L - 4, 1, 'S'); r.R(L + 2, -4, 2, 4, 'S'); r.P(0, 1, 'D')
+    r.P(L + 3, -3, 'D'); r.P(L + 3, -1, 'D')
     return L + 3
 def sniper(r, L=20, heavy=False, cell=False):
     r.R(-6, -4, 12, 4, 'S'); r.R(-6, -4, 12, 1, 's')
@@ -143,6 +193,10 @@ def blaster(r, kind='plain'):
         r.R(-2, -8, 7, 4, 'A'); r.R(-2, -8, 7, 1, 'C'); r.R(5, -3, 5, 3, 'D'); r.R(9, -4, 2, 5, 'S'); r.P(11, -2, 'C'); return 11
     if kind == 'ring':
         r.R(5, -3, 4, 3, 'D'); r.R(9, -7, 2, 11, 'A'); r.R(9, -7, 2, 1, 'C'); r.R(9, 3, 2, 1, 'B'); return 11
+    if kind == 'twin_core':
+        r.R(5, -4, 7, 5, 'D'); r.R(7, -6, 6, 2, 'S'); r.R(7, 1, 6, 2, 'S')
+        r.R(8, -5, 4, 1, 'C'); r.R(8, 1, 4, 1, 'A')
+        r.R(13, -7, 2, 5, 's'); r.R(13, -1, 2, 5, 's'); return 15
     if kind == 'nova':
         r.R(5, -3, 3, 3, 'D'); r.D(11, -2, 4, 'A'); r.D(10, -3, 2, 'C'); r.P(11, -2, 'w'); return 15
     if kind == 'bounce':
@@ -234,9 +288,13 @@ def bladelauncher(r):
     r.R(17, -2, 2, 1, 'A')
     return 17
 def riotshield(r):
-    r.R(0, -9, 4, 18, 'S'); r.R(0, -9, 4, 1, 's'); r.R(0, 8, 4, 1, 'D'); r.R(3, -9, 1, 18, 'A')
-    r.R(1, -5, 2, 6, 'C'); r.P(1, -5, 'w'); r.R(-3, -1, 3, 2, 'n'); r.R(-3, -2, 1, 4, 'N')
-    return 4
+    r.R(0, -9, 8, 18, 'D'); r.R(1, -8, 6, 16, 'S')
+    for x in (0, 7):
+        r.cut(x, -9); r.cut(x, 8)
+    r.R(2, -6, 4, 4, 's'); r.R(2, -6, 4, 1, 'w'); r.R(3, -3, 3, 1, 'A')
+    r.R(2, 4, 4, 1, 's'); r.P(2, 6, 's'); r.P(5, 6, 's')
+    r.R(-3, -1, 3, 2, 'n'); r.R(-3, -2, 1, 4, 'N')
+    return 8
 def spud(r):
     r.R(-5, -4, 15, 3, 'S'); r.R(-5, -4, 15, 1, 's'); r.R(10, -5, 3, 5, 'D'); r.D(13, -2, 2, 'A'); r.P(12, -3, 'C')
     r.R(-4, 0, 6, 3, 'D'); r.R(-4, 0, 6, 1, 'S'); r.R(-2, 3, 3, 3, 'n'); r.R(-9, -3, 4, 2, 'G'); r.R(0, -5, 1, 1, 'D')
@@ -252,7 +310,7 @@ def beacon(r, big=False):
 
 # arma → (función, kwargs)
 W = {
- 'pulse_pistol': (pistol, dict(L=10, cell=True)), 'zip9': (pistol, dict(L=8)), 'rattler45': (pistol, dict(L=10)),
+ 'pulse_pistol': (pistol, dict(L=10, cell=True)), 'zip9': (pistol, dict(L=8, compact=True)), 'rattler45': (pistol, dict(L=12)),
  'crimson_sidearm': (pistol, dict(L=11, cell=True)),
  'street_judge': (revolver, dict(L=9)), 'iron_python': (revolver, dict(L=13)), 'six_shooter_v2': (revolver, dict(L=11)),
  'street_buzz': (smg, dict(mag=4, stock=False)), 'vector_x': (smg, dict(mag=5)), 'uzi_cyber': (smg, dict(mag=6, stock=False, cell=True)),
@@ -268,7 +326,7 @@ W = {
  'bfg_minigun': (minigun, dict(barrels=4, L=22)), 'gatling_laser': (minigun, dict(barrels=3, L=20)),
  'blaster': (blaster, dict(kind='plain')), 'sonic_blaster': (blaster, dict(kind='horn')), 'venom_blaster': (blaster, dict(kind='tank')),
  'plasma_rifle': (blaster, dict(kind='ring')), 'nova_cannon': (blaster, dict(kind='nova')), 'bouncer_gun': (blaster, dict(kind='bounce')),
- 'quantum_caster': (blaster, dict(kind='ring')), 'chrono_disruptor': (blaster, dict(kind='chrono')),
+ 'quantum_caster': (blaster, dict(kind='twin_core')), 'chrono_disruptor': (blaster, dict(kind='chrono')),
  'arc_discharger': (tesla, dict(double=True)), 'tesla_gun': (tesla, dict()),
  'flame_thrower': (flamer, dict()), 'frost_cannon': (cryo, dict()),
  'cluster_mortar': (mortar, dict()), 'plasma_grenade': (grenade, dict()), 'rpg_junk': (rpg, dict()),
@@ -428,7 +486,7 @@ def strip(frames):
         o = f.image(); im.paste(o, (i * w + (w - f.w) // 2, (h - f.h) // 2))
     return im, w, h
 
-def build():
+def build(weapons_only=False):
     weapons = parse_weapons()
     assert len(weapons) == 59, len(weapons)
     missing = [w['id'] for w in weapons if w['id'] not in W]
@@ -436,10 +494,12 @@ def build():
     man_w, man_p, previews = {}, {}, []
     for w in weapons:
         pal = palette(w['color']); fn, kw = W[w['id']]
-        r = Rel(pal); muzzle = fn(r, **kw)
+        r = Rel(weapon_palette(w, fn.__name__)); muzzle = fn(r, **kw)
         g, (gx, gy) = r.finish()
         g.image().save(f"{WDIR}/{w['id']}.png")
         man_w[w['id']] = {'image': f"weapons/{w['id']}.png", 'grip': {'x': gx, 'y': gy}, 'muzzle': int(muzzle), 'pixelScale': 2}
+        if weapons_only:
+            continue
         kind = proj_kind(w); frames = [f.outlined() if kind in ('orb', 'fire', 'void', 'glob', 'shell', 'blade', 'heal', 'rocket') else f for f in proj_frames(kind, w['size'], pal)]
         im, fw, fh = strip(frames); im.save(f"{PDIR}/{w['id']}.png")
         man_p[w['id']] = {'image': f"projectiles/{w['id']}.png", 'frames': len(frames), 'pixelScale': 2}
@@ -447,6 +507,17 @@ def build():
         if kind in ('orb', 'glob', 'heal'): man_p[w['id']]['rotate'] = False
         previews.append((w['id'], Image.open(f"{WDIR}/{w['id']}.png"), im, kind))
     mp = os.path.join(ROOT, 'public', 'assets', 'sprites', 'manifest.json')
+    if weapons_only:
+        # Conserva la presentación del manifiesto y el resto de sus secciones.
+        with open(mp, encoding='utf-8', newline='') as source:
+            original = source.read()
+        old = json.loads(original)
+        if old['weapons'] != man_w:
+            old['weapons'] = man_w
+            with open(mp, 'w', encoding='utf-8', newline='\n') as target:
+                target.write(json.dumps(old, ensure_ascii=False, indent=2) + '\n')
+        print('ok', len(man_w), 'armas')
+        return
     m = json.load(open(mp)); m['version'] = 1; m['weapons'] = man_w; m['projectiles'] = man_p
     json.dump(m, open(mp, 'w'), indent=2); open(mp, 'a').write('\n')
     # vista previa: cuadrícula de armas con su proyectil
@@ -461,4 +532,4 @@ def build():
         d.text((ox + 4, oy + 2), f'{wid} [{kind}]', fill=(255, 255, 160))
     sheet.save('/tmp/weapons_preview.png'); print('ok', len(man_w), 'armas', len(man_p), 'proyectiles', sheet.size)
 
-if __name__ == '__main__': build()
+if __name__ == '__main__': build(weapons_only='--weapons-only' in sys.argv)
