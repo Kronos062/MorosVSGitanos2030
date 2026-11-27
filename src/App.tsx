@@ -1032,7 +1032,7 @@ export default function App() {
                           <button type="button" className={`menu-btn binding-btn ${isEq ? 'primary' : ''}`} onClick={() => onEquipPet(isEq ? null : pet.id)}>{isEq ? 'Equipada' : 'Equipar'}</button>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{pet.description}</div>
-                        <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3}>Habilidad · {pet.ability}</div>
+                        <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3 }}>Habilidad · {pet.ability}</div>
                         <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 3 }}>
                           Órbita {pet.stats.orbitRadius} · Rareza {pet.rarity.toUpperCase()}
                         </div>
