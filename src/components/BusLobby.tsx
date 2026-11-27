@@ -46,6 +46,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
   const [position, setPosition] = useState(49);
   const [facing, setFacing] = useState(1);
   const [talking, setTalking] = useState<Stop | null>(null);
+  const [approaching, setApproaching] = useState<string | null>(null);
   const pressed = useRef(new Set<string>());
   const touch = useRef(0);
   const destination = useRef<number | null>(null);
@@ -54,7 +55,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     return { id: passenger.id, x, passenger, services, label: services.map(service => SERVICES[service]).join(' y ') };
   });
   stops.push({ id: 'door', x: 10, label: 'Puerta' }, { id: 'driver', x: 90, label: 'Conductor' });
-  const nearest = stops.find(stop => Math.abs(stop.x - position) <= 5);
+  const nearest = stops.find(stop => (!approaching || stop.id === approaching) && Math.abs(stop.x - position) <= 5);
 
   useEffect(() => {
     if (!active || talking) return;
@@ -64,6 +65,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
       if (!left(event.code) && !right(event.code)) return;
       event.preventDefault();
       destination.current = null;
+      setApproaching(null);
       pressed.current.add(event.code);
     };
     const up = (event: KeyboardEvent) => pressed.current.delete(event.code);
@@ -72,6 +74,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
       touch.current = 0;
       destination.current = null;
     };
+    const onBlur = () => { clear(); setApproaching(null); };
     let frame = 0;
     let previous = performance.now();
     const walk = (now: number) => {
@@ -91,22 +94,27 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     frame = requestAnimationFrame(walk);
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
-    window.addEventListener('blur', clear);
+    window.addEventListener('blur', onBlur);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
-      window.removeEventListener('blur', clear);
+      window.removeEventListener('blur', onBlur);
       clear();
     };
   }, [active, talking, bindings]);
 
   useEffect(() => {
-    if (position === destination.current) destination.current = null;
+    if (position === destination.current) {
+      destination.current = null;
+      setApproaching(null);
+    }
   }, [position]);
 
   const interact = () => {
     if (!nearest) return;
+    destination.current = null;
+    setApproaching(null);
     if (nearest.id === 'door') onDepart();
     else setTalking(nearest);
   };
@@ -126,6 +134,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
   const holdDirection = (direction: number) => (event: PointerEvent<HTMLButtonElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     destination.current = null;
+    setApproaching(null);
     touch.current = direction;
   };
   const releaseDirection = () => { touch.current = 0; };
@@ -136,6 +145,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     }
     setFacing(Math.sign(stop.x - position));
     destination.current = stop.x;
+    setApproaching(stop.id);
   };
 
   return (
