@@ -312,7 +312,7 @@ export default function App() {
     ascension: number | null;
     newHighScore: boolean;
   }>({ weapons: [], bestiary: [], ascension: null, newHighScore: false });
-  const joyThumbRef = useRef<HTMLDivElement>(null);
+  const joyOrigin = useRef<{ id: number; x: number; y: number } | null>(null);
   const runStartRef = useRef<{ armory: Record<string, boolean>; bestiary: Record<string, number>; highestAscension: number; topScore: number }>({
     armory: {}, bestiary: {}, highestAscension: 0, topScore: 0,
   });
@@ -371,6 +371,10 @@ export default function App() {
   }, []);
 
   useEffect(() => { engineRef.current?.setBindings(save.bindings); }, [save.bindings]);
+
+  useEffect(() => {
+    if (screen !== 'playing') joyOrigin.current = null;
+  }, [screen]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -579,12 +583,25 @@ export default function App() {
     audio.play('button');
   };
 
-  const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => { e.currentTarget.setPointerCapture(e.pointerId); moveJoy(e); };
-  const onJoyMove = (e: React.PointerEvent<HTMLDivElement>) => { if (e.buttons === 0 && e.pressure === 0) return; moveJoy(e); };
+  const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (joyOrigin.current) return;
+    joyOrigin.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onJoyMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const anchor = joyOrigin.current;
+    if (!anchor || e.pointerId !== anchor.id) return;
+    const dx = e.clientX - anchor.x;
+    const dy = e.clientY - anchor.y;
+    const length = Math.hypot(dx, dy);
+    const speed = Math.min(1, Math.max(0, (length - 4) / 24));
+    const scale = length > 0 ? speed / length : 0;
+    engineRef.current?.setTouchMove(dx * scale, dy * scale, speed > 0);
+  };
   const onJoyEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (joyOrigin.current?.id !== e.pointerId) return;
+    joyOrigin.current = null;
     engineRef.current?.setTouchMove(0, 0, false);
-    if (joyThumbRef.current) joyThumbRef.current.style.transform = 'translate(-50%, -50%)';
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
   };
   const onTouchActionPointerDown = (action: 'dash' | 'ultimate') => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === 'mouse') return;
@@ -594,15 +611,6 @@ export default function App() {
   const onTouchActionClick = (action: 'dash' | 'ultimate') => (e: React.MouseEvent<HTMLButtonElement>) => {
     // The pointer path fires on touch/pen. Keep keyboard activation accessible.
     if (e.detail === 0) engineRef.current?.pressTouchAction(action);
-  };
-  const moveJoy = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    let dx = e.clientX - cx, dy = e.clientY - cy;
-    const max = rect.width / 2 - 10; const len = Math.hypot(dx, dy) || 1;
-    if (len > max) { dx = (dx / len) * max; dy = (dy / len) * max; }
-    if (joyThumbRef.current) joyThumbRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-    engineRef.current?.setTouchMove(dx / max, dy / max, true);
   };
 
   const nearbyPrompt = stats.portalPrompt
@@ -701,7 +709,7 @@ export default function App() {
             <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('map'); }}>Mapa</button>
             <button type="button" className="touch-btn" onClick={() => { engineRef.current?.pause(); setScreen('paused'); }}>Pausa</button>
           </div>
-          <div className="joystick" aria-hidden="true" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd} onLostPointerCapture={onJoyEnd}><div className="joystick-thumb" ref={joyThumbRef} /></div>
+          <div className="joystick" aria-hidden="true" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd} onLostPointerCapture={onJoyEnd} />
           <div className="touch-buttons">
             <button type="button" className="touch-btn" disabled={!nearbyPrompt} onClick={() => engineRef.current?.pressTouchAction('interact')}>Acción</button>
             <button type="button" className="touch-btn touch-ultimate" aria-label="Ultimate"
@@ -1247,6 +1255,7 @@ export default function App() {
                 <li>Vida {Math.ceil(stats.hp)}/{stats.maxHp}</li>
                 <li>Energía {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}</li>
                 <li>Monedas {stats.goldEarned.toLocaleString()}</li>
+                <li className="touch-pause-weapon">Arma · {stats.weaponName}</li>
               </ul>
               <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 4, marginBottom: 12 }}>
                 Semilla: {String(engineRef.current?.getRunSeed())}

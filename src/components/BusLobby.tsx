@@ -4,7 +4,7 @@ import type { CharacterDef } from '../content/characters';
 import { codeLabel } from '../game/persistence';
 import type { KeyBindings } from '../game/types';
 import { CharacterPortrait } from './CharacterPortrait';
-import { BusInterior, busPlacement, busWalkable, type BusPoint } from './BusInterior';
+import { BusActor, BusInterior, busPlacement, busWalkable, type BusPoint } from './BusInterior';
 import '../styles/bus.css';
 
 const SERVICES = {
@@ -60,7 +60,7 @@ type Props = {
 export function BusLobby({ active, character, roster, bindings, onService, onDepart, onDifficulty, onMenu }: Props) {
   const positionRef = useRef<BusPoint>({ x: 0, depth: .90 });
   const [position, setPosition] = useState(positionRef.current);
-  const [facing, setFacing] = useState(1);
+  const [facing, setFacing] = useState<BusPoint>({ x: 0, depth: -1 });
   const [talking, setTalking] = useState<Stop | null>(null);
   const [approaching, setApproaching] = useState<string | null>(null);
   const pressed = useRef(new Set<string>());
@@ -79,8 +79,8 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     .filter(({ distance }) => distance <= .082).sort((a, b) => a.distance - b.distance)[0]?.stop;
 
   const place = (next: BusPoint) => {
-    if (next.x !== positionRef.current.x) setFacing(next.x > positionRef.current.x ? 1 : -1);
     if (next.x === positionRef.current.x && next.depth === positionRef.current.depth) return;
+    setFacing({ x: (next.x - positionRef.current.x) * 108, depth: (next.depth - positionRef.current.depth) * 145 });
     positionRef.current = next;
     setPosition(next);
   };
@@ -189,21 +189,18 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
         </div>
       </header>
       <div className="bus-interior">
-        <BusInterior />
+        {active && <BusInterior />}
         {stops.map(stop => (
           <button type="button" key={stop.id} className={`bus-stop bus-stop-${stop.id === 'door' || stop.id === 'driver' ? stop.id : 'passenger'}`}
             data-nearby={nearest === stop} style={{ ...busPlacement(stop.point), zIndex: 105 }}
             aria-label={stop.passenger ? `${stop.passenger.name}, ${stop.label}` : stop.label}
             onClick={() => chooseStop(stop)}>
-            {stop.passenger ? <CharacterPortrait id={stop.passenger.id} variant="idle" />
-              : stop.id === 'driver' && <span className="bus-silhouette" aria-hidden="true" />}
+            {active && stop.passenger && <BusActor id={stop.passenger.id} point={stop.point} face={{ x: 0, depth: 1 }} />}
             <span className="bus-stop-label">{stop.label}</span>
           </button>
         ))}
         <div className="bus-player" aria-hidden="true" style={busPlacement(position)}>
-          <span className="bus-player-sprite" style={{ transform: `scaleX(${facing})` }}>
-            <CharacterPortrait id={character.id} variant="idle" />
-          </span>
+          {active && <BusActor id={character.id} point={position} face={facing} />}
         </div>
       </div>
       <footer className="bus-controls">

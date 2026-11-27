@@ -210,7 +210,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .char-grid.roster-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px 18px; max-height: min(38vh, 330px); }
 .overlay .screen .roster-grid .char-card { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 10px 4px; background: transparent; border: 0; border-bottom: 1px solid rgb(198 154 85 / 22%); border-radius: 0; box-shadow: none; }
-.overlay .screen .roster-grid .char-card .pixel-idle { width: 76px; height: 76px; }
+.overlay .screen .roster-grid .char-card :is(.pixel-idle, .pixel-icon) {
+  display: block;
+  width: 80px;
+  height: 80px;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  object-fit: contain;
+}
 .overlay .screen .roster-grid .char-card .name { color: var(--tavern-bone); font: 600 .85rem var(--px-font); }
 .overlay .screen .roster-grid .char-card:hover, .overlay .screen .roster-grid .char-card:focus-visible, .overlay .screen .roster-grid .char-card.selected { background: rgb(198 154 85 / 9%); border-color: var(--tavern-brass); outline: none; box-shadow: inset 0 -2px var(--tavern-brass); }
 
@@ -383,3 +390,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
+.touch-pause-weapon { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .hud .hud-top, .hud .abilities, .hud .keyboard-hint { display: none; }
+  .touch-pause-weapon { display: list-item; }
+  .joystick {
+    width: min(38vw, 200px);
+    height: min(54dvh, 160px);
+  }
+}
