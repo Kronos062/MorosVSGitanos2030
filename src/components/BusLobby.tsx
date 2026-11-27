@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent } from 'react';
+import type { PointerEvent } from 'react';
 import type { CharacterDef } from '../content/characters';
 import { codeLabel } from '../game/persistence';
 import type { KeyBindings } from '../game/types';
 import { CharacterPortrait } from './CharacterPortrait';
+import { BusInterior, busPlacement, busWalkable, type BusPoint } from './BusInterior';
 import '../styles/bus.css';
 
 const SERVICES = {
@@ -16,16 +17,30 @@ const SERVICES = {
 
 export type BusService = keyof typeof SERVICES;
 
-const SEATS: { x: number; services: BusService[] }[] = [
-  { x: 25, services: ['armory'] },
-  { x: 41, services: ['bestiary'] },
-  { x: 57, services: ['shop', 'pets'] },
-  { x: 73, services: ['scores'] },
+const STATIONS: { point: BusPoint; services: BusService[] }[] = [
+  { point: { x: -.58, depth: .42 }, services: ['armory'] },
+  { point: { x: .60, depth: .42 }, services: ['bestiary'] },
+  { point: { x: -.57, depth: .64 }, services: ['shop', 'pets'] },
+  { point: { x: .58, depth: .85 }, services: ['scores'] },
 ];
+
+const DIRECTIONS = [
+  { action: 'moveUp', key: 'ArrowUp', label: 'Avanzar', x: 0, depth: -1 },
+  { action: 'moveLeft', key: 'ArrowLeft', label: 'Izquierda', x: -1, depth: 0 },
+  { action: 'moveDown', key: 'ArrowDown', label: 'Retroceder', x: 0, depth: 1 },
+  { action: 'moveRight', key: 'ArrowRight', label: 'Derecha', x: 1, depth: 0 },
+] as const;
+
+function moveOnFloor(point: BusPoint, dx: number, dz: number) {
+  const sideways = { ...point, x: point.x + dx };
+  const next = busWalkable(sideways) ? sideways : point;
+  const forward = { ...next, depth: next.depth + dz };
+  return busWalkable(forward) ? forward : next;
+}
 
 type Stop = {
   id: string;
-  x: number;
+  point: BusPoint;
   label: string;
   passenger?: CharacterDef;
   services?: BusService[];
@@ -43,51 +58,74 @@ type Props = {
 };
 
 export function BusLobby({ active, character, roster, bindings, onService, onDepart, onDifficulty, onMenu }: Props) {
-  const [position, setPosition] = useState(49);
+  const positionRef = useRef<BusPoint>({ x: 0, depth: .90 });
+  const [position, setPosition] = useState(positionRef.current);
   const [facing, setFacing] = useState(1);
   const [talking, setTalking] = useState<Stop | null>(null);
   const [approaching, setApproaching] = useState<string | null>(null);
   const pressed = useRef(new Set<string>());
-  const touch = useRef(0);
-  const destination = useRef<number | null>(null);
-  const stops: Stop[] = roster.filter(member => member.id !== character.id).slice(0, SEATS.length).map((passenger, index) => {
-    const { x, services } = SEATS[index];
-    return { id: passenger.id, x, passenger, services, label: services.map(service => SERVICES[service]).join(' y ') };
+  const touch = useRef(new Map<number, BusPoint>());
+  const route = useRef<BusPoint[]>([]);
+  const stops: Stop[] = roster.filter(member => member.id !== character.id).slice(0, STATIONS.length).map((passenger, index) => {
+    const { point, services } = STATIONS[index];
+    return { id: passenger.id, point, passenger, services, label: services.map(service => SERVICES[service]).join(' y ') };
   });
-  stops.push({ id: 'door', x: 10, label: 'Puerta' }, { id: 'driver', x: 90, label: 'Conductor' });
-  const nearest = stops.find(stop => (!approaching || stop.id === approaching) && Math.abs(stop.x - position) <= 5);
+  stops.push(
+    { id: 'door', point: { x: .78, depth: .16 }, label: 'Puerta' },
+    { id: 'driver', point: { x: -.52, depth: .16 }, label: 'Conductor' },
+  );
+  const nearest = stops.filter(({ id }) => !approaching || id === approaching)
+    .map(stop => ({ stop, distance: Math.hypot((stop.point.x - position.x) * .58, stop.point.depth - position.depth) }))
+    .filter(({ distance }) => distance <= .082).sort((a, b) => a.distance - b.distance)[0]?.stop;
+
+  const place = (next: BusPoint) => {
+    if (next.x !== positionRef.current.x) setFacing(next.x > positionRef.current.x ? 1 : -1);
+    if (next.x === positionRef.current.x && next.depth === positionRef.current.depth) return;
+    positionRef.current = next;
+    setPosition(next);
+  };
 
   useEffect(() => {
     if (!active || talking) return;
-    const left = (code: string) => code === bindings.moveLeft || code === 'ArrowLeft';
-    const right = (code: string) => code === bindings.moveRight || code === 'ArrowRight';
     const down = (event: KeyboardEvent) => {
-      if (!left(event.code) && !right(event.code)) return;
+      if (!DIRECTIONS.some(({ key, action }) => event.code === key || event.code === bindings[action])) return;
       event.preventDefault();
-      destination.current = null;
+      route.current = [];
       setApproaching(null);
       pressed.current.add(event.code);
     };
     const up = (event: KeyboardEvent) => pressed.current.delete(event.code);
     const clear = () => {
       pressed.current.clear();
-      touch.current = 0;
-      destination.current = null;
+      touch.current.clear();
+      route.current = [];
     };
     const onBlur = () => { clear(); setApproaching(null); };
     let frame = 0;
     let previous = performance.now();
     const walk = (now: number) => {
-      const keys = [...pressed.current];
-      const direction = Number(keys.some(right)) - Number(keys.some(left)) || touch.current;
-      const distance = 39 * Math.min((now - previous) / 1000, 0.05);
+      const directions = DIRECTIONS.filter(({ key, action }) => pressed.current.has(key) || pressed.current.has(bindings[action]));
+      const inputs = [...directions, ...touch.current.values()];
+      const dx = Math.sign(inputs.reduce((sum, input) => sum + input.x, 0));
+      const dz = Math.sign(inputs.reduce((sum, input) => sum + input.depth, 0));
+      const distance = .57 * Math.min((now - previous) / 1000, .05);
       previous = now;
-      if (direction) {
-        setFacing(direction);
-        setPosition(x => Math.max(7, Math.min(93, x + direction * distance)));
-      } else if (destination.current !== null) {
-        const target = destination.current;
-        setPosition(x => x + Math.sign(target - x) * Math.min(Math.abs(target - x), distance));
+      const current = positionRef.current;
+      if (dx || dz) {
+        const step = distance / Math.hypot(dx, dz);
+        place(moveOnFloor(current, dx * step * 1.7, dz * step));
+      } else if (route.current.length) {
+        const [target] = route.current;
+        const x = target.x - current.x;
+        const depth = target.depth - current.depth;
+        const length = Math.hypot(x / 1.7, depth);
+        if (length <= distance) {
+          place(target);
+          route.current.shift();
+          if (!route.current.length) setApproaching(null);
+        } else {
+          place(moveOnFloor(current, x * distance / length, depth * distance / length));
+        }
       }
       frame = requestAnimationFrame(walk);
     };
@@ -104,16 +142,9 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     };
   }, [active, talking, bindings]);
 
-  useEffect(() => {
-    if (position === destination.current) {
-      destination.current = null;
-      setApproaching(null);
-    }
-  }, [position]);
-
   const interact = () => {
     if (!nearest) return;
-    destination.current = null;
+    route.current = [];
     setApproaching(null);
     if (nearest.id === 'door') onDepart();
     else setTalking(nearest);
@@ -131,20 +162,20 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const holdDirection = (direction: number) => (event: PointerEvent<HTMLButtonElement>) => {
+  const holdDirection = (direction: BusPoint) => (event: PointerEvent<HTMLButtonElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
-    destination.current = null;
+    route.current = [];
     setApproaching(null);
-    touch.current = direction;
+    touch.current.set(event.pointerId, direction);
   };
-  const releaseDirection = () => { touch.current = 0; };
+  const releaseDirection = (event: PointerEvent<HTMLButtonElement>) => { touch.current.delete(event.pointerId); };
   const chooseStop = (stop: Stop) => {
     if (stop === nearest) {
       interact();
       return;
     }
-    setFacing(Math.sign(stop.x - position));
-    destination.current = stop.x;
+    const current = positionRef.current;
+    route.current = [{ x: 0, depth: current.depth }, { x: 0, depth: stop.point.depth }, stop.point];
     setApproaching(stop.id);
   };
 
@@ -158,21 +189,18 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
         </div>
       </header>
       <div className="bus-interior">
-        <div className="bus-windows" aria-hidden="true">
-          {Array.from({ length: 5 }, (_, index) => <div className="bus-window" key={index} />)}
-        </div>
-        <div className="bus-floor" aria-hidden="true" />
+        <BusInterior />
         {stops.map(stop => (
           <button type="button" key={stop.id} className={`bus-stop bus-stop-${stop.id === 'door' || stop.id === 'driver' ? stop.id : 'passenger'}`}
-            data-nearby={nearest === stop} style={{ '--stop-x': `${stop.x}%` } as CSSProperties}
+            data-nearby={nearest === stop} style={busPlacement(stop.point)}
             aria-label={stop.passenger ? `${stop.passenger.name}, ${stop.label}` : stop.label}
             onClick={() => chooseStop(stop)}>
             {stop.passenger ? <CharacterPortrait id={stop.passenger.id} variant="idle" />
-              : <span className={stop.id === 'driver' ? 'bus-silhouette' : 'bus-door-art'} aria-hidden="true" />}
+              : stop.id === 'driver' && <span className="bus-silhouette" aria-hidden="true" />}
             <span className="bus-stop-label">{stop.label}</span>
           </button>
         ))}
-        <div className="bus-player" aria-hidden="true" style={{ left: `${position}%` }}>
+        <div className="bus-player" aria-hidden="true" style={busPlacement(position)}>
           <span className="bus-player-sprite" style={{ transform: `scaleX(${facing})` }}>
             <CharacterPortrait id={character.id} variant="idle" />
           </span>
@@ -180,12 +208,17 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
       </div>
       <footer className="bus-controls">
         <div className="bus-movement">
-          {[-1, 1].map(direction => (
-            <button type="button" key={direction} aria-label={direction < 0 ? 'Mover a la izquierda' : 'Mover a la derecha'}
+          {DIRECTIONS.map(direction => (
+            <button type="button" key={direction.action} aria-label={direction.label} className={`bus-${direction.action}`}
               onPointerDown={holdDirection(direction)} onPointerUp={releaseDirection} onPointerCancel={releaseDirection}
               onLostPointerCapture={releaseDirection}
-              onClick={event => { if (event.detail === 0) setPosition(x => Math.max(7, Math.min(93, x + direction * 4))); }}>
-              {direction < 0 ? 'Izquierda' : 'Derecha'}
+              onClick={event => {
+                if (event.detail !== 0) return;
+                route.current = [];
+                setApproaching(null);
+                place(moveOnFloor(positionRef.current, direction.x * .1, direction.depth * .06));
+              }}>
+              {direction.label}
             </button>
           ))}
         </div>
