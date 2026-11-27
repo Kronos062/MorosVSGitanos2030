@@ -117,10 +117,15 @@ function MinimapView({ data, large = false }: { data: MinimapData; large?: boole
 
 function BuildPanel({ build }: { build: BuildStats }) {
   type SlotKey = 'helm' | 'chest' | 'pants' | 'boots';
+  const [section, setSection] = useState<'stats' | 'loadout'>('loadout');
   return (
     <div className="build-panel" style={{ textAlign: 'left', fontSize: '0.85rem' }}>
-      <div className="build-layout">
-        <div className="build-column build-player-column">
+      <nav className="section-nav" aria-label="Secciones de la configuración">
+        <button type="button" aria-pressed={section === 'loadout'} onClick={() => setSection('loadout')}>Equipo</button>
+        <button type="button" aria-pressed={section === 'stats'} onClick={() => setSection('stats')}>Estadísticas</button>
+      </nav>
+      <div className="build-layout build-sections">
+        <div className="build-column build-player-column" hidden={section !== 'stats'}>
           <h3 className="build-player-heading" style={{ color: build.color, marginBottom: 12, letterSpacing: '0.08em' }}>{build.name} · Nivel {build.level} · XP {build.xp.toFixed(2)}/{build.xpToNext}</h3>
 
           <div className="build-section build-stats-section" style={{ marginBottom: 14 }}>
@@ -142,7 +147,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
           </div>
         </div>
 
-        <div className="build-column build-loadout-column">
+        <div className="build-column build-loadout-column" hidden={section !== 'loadout'}>
           <div className="build-section build-weapon-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
             <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
             <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
@@ -281,6 +286,9 @@ export default function App() {
   const engineRef = useRef<GameEngine | null>(null);
   const [screen, setScreen] = useState<GameScreen>('menu');
   const [optionsOrigin, setOptionsOrigin] = useState<'menu' | 'paused'>('menu');
+  const [optionSection, setOptionSection] = useState('audio');
+  const [bestiarySection, setBestiarySection] = useState<Faction | 'profiles'>('bando_moros');
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [save, setSave] = useState<SaveData>(() => loadSave());
   const [selectedChar, setSelectedChar] = useState('tariq');
   const [stats, setStats] = useState<GameStats>(emptyStats);
@@ -454,12 +462,15 @@ export default function App() {
         if (e.code === 'Escape') { setRebinding(null); return; }
         setSave((prev) => setBinding(prev, rebinding, e.code)); setRebinding(null); audio.play('button'); return;
       }
-      if (e.code === 'Enter' && screen === 'menu') { setScreen('chars'); audio.play('button'); }
+      if (e.code === 'Enter' && screen === 'menu' && save.faction && save.tutorialSeen) {
+        setScreen('chars'); audio.play('button');
+      }
       const pauseCode = save.bindings.pause;
       const mapCode = save.bindings.openMap;
       const buildCode = save.bindings.openBuild;
 
       if (e.code === 'Escape' && showQuitConfirm) { e.preventDefault(); setShowQuitConfirm(false); return; }
+      if (e.code === 'Escape' && screen === 'options') { setScreen(optionsOrigin); return; }
       if (e.code === 'Escape' && screen === 'pickupchoice' && pickupChoice) {
         e.preventDefault();
         const res = pickupChoice.resolve;
@@ -492,7 +503,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, save.bindings, rebinding, showQuitConfirm, pickupChoice]);
+  }, [screen, save.bindings, save.faction, save.tutorialSeen, rebinding, showQuitConfirm, pickupChoice, optionsOrigin]);
 
   const startGame = useCallback(() => {
     audio.play('button'); audio.resume();
@@ -590,9 +601,9 @@ export default function App() {
               <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
               <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
-              <div className="stat-row hud-detail-stat"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
-              <div className="stat-row hud-detail-stat"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
-              <div className="stat-row hud-detail-stat"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
+              <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
+              <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
+              <div className="stat-row"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
             </div>
             <div className="hud-panel">
               <div className="stat-row"><span className="stat-label">Combo</span><span className="stat-value">x{stats.multiplier.toFixed(2)}</span></div>
@@ -686,7 +697,7 @@ export default function App() {
               <p className="game-subtitle">2 0 3 0</p>
               <h2 className="section-title" style={{ color: '#ffe14a' }}>ELIGE TU BANDO</h2>
               <p style={{ color: '#94a3b8', marginBottom: 20 }}>Esta decisión es permanente. Solo podrás jugar personajes del bando elegido.</p>
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 16 }}>
+              <div className="faction-choices">
                 <button type="button" className="menu-btn" onClick={() => pickFaction('bando_moros')} style={{ fontSize: '1.1rem', padding: '16px 28px', borderColor: '#00f0ff', color: '#00f0ff' }}>
                   ⚔️ MOROS
                 </button>
@@ -702,13 +713,14 @@ export default function App() {
           <div className="screen" style={{ zIndex: 20 }}>
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>CÓMO JUGAR</h2>
-              <div style={{ textAlign: 'left', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.8, marginBottom: 16 }}>
+              <div className="keyboard-settings" style={{ textAlign: 'left', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.8, marginBottom: 16 }}>
                 <p style={{ marginBottom: 8 }}>🎯 <strong style={{ color: '#e2e8f0' }}>Objetivo:</strong> Sobrevive a 10 mapas de salas procedurales, derrota al jefe de cada mapa y desciende al siguiente.</p>
                 <p style={{ marginBottom: 8 }}>⌨ <strong style={{ color: '#e2e8f0' }}>Controles:</strong> {BINDING_ROWS.filter((r) => ['moveUp','moveDown','moveLeft','moveRight','attack','dash','interact'].includes(r.action)).map((r) => `${r.label}: ${codeLabel(save.bindings[r.action])}`).join(' · ')}</p>
                 <p style={{ marginBottom: 8 }}>📦 <strong style={{ color: '#e2e8f0' }}>Cofres y eventos:</strong> Las salas pueden contener cofres con armas y equipo, eventos interactivos con decisiones de riesgo/recompensa, o combates con oleadas de enemigos.</p>
                 <p style={{ marginBottom: 8 }}>⚔️ <strong style={{ color: '#e2e8f0' }}>Build:</strong> Al subir de nivel eliges mejoras. Equipa armaduras de set para desbloquear sinergias. Consulta tu build con la tecla B.</p>
                 <p>♾️ <strong style={{ color: '#e2e8f0' }}>Endless:</strong> Tras la victoria puedes continuar con dificultad creciente. Tu puntuación y build se conservan.</p>
               </div>
+              <p className="touch-instructions">Derrota al jefe de cada mapa. Usa el mando para moverte, Disparar para atacar y Acción junto a cofres y portales. En Pausa encontrarás tu equipo y los ajustes.</p>
               <button type="button" className="menu-btn primary full-width" onClick={() => {
                 audio.play('button');
                 setShowTutorial(false);
@@ -753,128 +765,105 @@ export default function App() {
 
         {screen === 'chars' && (
           <div className="screen">
-            <div className="screen-content">
-              <h2 className="section-title" style={{ color: factionColor(save.faction!) }}>SELECCIÓN DE PERSONAJE · {factionName(save.faction!)}</h2>
-              <div className="char-grid">
-                {availableChars.map((c) => (
-                  <button type="button" key={c.id} className={`char-card ${selectedChar === c.id ? 'selected' : ''}`} onClick={() => { setSelectedChar(c.id); audio.play('button'); }} style={{ borderColor: selectedChar === c.id ? c.sprite.color : undefined }}>
-                    <CharacterPortrait id={c.id} variant="idle" />
-                    <div className="name" style={{ color: c.sprite.color }}>{c.name}</div>
-                    <div className="faction">{c.faction === 'bando_moros' ? '◆ MOROS' : '◆ GITANOS'}</div>
+            <div className="screen-content run-setup">
+              <h2 className="section-title">Elige personaje</h2>
+              <div className="char-grid roster-grid">
+                {availableChars.map((character) => (
+                  <button type="button" key={character.id} className="char-card"
+                    onClick={() => { setSelectedChar(character.id); setShowCharacterSheet(true); audio.play('button'); }}>
+                    <CharacterPortrait id={character.id} variant="idle" />
+                    <span className="name">{character.name}</span>
                   </button>
                 ))}
               </div>
-              <div className="detail-box">
-                <CharacterPortrait id={selected.id} variant="idle" />
-                <strong style={{ color: selected.sprite.color }}>{selected.name}</strong>
-                <span style={{ color: '#8891b8' }}> · {selected.faction === 'bando_moros' ? 'Moros' : 'Gitanos'}</span>
-                <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>
-                <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>HP {selected.stats.hp} · EN {selected.energy} · SPD {selected.speedPct}% · ARM {selected.stats.armor} · CRIT {Math.round(selected.stats.critChance * 100)}%</p>
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#8891b8', letterSpacing: '0.1em' }}>PASIVA</div>
-                  <div style={{ marginTop: 4, fontWeight: 800, color: selected.sprite.color }}>
-                    {selected.passiveIcon} {selected.passiveName}
-                  </div>
-                  <div style={{ marginTop: 2, fontSize: '0.78rem', color: '#94a3b8' }}>
-                    {selected.passive.map(formatPassiveMod).join(' · ')}
-                  </div>
-                </div>
-              </div>
-              <div style={{ marginBottom: 10 }}>
-                <div className="menu-grid">
-                  <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('ascension'); }}>
-                    {(() => {
-                      const al = ASCENSION_LEVELS.find((l) => l.level === save.activeAscension);
-                      return al ? `${al.icon} ${al.name} (Nivel ${al.level})` : '⚡ Normal (Nivel 0)';
-                    })()}
-                  </button>
-                </div>
-              </div>
-              <input
-                type="text"
-                placeholder="Semilla (opcional)"
-                value={seedInput}
-                onChange={(e) => setSeedInput(e.target.value)}
-                style={{ width: '100%', textAlign: 'center', marginBottom: 8, padding: '10px 18px', background: 'rgba(26,30,46,0.85)', border: '1px solid rgba(255,204,0,0.4)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2 }}
-              />
-              <div className="menu-grid">
-                <button type="button" className="menu-btn primary" onClick={startGame}>Combatir</button>
+              <div className="screen-actions">
                 <button type="button" className="menu-btn" onClick={backToMenu}>Volver</button>
               </div>
+              {showCharacterSheet && (
+                <dialog className="character-sheet" aria-labelledby="character-sheet-title"
+                  ref={(dialog) => { if (dialog && !dialog.open) dialog.showModal(); }}
+                  onCancel={() => setShowCharacterSheet(false)}>
+                  <div className="character-sheet-body">
+                    <div className="character-sheet-art">
+                      <CharacterPortrait id={selected.id} variant="idle" />
+                      <span>{factionName(selected.faction)}</span>
+                    </div>
+                    <div>
+                      <h2 id="character-sheet-title">{selected.name}</h2>
+                      <dl className="character-stats">
+                        <div><dt>Vida</dt><dd>{selected.stats.hp}</dd></div>
+                        <div><dt>Energía</dt><dd>{selected.energy}</dd></div>
+                        <div><dt>Velocidad</dt><dd>{selected.speedPct}%</dd></div>
+                        <div><dt>Armadura</dt><dd>{selected.stats.armor}</dd></div>
+                        <div><dt>Crítico</dt><dd>{Math.round(selected.stats.critChance * 100)}%</dd></div>
+                      </dl>
+                      <p className="character-weapon">Arma inicial · {getBaseWeapon(selected.startingWeapon).name}</p>
+                      <div className="character-power">
+                        <h3>Pasiva · {selected.passiveName}</h3>
+                        <p>{selected.passive.map(formatPassiveMod).join(' · ')}</p>
+                      </div>
+                      <div className="character-power">
+                        <h3>Ultimate · {selected.ultimateName}</h3>
+                        <p>{selected.ultimateDescription}</p>
+                        <small>{selected.id === 'patriarca' ? 'Sin coste' : '25 de energía'} · 60 s de recarga</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="screen-actions">
+                    <button type="button" className="menu-btn" onClick={() => setShowCharacterSheet(false)}>Cambiar</button>
+                    <button type="button" className="menu-btn primary" onClick={() => {
+                      audio.play('button'); setShowCharacterSheet(false); setScreen('ascension');
+                    }}>Seleccionar</button>
+                  </div>
+                </dialog>
+              )}
             </div>
           </div>
         )}
 
-        {screen === 'ascension' && (
-          <div className="screen">
-            <div className="screen-content">
-              <h2 className="section-title" style={{ color: '#ffe14a' }}>NIVEL DE ASCENSIÓN</h2>
-              <p style={{ color: '#94a3b8', marginBottom: 16, fontSize: '0.85rem' }}>
-                Modifica la dificultad. Sube el nivel para retos más duros y mejores recompensas.
-              </p>
-              <div style={{ marginBottom: 14 }}>
-                <div className="list-scroll" style={{ maxHeight: 360 }}>
-                  {ASCENSION_LEVELS.map((al) => {
-                    const locked = al.level > 0 && al.level > save.highestAscension + 1;
-                    const active = save.activeAscension === al.level;
-                    return (
-                      <div
-                        key={al.level}
-                        className="item-card"
-                        style={{
-                          borderColor: locked ? 'rgba(255,255,255,0.06)' : active ? al.color : `${al.color}44`,
-                          opacity: locked ? 0.45 : 1,
-                          marginBottom: 6,
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, color: locked ? '#555' : al.color }}>
-                            {al.icon} Nivel {al.level}: {al.name}
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: locked ? '#444' : '#8891b8' }}>
-                            {locked ? '🔒' : active ? '✓ ACTIVO' : ''}
-                          </span>
-                        </div>
-                        {!locked && (
-                          <>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
-                              {al.description}
-                            </div>
-                            <div style={{ marginTop: 6, fontSize: '0.7rem', color: '#8891b8' }}>
-                              {al.modifiers.map((m, i) => (
-                                <span key={i} style={{ marginRight: 10 }}>{m.icon} {m.label}</span>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                        {!locked && !active && (
-                          <button
-                            type="button"
-                            className="menu-btn"
-                            style={{ marginTop: 6, fontSize: '0.8rem' }}
-                            onClick={() => {
-                              audio.play('button');
-                              setSave((prev) => {
-                                const next = { ...prev, activeAscension: al.level };
-                                writeSave(next);
-                                return next;
-                              });
-                            }}
-                          >
-                            Activar
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+        {screen === 'ascension' && (() => {
+          const difficulty = ASCENSION_LEVELS.find(level => level.level === save.activeAscension) ?? ASCENSION_LEVELS[0];
+          return (
+            <div className="screen">
+              <div className="screen-content run-setup difficulty-screen">
+                <h2 className="section-title">Elige dificultad</h2>
+                <div className="difficulty-character">
+                  <CharacterPortrait id={selected.id} variant="idle" /> <strong>{selected.name}</strong>
+                </div>
+                <label className="difficulty-field">
+                  Nivel de ascensión
+                  <select className="menu-btn" value={difficulty.level} onChange={(event) => {
+                    const activeAscension = Number(event.target.value);
+                    setSave(prev => {
+                      const next = { ...prev, activeAscension };
+                      writeSave(next);
+                      return next;
+                    });
+                  }}>
+                    {ASCENSION_LEVELS.map(level => (
+                      <option key={level.level} value={level.level} disabled={level.level > save.highestAscension + 1}>
+                        {level.level} · {level.name}{level.level > save.highestAscension + 1 ? ' (bloqueado)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="difficulty-description">{difficulty.description}</p>
+                {difficulty.modifiers.length > 0 && (
+                  <ul className="difficulty-modifiers">{difficulty.modifiers.map(modifier => <li key={modifier.id}>{modifier.label}</li>)}</ul>
+                )}
+                <details className="difficulty-seed">
+                  <summary>Semilla de partida</summary>
+                  <input type="text" aria-label="Semilla de partida" placeholder="Semilla (opcional)"
+                    value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
+                </details>
+                <div className="screen-actions">
+                  <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('chars'); }}>Volver</button>
+                  <button type="button" className="menu-btn primary" onClick={startGame}>Jugar</button>
                 </div>
               </div>
-              <div className="menu-grid">
-                <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('chars'); }}>Volver</button>
-              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {screen === 'armory' && (
           <div className="screen">
@@ -901,12 +890,14 @@ export default function App() {
         {screen === 'bestiary' && (
           <div className="screen">
             <div className="screen-content">
-              <h2 className="section-title" style={{ color: '#ff3b5c' }}>BESTIARIO DE RIVALES</h2>
+              <h2 className="section-title">Bestiario de rivales</h2>
+              <nav className="section-nav" aria-label="Secciones del bestiario">
+                {([['bando_moros', 'Moros'], ['bando_gitanos', 'Gitanos'], ['profiles', 'Perfiles de combate']] as const).map(([id, label]) => (
+                  <button type="button" key={id} aria-pressed={bestiarySection === id} onClick={() => setBestiarySection(id)}>{label}</button>
+                ))}
+              </nav>
               <div className="list-scroll bestiary-roster">
-                {(['bando_moros', 'bando_gitanos'] as const).map((faction) => (
-                  <section key={faction}>
-                    <h3>{factionName(faction)}</h3>
-                    {getCharactersByFaction(faction).map((rival) => {
+                {bestiarySection !== 'profiles' && getCharactersByFaction(bestiarySection).map((rival) => {
                       const kills = save.bestiary[rivalRecordKey(rival.id)] ?? 0;
                       return (
                         <article key={rival.id} className="item-card">
@@ -921,18 +912,18 @@ export default function App() {
                           </p>
                         </article>
                       );
-                    })}
-                  </section>
-                ))}
-                <details>
-                  <summary>Perfiles de combate</summary>
+                })}
+                {bestiarySection === 'profiles' && (
+                <section className="bestiary-profiles">
                   {Object.entries(BESTIARY_LORE).filter(([id]) => (save.bestiary[id] ?? 0) > 0).map(([id, info]) => (
                     <div key={id} className="item-card">
                       <strong>{info.name}</strong> · {save.bestiary[id]} bajas
                       <p style={{ color: 'var(--px-dim)', fontSize: '0.8rem' }}>{info.desc}</p>
                     </div>
                   ))}
-                </details>
+                  {!Object.keys(BESTIARY_LORE).some(id => (save.bestiary[id] ?? 0) > 0) && <p>Aún no has registrado bajas.</p>}
+                </section>
+                )}
               </div>
               <button type="button" className="menu-btn full-width" onClick={backToMenu}>Volver</button>
             </div>
@@ -1067,10 +1058,15 @@ export default function App() {
 
         {screen === 'options' && (
           <div className="screen">
-            <div className="options-screen-content">
-              <h2 className="section-title" style={{ color: '#00f0ff', textAlign: 'center', marginBottom: 16 }}>OPCIONES</h2>
+            <div className="screen-content options-screen-content">
+              <h2 className="section-title">Ajustes</h2>
+              <nav className="section-nav" aria-label="Secciones de ajustes">
+                {([['audio', 'Audio'], ['controls', 'Controles'], ['accessibility', 'Accesibilidad'], ['faction', 'Bando'], ['save', 'Partida guardada']] as const).map(([id, label]) => (
+                  <button type="button" key={id} aria-pressed={optionSection === id} onClick={() => { setOptionSection(id); setRebinding(null); }}>{label}</button>
+                ))}
+              </nav>
               <div className="options-layout">
-                <div className="options-column">
+                <div className="options-column" hidden={optionSection !== 'controls'}>
                   <h3 className="options-heading">Controles</h3>
                   <p className="touch-instructions">Usa el mando izquierdo para moverte. Mantén Disparar para apuntar al rival más cercano y toca Acción para abrir cofres o recoger objetos.</p>
                   <div className="keyboard-settings">
@@ -1084,7 +1080,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="options-column">
+                <div className="options-column" hidden={optionSection !== 'audio'}>
                   <h3 style={{ color: '#ffe14a', letterSpacing: '0.12em', margin: '0 0 10px', fontSize: '1rem' }}>AUDIO</h3>
                   <div className="volume-row">
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginRight: 8 }}>Música:</span>
@@ -1114,7 +1110,9 @@ export default function App() {
                     </select>
                   </div>
 
-                  <h3 style={{ color: '#ff2bd6', letterSpacing: '0.12em', margin: '16px 0 10px', fontSize: '1rem' }}>BANDO</h3>
+                </div>
+                <div className="options-column" hidden={optionSection !== 'faction'}>
+                  <h3 className="options-heading">Bando</h3>
                   <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 8 }}>
                     Bando actual: <strong style={{ color: save.faction ? factionColor(save.faction) : '#888' }}>{save.faction ? factionLabel(save.faction) : 'Ninguno'}</strong>
                   </p>
@@ -1132,7 +1130,9 @@ export default function App() {
                     </div>
                   )}
 
-                  <h3 style={{ color: '#00f0ff', letterSpacing: '0.12em', margin: '12px 0 10px', fontSize: '1rem' }}>RESPALDO</h3>
+                </div>
+                <div className="options-column" hidden={optionSection !== 'save'}>
+                  <h3 className="options-heading">Partida guardada</h3>
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
                     audio.play('button');
                     const json = exportSaveToJson(save);
@@ -1163,7 +1163,9 @@ export default function App() {
                     writeSave(fresh); setSave(fresh); setRebinding(null); setScreen('menu');
                   }}>Borrar progreso</button>
 
-                  <h3 style={{ color: '#39ff88', letterSpacing: '0.12em', margin: '12px 0 10px', fontSize: '1rem' }}>ACCESIBILIDAD</h3>
+                </div>
+                <div className="options-column" hidden={optionSection !== 'accessibility'}>
+                  <h3 className="options-heading">Accesibilidad</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '10px 12px', background: 'rgba(57,255,136,0.08)', border: '1px solid rgba(57,255,136,0.25)', borderRadius: 4 }}>
                     <input type="checkbox" checked={save.assistMode} onChange={(e) => {
                       const next = { ...save, assistMode: e.target.checked };
@@ -1210,6 +1212,12 @@ export default function App() {
           <div className="screen">
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>PAUSA</h2>
+              <ul className="pause-summary">
+                <li>{stats.biomeName} · {stats.mapNumber}/{stats.totalMaps}</li>
+                <li>Vida {Math.ceil(stats.hp)}/{stats.maxHp}</li>
+                <li>Energía {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}</li>
+                <li>Monedas {stats.goldEarned.toLocaleString()}</li>
+              </ul>
               <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 4, marginBottom: 12 }}>
                 Semilla: {String(engineRef.current?.getRunSeed())}
                 <button
@@ -1222,7 +1230,7 @@ export default function App() {
               </p>
               <div className="menu-grid">
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); engineRef.current?.resume(); setScreen('playing'); }}>Continuar</button>
-                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setBuildOrigin('paused'); setScreen('build'); }}>Build</button>
+                <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setBuildOrigin('paused'); setScreen('build'); }}>Equipo</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setScreen('map'); }}>Mapa</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setOptionsOrigin('paused'); setScreen('options'); }}>Opciones</button>
                 <button type="button" className="menu-btn full-width" onClick={() => { audio.play('button'); setShowQuitConfirm(true); }}>Menú principal</button>
@@ -1267,7 +1275,7 @@ export default function App() {
         {screen === 'build' && stats.build && (
           <div className="screen">
             <div className="screen-content build-screen-content">
-              <h2 className="section-title" style={{ color: '#b04dff' }}>BUILD</h2>
+              <h2 className="section-title">Configuración de combate</h2>
               <BuildPanel build={stats.build} />
               <div className="menu-grid" style={{ marginTop: 16 }}>
                 <button

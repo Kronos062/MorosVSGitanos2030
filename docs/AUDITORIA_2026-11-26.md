@@ -110,3 +110,9 @@ El fuente incluye los recursos activos y los editables disponibles de MDLR. El r
 - En pantallas táctiles, el HUD coloca la vida, energía y avisos encima de los mandos y reduce los datos secundarios en horizontal. El mapa y la pausa se abren desde la parte superior. Las opciones se pueden abrir desde la pausa y volver a la partida.
 - Las pulsaciones táctiles de Acción, Esquiva y Ultimate usan las mismas acciones del motor que el teclado. El disparo se mantiene al sostener el botón y se libera al soltarlo incluso si el dedo sale del botón. Se restablece la entrada táctil al pausar o perder el foco.
 - En Chrome con emulación táctil se probó el desplazamiento de opciones con un gesto, el volumen, el joystick, el mapa, la pausa, la ultimate, la esquiva, la apertura del cofre y el disparo. Se comprobó el HUD en 390 × 844 y 844 × 390. Falta validar en un iPhone y un Android físicos.
+
+## Fase 9 · Rediseño de navegación y selector
+
+- El selector abre una ficha modal con sprite animado, estadísticas, arma inicial, pasiva y ultimate. Después de confirmar el personaje se elige la dificultad y se inicia la partida. Los niveles bloqueados conservan las reglas previas y la semilla queda en una sección opcional.
+- Ajustes agrupa Audio, Controles, Accesibilidad, Bando y Partida guardada. Bestiario separa ambos bandos y los perfiles de combate. La configuración de combate divide Equipo y Estadísticas.
+- En móvil, el campo de combate muestra los mandos y los accesos a Pausa y Mapa. Vida, energía y monedas se consultan en Pausa. Se probó en Chrome con emulación táctil y un ancho de 320 px para la selección. La comprobación física de iOS y Android sigue pendiente.

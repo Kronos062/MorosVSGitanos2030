@@ -4,6 +4,7 @@ import "@fontsource/pixelify-sans/latin-400.css";
 import "@fontsource/pixelify-sans/latin-700.css";
 import "./index.css";
 import "./styles/pixel-ui.css";
+import "./styles/frontier.css";
 import App from "./App";
 import { spriteAtlas } from "./game/sprites/spriteAtlas";
 

@@ -118,7 +118,10 @@ def start_run(pg, faction='MOROS'):
     pg.get_by_role('button').filter(has_text='JUGAR').first.click(); pg.wait_for_timeout(300)
 
 def combat(pg):
-    pg.get_by_role('button', name='COMBATIR').click(); pg.wait_for_timeout(900)
+    if not pg.get_by_role('dialog').count():
+        pg.locator('.char-card').first.click()
+    pg.get_by_role('button', name='Seleccionar', exact=True).click()
+    pg.get_by_role('button', name='Jugar', exact=True).click(); pg.wait_for_timeout(900)
 
 def clean_scene(pg):
     """Solo para pruebas: mantiene la escena sin enemigos ni proyectiles enemigos (no toca hp ni invuln del jugador)."""
@@ -262,7 +265,7 @@ def mode_a(pw):
     pg.locator('.screen .menu-btn.primary').first.click(); pg.wait_for_timeout(500)
     check('A: tras elegir, el juego se reanuda', pg.evaluate('() => window.__engine.running === true'))
     pg.keyboard.press('Escape'); pg.wait_for_timeout(400)
-    pg.get_by_role('button', name='BUILD').first.click(); pg.wait_for_timeout(500)
+    pg.get_by_role('button', name='Equipo', exact=True).first.click(); pg.wait_for_timeout(500)
     bt = pg.evaluate("() => [...document.querySelectorAll('.build-equipment-section .equip-tile .px-ico')].map(e => getComputedStyle(e).backgroundImage)")
     check('A: la pantalla de build muestra el sprite de la pieza equipada', len(bt) == 1 and 'equip_set_berserker_helm' in bt[0], bt)
     pg.get_by_role('button', name='VOLVER').first.click(); pg.wait_for_timeout(300)

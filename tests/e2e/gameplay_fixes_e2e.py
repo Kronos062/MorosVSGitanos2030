@@ -32,7 +32,9 @@ def main():
             pg.get_by_role('button').filter(has_text='MOROS').first.click(); pg.wait_for_timeout(250)
             if pg.get_by_role('button', name='ENTENDIDO').count(): pg.get_by_role('button', name='ENTENDIDO').click(); pg.wait_for_timeout(150)
             pg.get_by_role('button').filter(has_text='JUGAR').first.click(); pg.wait_for_timeout(300)
-            pg.get_by_role('button', name='COMBATIR').click(); pg.wait_for_timeout(900)
+            pg.locator('.char-card').first.click()
+            pg.get_by_role('button', name='Seleccionar', exact=True).click()
+            pg.get_by_role('button', name='Jugar', exact=True).click(); pg.wait_for_timeout(900)
             # Escena limpia (sin enemigos que molesten) y jugador inmortal
             pg.evaluate("""() => { const e = window.__engine;
                 const sweep = () => { e.enemies.length = 0; for (let i = e.projectiles.length - 1; i >= 0; i--) if (e.projectiles[i].owner === 'enemy') e.projectiles.splice(i, 1); e.player.hp = e.player.maxHp; };
