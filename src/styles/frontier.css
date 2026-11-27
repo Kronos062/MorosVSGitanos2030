@@ -703,7 +703,7 @@
 .overlay .screen .screen-content {
   width: min(100%, 1120px);
   max-width: 1120px;
-  max-height: calc(100dvh - 36px);
+  max-height: none;
   padding: clamp(20px, 4vw, 48px);
   color: var(--med-bone);
   font-family: Georgia, 'Palatino Linotype', serif;
@@ -711,7 +711,7 @@
   background: transparent;
   border: 0;
   box-shadow: none;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .overlay .screen .screen-content > h1,
@@ -925,7 +925,7 @@
 }
 
 @media (max-width: 560px) {
-  .overlay .screen .screen-content { width: 100%; max-height: calc(100dvh - 20px); padding: 14px 8px; }
+  .overlay .screen .screen-content { width: 100%; max-height: none; padding: 14px 8px; }
   .overlay .screen .main-menu-content { padding: 18px 8px; }
   .overlay .screen .main-menu-content .game-title { font-size: clamp(1.85rem, 10vw, 2.8rem); }
   .overlay .screen .main-menu-content > .menu-grid { gap: 10px 12px; }
