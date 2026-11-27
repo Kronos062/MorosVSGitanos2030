@@ -18,9 +18,9 @@ const SERVICES = {
 export type BusService = keyof typeof SERVICES;
 
 const STATIONS: { point: BusPoint; services: BusService[] }[] = [
-  { point: { x: -.58, depth: .42 }, services: ['armory'] },
-  { point: { x: .60, depth: .42 }, services: ['bestiary'] },
-  { point: { x: -.57, depth: .64 }, services: ['shop', 'pets'] },
+  { point: { x: -.24, depth: .40 }, services: ['armory'] },
+  { point: { x: .25, depth: .51 }, services: ['bestiary'] },
+  { point: { x: -.27, depth: .68 }, services: ['shop', 'pets'] },
   { point: { x: .58, depth: .85 }, services: ['scores'] },
 ];
 
@@ -192,7 +192,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
         <BusInterior />
         {stops.map(stop => (
           <button type="button" key={stop.id} className={`bus-stop bus-stop-${stop.id === 'door' || stop.id === 'driver' ? stop.id : 'passenger'}`}
-            data-nearby={nearest === stop} style={busPlacement(stop.point)}
+            data-nearby={nearest === stop} style={{ ...busPlacement(stop.point), zIndex: 105 }}
             aria-label={stop.passenger ? `${stop.passenger.name}, ${stop.label}` : stop.label}
             onClick={() => chooseStop(stop)}>
             {stop.passenger ? <CharacterPortrait id={stop.passenger.id} variant="idle" />
