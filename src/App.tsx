@@ -574,6 +574,15 @@ export default function App() {
     if (joyThumbRef.current) joyThumbRef.current.style.transform = 'translate(-50%, -50%)';
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
   };
+  const onTouchActionPointerDown = (action: 'dash' | 'ultimate') => (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse') return;
+    e.preventDefault();
+    engineRef.current?.pressTouchAction(action);
+  };
+  const onTouchActionClick = (action: 'dash' | 'ultimate') => (e: React.MouseEvent<HTMLButtonElement>) => {
+    // The pointer path fires on touch/pen. Keep keyboard activation accessible.
+    if (e.detail === 0) engineRef.current?.pressTouchAction(action);
+  };
   const moveJoy = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
@@ -589,6 +598,13 @@ export default function App() {
     : stats.eventPrompt ?? stats.chestPrompt ?? (stats.stackedPickupCount >= 2
       ? { name: `Elegir objeto (${stats.stackedPickupCount})`, color: '#ffe14a' }
       : stats.weaponPrompt ?? stats.itemPrompt);
+  const ultimateCooldown = stats.ultimateCooldown ?? 0;
+  const ultimateNeedsEnergy = selectedChar !== 'patriarca' && (stats.energy ?? 0) < 25;
+  const ultimateReady = ultimateCooldown <= 0 && !ultimateNeedsEnergy;
+  const ultimateTouchLabel = ultimateCooldown > 0
+    ? `${Math.ceil(ultimateCooldown)} s`
+    : ultimateNeedsEnergy ? `Energía ${Math.floor(stats.energy ?? 0)}` : 'Ultimate';
+  const dashReady = stats.dashPct >= 1;
 
   return (
     <div id="game-root">
@@ -676,10 +692,16 @@ export default function App() {
           <div className="joystick" aria-hidden="true" onPointerDown={onJoyStart} onPointerMove={onJoyMove} onPointerUp={onJoyEnd} onPointerCancel={onJoyEnd} onLostPointerCapture={onJoyEnd}><div className="joystick-thumb" ref={joyThumbRef} /></div>
           <div className="touch-buttons">
             <button type="button" className="touch-btn" disabled={!nearbyPrompt} onClick={() => engineRef.current?.pressTouchAction('interact')}>Acción</button>
-            <button type="button" className="touch-btn" aria-label="Ultimate" onClick={() => engineRef.current?.pressTouchAction('ultimate')}>
-              {stats.ultimateCooldown ? `${Math.ceil(stats.ultimateCooldown)} s` : 'Ultimate'}
+            <button type="button" className="touch-btn touch-ultimate" aria-label="Ultimate"
+              disabled={!ultimateReady}
+              onPointerDown={onTouchActionPointerDown('ultimate')} onClick={onTouchActionClick('ultimate')}>
+              {ultimateTouchLabel}
             </button>
-            <button type="button" className="touch-btn dash" onClick={() => engineRef.current?.pressTouchAction('dash')}>Esquiva</button>
+            <button type="button" className="touch-btn dash" aria-label="Dash"
+              disabled={!dashReady}
+              onPointerDown={onTouchActionPointerDown('dash')} onClick={onTouchActionClick('dash')}>
+              {dashReady ? 'Dash' : `Dash ${Math.round(stats.dashPct * 100)}%`}
+            </button>
             <button type="button" className="touch-btn touch-fire"
               onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); engineRef.current?.setTouchShoot(true); }}
               onPointerUp={() => engineRef.current?.setTouchShoot(false)}
@@ -739,16 +761,16 @@ export default function App() {
         {screen === 'menu' && hasFaction && (
           <div className="screen">
             <div className="screen-content main-menu-content">
-              <h1 className="game-title">MOROS VS GITANOS</h1>
-              <h2 className="game-subtitle">2 0 3 0</h2>
-              <div className="gold-box">
-                <div className="label">MONEDAS ROGUELITE</div>
-                <div className="value">🪙 {save.gold.toLocaleString()}</div>
-              </div>
-              <div style={{ textAlign: 'center', marginBottom: 8, color: factionColor(save.faction!), fontWeight: 700, letterSpacing: '0.1em' }}>
-                {factionLabel(save.faction!)}
-              </div>
-              <div className="menu-grid">
+                <h1 className="game-title">MOROS VS GITANOS</h1>
+                <h2 className="game-subtitle">2 0 3 0</h2>
+                <div className="gold-box">
+                  <div className="label">MONEDAS ROGUELITE</div>
+                  <div className="value">🪙 {save.gold.toLocaleString()}</div>
+                </div>
+                <div style={{ textAlign: 'center', marginBottom: 8, color: factionColor(save.faction!), fontWeight: 700, letterSpacing: '0.1em' }}>
+                  {factionLabel(save.faction!)}
+                </div>
+                <div className="menu-grid">
                 <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); setScreen('chars'); }}>▶ Jugar</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('armory'); }}>Armería</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('bestiary'); }}>Bestiario</button>
@@ -1636,3 +1658,4 @@ export default function App() {
     </div>
   );
 }
+
