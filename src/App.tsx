@@ -755,14 +755,14 @@ export default function App() {
               <div className="char-grid">
                 {availableChars.map((c) => (
                   <button type="button" key={c.id} className={`char-card ${selectedChar === c.id ? 'selected' : ''}`} onClick={() => { setSelectedChar(c.id); audio.play('button'); }} style={{ borderColor: selectedChar === c.id ? c.sprite.color : undefined }}>
-                    <CharacterPortrait id={c.id} variant="icon" />
+                    <CharacterPortrait id={c.id} variant="idle" />
                     <div className="name" style={{ color: c.sprite.color }}>{c.name}</div>
                     <div className="faction">{c.faction === 'bando_moros' ? '◆ MOROS' : '◆ GITANOS'}</div>
                   </button>
                 ))}
               </div>
               <div className="detail-box">
-                <CharacterPortrait id={selected.id} />
+                <CharacterPortrait id={selected.id} variant="idle" />
                 <strong style={{ color: selected.sprite.color }}>{selected.name}</strong>
                 <span style={{ color: '#8891b8' }}> · {selected.faction === 'bando_moros' ? 'Moros' : 'Gitanos'}</span>
                 <p style={{ marginTop: 6, opacity: 0.85 }}>{selected.description}</p>

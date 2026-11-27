@@ -2381,11 +2381,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2395,24 +2397,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2432,11 +2434,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2446,24 +2450,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2547,11 +2551,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2561,24 +2567,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2598,11 +2604,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2612,24 +2620,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2649,11 +2657,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2663,24 +2673,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2700,11 +2710,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2714,24 +2726,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2751,11 +2763,13 @@
         },
         "roll": {
           "frames": 5,
-          "fps": 14
+          "fps": 28,
+          "loop": false
         },
         "hurt": {
           "frames": 3,
-          "fps": 10
+          "fps": 10,
+          "loop": false
         },
         "death": {
           "frames": 6,
@@ -2765,24 +2779,24 @@
       "weaponSocket": {
         "right": {
           "x": 6,
-          "y": -14
+          "y": -9
         },
         "down_right": {
           "x": 5,
-          "y": -13
+          "y": -9
         },
         "down": {
           "x": 4,
-          "y": -12
+          "y": -9
         },
         "up_right": {
           "x": 5,
-          "y": -15,
+          "y": -12,
           "behind": true
         },
         "up": {
           "x": 4,
-          "y": -16,
+          "y": -12,
           "behind": true
         }
       }
@@ -2799,21 +2813,11 @@
     },
     "rayo": {
       "portrait": "portraits/rayo_portrait.png",
-      "icon": "portraits/rayo_icon.png",
-      "idle": {
-        "image": "portraits/idle/rayo.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/rayo_icon.png"
     },
     "hechicera_lola": {
       "portrait": "portraits/hechicera_lola_portrait.png",
-      "icon": "portraits/hechicera_lola_icon.png",
-      "idle": {
-        "image": "portraits/idle/hechicera_lola.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/hechicera_lola_icon.png"
     },
     "bailaor_furia": {
       "portrait": "portraits/bailaor_furia_portrait.png",
@@ -2821,48 +2825,23 @@
     },
     "patriarca": {
       "portrait": "portraits/patriarca_portrait.png",
-      "icon": "portraits/patriarca_icon.png",
-      "idle": {
-        "image": "portraits/idle/patriarca.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/patriarca_icon.png"
     },
     "sombra": {
       "portrait": "portraits/sombra_portrait.png",
-      "icon": "portraits/sombra_icon.png",
-      "idle": {
-        "image": "portraits/idle/sombra.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/sombra_icon.png"
     },
     "benghazi": {
       "portrait": "portraits/benghazi_portrait.png",
-      "icon": "portraits/benghazi_icon.png",
-      "idle": {
-        "image": "portraits/idle/benghazi.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/benghazi_icon.png"
     },
     "ziryab": {
       "portrait": "portraits/ziryab_portrait.png",
-      "icon": "portraits/ziryab_icon.png",
-      "idle": {
-        "image": "portraits/idle/ziryab.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/ziryab_icon.png"
     },
     "alhambra": {
       "portrait": "portraits/alhambra_portrait.png",
-      "icon": "portraits/alhambra_icon.png",
-      "idle": {
-        "image": "portraits/idle/alhambra.png",
-        "frames": 4,
-        "fps": 5
-      }
+      "icon": "portraits/alhambra_icon.png"
     }
   }
 }
