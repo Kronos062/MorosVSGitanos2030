@@ -645,3 +645,305 @@
     transition: none;
   }
 }
+
+/* Revision: madera oscura, bronce y pergamino. Las pantallas quedan abiertas,
+   con controles independientes en lugar de una tarjeta grande que los encierre. */
+:root {
+  --med-ink: #17110d;
+  --med-wood: #2a1b12;
+  --med-wood-mid: #382318;
+  --med-wood-hi: #4a2d1b;
+  --med-edge: #76502e;
+  --med-brass: #d5a74f;
+  --med-bone: #eee0bf;
+  --med-dim: #b7a68a;
+  --med-moss: #78905a;
+  --med-rust: #a6533d;
+  --med-line: rgb(213 167 79 / 32%);
+}
+
+.overlay .screen {
+  --ui-ink: var(--med-bone);
+  --ui-ink-soft: #d0bd99;
+  --ui-muted: var(--med-dim);
+  --ui-paper: var(--med-wood);
+  --ui-paper-hi: var(--med-wood-hi);
+  --ui-paper-low: #21160f;
+  --ui-edge: var(--med-edge);
+  --ui-edge-hi: #93683c;
+  --ui-gold: var(--med-brass);
+  --ui-copper: var(--med-rust);
+  --ui-teal: var(--med-moss);
+  --ui-green: #8d9b5d;
+  --ui-red: #bd5946;
+  --ui-shadow: #0c0806;
+  --px-ink: var(--med-ink);
+  --px-night: var(--med-wood);
+  --px-panel: var(--med-wood-mid);
+  --px-panel-hi: var(--med-wood-hi);
+  --px-edge: var(--med-edge);
+  --px-edge-hi: #93683c;
+  --px-bone: var(--med-bone);
+  --px-dim: var(--med-dim);
+  --px-gold: var(--med-brass);
+  --px-gold-dk: #9b7134;
+  --px-clay: var(--med-rust);
+  --px-clay-dk: #713727;
+  --px-tile: var(--med-moss);
+  --px-tile-hi: #a9b27a;
+  --px-jade: #a9b27a;
+  --px-violet: #92704a;
+  color: var(--med-bone);
+  background-color: var(--med-ink);
+  background-image:
+    repeating-linear-gradient(0deg, #1a120d 0 18px, #20160f 18px 20px),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgb(213 167 79 / 3%) 46px 48px);
+}
+
+.overlay .screen .screen-content {
+  width: min(100%, 1120px);
+  max-width: 1120px;
+  max-height: calc(100dvh - 36px);
+  padding: clamp(20px, 4vw, 48px);
+  color: var(--med-bone);
+  font-family: Georgia, 'Palatino Linotype', serif;
+  line-height: 1.55;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow-x: hidden;
+}
+
+.overlay .screen .screen-content > h1,
+.overlay .screen .screen-content > h2,
+.overlay .screen .screen-content > h3,
+.overlay .screen .section-title,
+.overlay .screen .options-heading,
+.overlay .screen .options-column h3 {
+  color: var(--med-brass) !important;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-weight: 400;
+  letter-spacing: 0.045em;
+  text-shadow: 2px 2px 0 #0c0806;
+}
+
+.overlay .screen .section-title {
+  display: block;
+  margin: 0 0 18px;
+  padding: 0 0 9px;
+  border-bottom: 2px solid var(--med-line);
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+}
+
+.overlay .screen .section-title::before { display: none; }
+.overlay .screen .screen-content p { color: var(--med-dim); line-height: 1.7; }
+.overlay .screen .screen-content p strong { color: var(--med-bone); }
+
+.overlay .screen .screen-content button,
+.overlay .screen .screen-content input,
+.overlay .screen .screen-content select,
+.overlay .screen .screen-content summary {
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+}
+
+.overlay .screen .faction-choices .menu-btn { color: var(--med-bone) !important; }
+.overlay .screen .faction-choices .menu-btn:first-child { border-color: var(--med-moss) !important; }
+.overlay .screen .faction-choices .menu-btn:last-child { border-color: var(--med-rust) !important; }
+
+.overlay .screen .screen-content .menu-btn {
+  min-height: 48px;
+  padding: 10px 16px;
+  color: var(--med-bone);
+  background-color: var(--med-wood-mid);
+  background-image: repeating-linear-gradient(0deg, transparent 0 10px, rgb(10 6 4 / 16%) 10px 12px);
+  border: 2px solid var(--med-edge);
+  border-radius: 0;
+  box-shadow: 0 4px 0 #100a07;
+  font-size: 0.94rem;
+  font-weight: 400;
+  text-shadow: 1px 1px 0 #100a07;
+  transition: transform 100ms steps(2, end), border-color 100ms steps(2, end), background-color 100ms steps(2, end);
+}
+
+.overlay .screen .screen-content .menu-btn:hover,
+.overlay .screen .screen-content .menu-btn:focus-visible {
+  color: #fff2d1;
+  background-color: var(--med-wood-hi);
+  border-color: var(--med-brass);
+  box-shadow: 0 4px 0 #100a07, 0 0 0 2px rgb(213 167 79 / 16%);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.overlay .screen .screen-content .menu-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #100a07; }
+.overlay .screen .screen-content .menu-btn.primary { color: #1a120b; background: var(--med-brass); border-color: #ebc978; text-shadow: none; box-shadow: 0 4px 0 #815b2c; }
+.overlay .screen .screen-content .menu-btn.primary:hover { background: #e6bd68; }
+.overlay .screen .screen-content .menu-btn:disabled { color: #8b7961; background: #251a13; border-color: #493322; box-shadow: none; }
+
+.overlay .screen .main-menu-content {
+  grid-template-columns: minmax(0, 0.9fr) minmax(330px, 1.1fr);
+  gap: clamp(24px, 5vw, 64px);
+  min-height: min(620px, calc(100dvh - 36px));
+  padding: clamp(22px, 4vw, 54px);
+}
+
+.overlay .screen .main-menu-content::before { color: var(--med-moss); }
+.overlay .screen .main-menu-content .game-title {
+  color: var(--med-bone) !important;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-shadow: 4px 4px 0 #090604;
+}
+
+.overlay .screen .main-menu-content .game-subtitle { color: var(--med-brass); }
+.overlay .screen .main-menu-content > .gold-box { background: transparent; border: 0; border-left: 2px solid var(--med-brass); }
+.overlay .screen .main-menu-content > .gold-box .label { color: var(--med-dim); }
+.overlay .screen .main-menu-content > .gold-box .value { color: var(--med-brass); }
+.overlay .screen .main-menu-content > div:not(.gold-box):not(.menu-grid) { color: var(--med-bone); background: none; border: 0; padding: 0; }
+
+.overlay .screen .main-menu-content > .menu-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.overlay .screen .main-menu-content > .menu-grid .menu-btn { min-height: 56px; text-align: left; }
+.overlay .screen .main-menu-content > .menu-grid .menu-btn.primary { min-height: 64px; }
+
+.overlay .screen .char-grid.roster-grid { gap: 10px 18px; }
+.overlay .screen .roster-grid .char-card {
+  min-height: 132px;
+  color: var(--med-bone);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--med-line);
+  box-shadow: none;
+}
+.overlay .screen .roster-grid .char-card .name { color: var(--med-bone); }
+.overlay .screen .roster-grid .char-card:hover,
+.overlay .screen .roster-grid .char-card:focus-visible { background: rgb(213 167 79 / 7%); border-color: var(--med-brass); outline: none; }
+.overlay .screen .roster-grid .char-card.selected { background: rgb(213 167 79 / 10%); box-shadow: inset 3px 0 var(--med-brass); }
+
+.overlay .screen .options-layout { gap: clamp(22px, 4vw, 48px); }
+.overlay .screen .options-column {
+  min-height: 0;
+  padding: 4px 0 18px 18px;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid var(--med-line);
+}
+.overlay .screen .options-heading,
+.overlay .screen .options-column h3 { margin-bottom: 12px; }
+.overlay .screen .volume-row { padding: 10px 0; background: transparent; border: 0; border-bottom: 1px solid var(--med-line); }
+.overlay .screen .volume-row input[type='range'] { accent-color: var(--med-brass); }
+.overlay .screen .binding-row { padding: 8px 0; background: transparent; border: 0; border-bottom: 1px solid rgb(213 167 79 / 18%); }
+.overlay .screen .binding-btn { color: var(--med-brass); background: transparent; border: 0; border-bottom: 1px solid var(--med-edge); }
+.overlay .screen .controls-info h3 { color: var(--med-moss) !important; }
+.overlay .screen .controls-info strong { color: var(--med-brass) !important; }
+
+.overlay .screen .item-card,
+.overlay .screen .shop-row,
+.overlay .screen .skill-card,
+.overlay .screen .build-section,
+.overlay .screen .build-cell,
+.overlay .screen .detail-box,
+.overlay .screen .difficulty-character,
+.overlay .screen .difficulty-field select,
+.overlay .screen .difficulty-seed input {
+  color: var(--med-bone);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--med-line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.overlay .screen .shop-row { border-left: 2px solid var(--med-moss); }
+.overlay .screen .skill-card { border-top: 2px solid var(--med-edge); cursor: pointer; }
+.overlay .screen .skill-card:hover,
+.overlay .screen .skill-card:focus-visible { background: rgb(213 167 79 / 7%); border-color: var(--med-brass); outline: none; }
+.overlay .screen .skill-card .title { color: var(--med-brass); }
+.overlay .screen .skill-card .desc { color: var(--med-dim); }
+.overlay .screen .build-section { padding: 8px 0 14px; }
+.overlay .screen .build-cell { padding: 8px 0; }
+.overlay .screen .build-cell-value,
+.overlay .screen .stat-value { color: #afbd78; }
+.overlay .screen .stat-value.score,
+.overlay .screen .highscore-rank,
+.overlay .screen .highscore-value { color: var(--med-brass); }
+.overlay .screen .highscore-row { background: transparent; border: 0; border-bottom: 1px solid var(--med-line); }
+.overlay .screen .pause-summary li { color: var(--med-bone); background: transparent; border: 0; border-top: 2px solid var(--med-moss); }
+.overlay .screen .character-sheet { color: var(--med-bone); background: var(--med-wood); border: 2px solid var(--med-edge); border-top-color: var(--med-brass); border-radius: 0; box-shadow: 0 7px 0 #0c0806; }
+.overlay .screen .character-sheet-art,
+.overlay .screen .character-stats div { color: var(--med-bone); background: var(--med-wood-mid); border-color: var(--med-edge); }
+.overlay .screen .character-sheet h2 { color: var(--med-brass); }
+.overlay .screen .character-sheet .screen-actions { background: var(--med-wood); }
+.overlay .screen .section-nav { border-color: var(--med-line); }
+.overlay .screen .section-nav button { color: var(--med-dim); background: transparent; border: 0; border-bottom: 2px solid var(--med-edge); }
+.overlay .screen .section-nav button[aria-pressed='true'] { color: var(--med-brass); background: transparent; border-color: var(--med-brass); }
+
+/* Mandos en pantalla: acción al apoyar el dedo, feedback claro de recarga y energía. */
+.touch-controls .touch-toolbar .touch-btn,
+.touch-controls .touch-buttons .touch-btn {
+  color: var(--med-bone);
+  background-color: rgb(37 24 16 / 92%);
+  background-image: repeating-linear-gradient(0deg, transparent 0 10px, rgb(10 6 4 / 18%) 10px 12px);
+  border: 2px solid var(--med-edge);
+  border-radius: 0;
+  box-shadow: 0 4px 0 #0c0806;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-size: 0.9rem;
+  text-shadow: 1px 1px 0 #0c0806;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+.touch-controls .touch-buttons .touch-ultimate { border-color: var(--med-brass); }
+.touch-controls .touch-buttons .touch-btn.dash { border-color: var(--med-moss); }
+.touch-controls .touch-buttons .touch-fire { background-color: var(--med-rust); border-color: #c97755; }
+.touch-controls .touch-buttons .touch-btn:disabled { color: #a18c6e; background-color: #211811; border-color: #513a27; opacity: 0.82; box-shadow: none; }
+.touch-controls .touch-buttons .touch-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #0c0806; }
+.touch-controls .joystick { background: rgb(37 24 16 / 72%); border-color: rgb(213 167 79 / 68%); }
+.touch-controls .joystick-thumb { background: var(--med-brass); border-color: #f0d18b; }
+
+@media (max-width: 760px) {
+  .overlay .screen .main-menu-content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'kicker' 'title' 'year' 'coins' 'faction' 'actions';
+    grid-template-rows: repeat(5, min-content) auto;
+    gap: 18px;
+    min-height: auto;
+  }
+  .overlay .screen .main-menu-content::before { justify-self: start; }
+  .overlay .screen .main-menu-content > .gold-box { margin: 0; text-align: left; }
+  .overlay .screen .main-menu-content > div:not(.gold-box):not(.menu-grid) { justify-self: start; }
+  .overlay .screen .pause-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overlay .screen .char-grid.roster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .overlay .screen .screen-content { width: 100%; max-height: calc(100dvh - 20px); padding: 14px 8px; }
+  .overlay .screen .main-menu-content { padding: 18px 8px; }
+  .overlay .screen .main-menu-content .game-title { font-size: clamp(1.85rem, 10vw, 2.8rem); }
+  .overlay .screen .main-menu-content > .menu-grid { gap: 10px 12px; }
+  .overlay .screen .main-menu-content > .menu-grid .menu-btn { min-height: 48px; padding: 8px; font-size: 0.82rem; }
+  .overlay .screen .main-menu-content > .menu-grid .menu-btn.primary { min-height: 54px; font-size: 0.94rem; }
+  .overlay .screen .bestiary-roster { grid-template-columns: minmax(0, 1fr); max-height: 50dvh; }
+  .overlay .screen .char-grid.roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overlay .screen .skill-grid { grid-template-columns: minmax(0, 1fr); }
+  .overlay .screen .shop-row { align-items: flex-start; flex-direction: column; }
+  .overlay .screen .shop-row > .menu-btn { width: 100%; }
+  .overlay .screen .screen-actions { flex-wrap: wrap; }
+  .overlay .screen .screen-actions .menu-btn { flex: 1 1 120px; }
+  .overlay .screen .character-sheet-body { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay .screen .screen-content .menu-btn,
+  .overlay .screen .roster-grid .char-card,
+  .overlay .screen .skill-card { transition: none; }
+}
+
