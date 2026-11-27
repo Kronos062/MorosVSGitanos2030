@@ -68,6 +68,10 @@ const BINDING_ROWS: Array<{ action: InputAction; label: string }> = [
   { action: 'openMap', label: 'Mapa' },
 ];
 
+function CoinMark() {
+  return <span className="coin-mark" aria-hidden="true">M</span>;
+}
+
 function MinimapView({ data, large = false }: { data: MinimapData; large?: boolean }) {
   const pad = 12;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -149,7 +153,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
 
         <div className="build-column build-loadout-column" hidden={section !== 'loadout'}>
           <div className="build-section build-weapon-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.25)', borderRadius: 4 }}>
-            <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>⚔️ Arma equipada</div>
+            <div style={{ fontWeight: 800, color: build.weaponColor, marginBottom: 6 }}>ARMA EQUIPADA</div>
             <div><strong style={{ color: RARITY_COLORS[build.weaponRarity as keyof typeof RARITY_COLORS] ?? build.weaponColor }}>{build.weaponName}</strong> <span style={{fontSize:'0.7rem', color:'#8891b8'}}>{build.weaponRarity.toUpperCase()}</span></div>
             {build.weaponAffixName && (
               <div style={{ marginTop: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.3)', borderLeft: `3px solid ${build.weaponAffixColor ?? '#fff'}`, borderRadius: 2 }}>
@@ -171,7 +175,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
 
           {build.hasNearbyWeapon && (
             <div className="build-section build-nearby-section" style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 4 }}>
-              <div style={{ fontWeight: 800, color: '#00c8ff', marginBottom: 4 }}>🔀 Arma cercana</div>
+              <div style={{ fontWeight: 800, color: '#00c8ff', marginBottom: 4 }}>ARMA CERCANA</div>
               <div>{build.nearbyWeaponName}</div>
             </div>
           )}
@@ -230,7 +234,7 @@ function BuildPanel({ build }: { build: BuildStats }) {
                     </div>
                     {s.bonuses.map((b, j) => (
                       <div key={j} style={{ fontSize: '0.75rem', color: b.active ? '#39ff88' : '#555', padding: '2px 0' }}>
-                        {b.active ? '✅' : '⬜'} {b.pieces}p: {b.description}
+                        <span className={b.active ? 'status-mark is-active' : 'status-mark'} aria-hidden="true" /> {b.pieces}p: {b.description}
                       </div>
                     ))}
                     {s.playstyle && (
@@ -256,12 +260,12 @@ function BuildPanel({ build }: { build: BuildStats }) {
                     )}
                     {s.synergyDescription && (
                       <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.synergyActive ? '#ffe14a' : '#666' }}>
-                        {s.synergyActive ? '⚡ ACTIVA' : '○'} Sinergia: {s.synergyDescription}
+                        {s.synergyActive ? 'ACTIVA' : 'INACTIVA'} · Sinergia: {s.synergyDescription}
                       </div>
                     )}
                     {s.counterSynergy && (
                       <div style={{ fontSize: '0.72rem', marginTop: 4, color: s.counterSynergyActive ? '#ff5500' : '#666' }}>
-                        {s.counterSynergyActive ? '⚠ ACTIVA' : '○'} Contrasinergia: {s.counterSynergy.description}
+                        {s.counterSynergyActive ? 'ACTIVA' : 'INACTIVA'} · Contrasinergia: {s.counterSynergy.description}
                       </div>
                     )}
                   </div>
@@ -615,9 +619,9 @@ export default function App() {
           <div className="hud-top">
             <div className="hud-panel">
               <div className="stat-row"><span className="stat-label">Mundo</span><span className="stat-value" style={{ fontSize: '0.8rem' }}>{stats.biomeIcon} {stats.biomeName}</span></div>
-              <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · ♾️${stats.cycle}` : ''}</span></div>
+              <div className="stat-row"><span className="stat-label">Mapa</span><span className="stat-value score" style={{ fontSize: '0.9rem' }}>{stats.mapNumber}/{stats.totalMaps}{(stats.cycle ?? 1) > 1 ? ` · CICLO ${stats.cycle}` : ''}</span></div>
               <div className="stat-row"><span className="stat-label">Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
-              <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}>🪙 {stats.goldEarned.toLocaleString()}</span></div>
+              <div className="stat-row"><span className="stat-label">Monedas</span><span className="stat-value" style={{ color: '#ffe14a', fontSize: '0.9rem' }}><CoinMark /> {stats.goldEarned.toLocaleString()}</span></div>
               <div className="stat-row"><span className="stat-label">Sala</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.currentRoomLabel || '—'}</span></div>
               <div className="stat-row"><span className="stat-label">Oleada</span><span className="stat-value" style={{ fontSize: '0.9rem' }}>{stats.wave > 0 ? stats.wave : '—'}</span></div>
             </div>
@@ -673,10 +677,10 @@ export default function App() {
                 <div className="health-text">HP {Math.ceil(stats.hp)}/{stats.maxHp}{stats.shield > 0 ? ` · ESCUDO ${stats.shield}` : ''}</div>
               </div>
               <div className="abilities">
-                <div className="ability" title={`Energía ${Math.floor(stats.energy ?? 0)}/${stats.maxEnergy ?? 0}`}><span>✦ {Math.ceil(stats.ultimateCooldown ?? 0) || ((stats.energy ?? 0) >= 25 || (stats.maxEnergy === 150) ? 'OK' : 'EN')}</span><span className="ability-key">{codeLabel(save.bindings.ultimate)}</span></div>
+                <div className="ability" title={`Energía ${Math.floor(stats.energy ?? 0)}/${stats.maxEnergy ?? 0}`}><span className="ability-glyph">ULT</span><span className="ability-key">{codeLabel(save.bindings.ultimate)}</span></div>
                 <span className="ability-energy">EN {Math.floor(stats.energy ?? 0)}/{stats.maxEnergy ?? 0}{stats.ultimateShield ? ` · ESC ${stats.ultimateShield}` : ''}</span>
-                <div className="ability">💨<div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
-                <div className="ability" style={{ borderColor: stats.weaponColor }}>⚔️<span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
+                <div className="ability ability-dash" aria-label="Dash"><span className="ability-glyph">D</span><div className="ability-cooldown-overlay" style={{ height: `${Math.max(0, (1 - stats.dashPct) * 100)}%` }} /><span className="ability-key">{codeLabel(save.bindings.dash).slice(0, 3)}</span></div>
+                <div className="ability" style={{ borderColor: stats.weaponColor }} aria-label="Ataque"><span className="ability-glyph">A</span><span className="ability-key">{codeLabel(save.bindings.attack).slice(0, 3)}</span></div>
               </div>
             </div>
           </div>
@@ -720,11 +724,11 @@ export default function App() {
               <h2 className="section-title" style={{ color: '#ffe14a' }}>ELIGE TU BANDO</h2>
               <p style={{ color: '#94a3b8', marginBottom: 20 }}>Esta decisión es permanente. Solo podrás jugar personajes del bando elegido.</p>
               <div className="faction-choices">
-                <button type="button" className="menu-btn" onClick={() => pickFaction('bando_moros')} style={{ fontSize: '1.1rem', padding: '16px 28px', borderColor: '#00f0ff', color: '#00f0ff' }}>
-                  ⚔️ MOROS
+                <button type="button" className="menu-btn faction-choice faction-moros" onClick={() => pickFaction('bando_moros')}>
+                  <span className="faction-sigil" aria-hidden="true">M</span><strong>MOROS</strong><small>GUARDIA · RESISTENCIA</small>
                 </button>
-                <button type="button" className="menu-btn" onClick={() => pickFaction('bando_gitanos')} style={{ fontSize: '1.1rem', padding: '16px 28px', borderColor: '#ff2bd6', color: '#ff2bd6' }}>
-                  🔥 GITANOS
+                <button type="button" className="menu-btn faction-choice faction-gitanos" onClick={() => pickFaction('bando_gitanos')}>
+                  <span className="faction-sigil" aria-hidden="true">G</span><strong>GITANOS</strong><small>RITMO · AUDACIA</small>
                 </button>
               </div>
             </div>
@@ -736,11 +740,11 @@ export default function App() {
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>CÓMO JUGAR</h2>
               <div className="keyboard-settings" style={{ textAlign: 'left', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.8, marginBottom: 16 }}>
-                <p style={{ marginBottom: 8 }}>🎯 <strong style={{ color: '#e2e8f0' }}>Objetivo:</strong> Sobrevive a 10 mapas de salas procedurales, derrota al jefe de cada mapa y desciende al siguiente.</p>
-                <p style={{ marginBottom: 8 }}>⌨ <strong style={{ color: '#e2e8f0' }}>Controles:</strong> {BINDING_ROWS.filter((r) => ['moveUp','moveDown','moveLeft','moveRight','attack','dash','interact'].includes(r.action)).map((r) => `${r.label}: ${codeLabel(save.bindings[r.action])}`).join(' · ')}</p>
-                <p style={{ marginBottom: 8 }}>📦 <strong style={{ color: '#e2e8f0' }}>Cofres y eventos:</strong> Las salas pueden contener cofres con armas y equipo, eventos interactivos con decisiones de riesgo/recompensa, o combates con oleadas de enemigos.</p>
-                <p style={{ marginBottom: 8 }}>⚔️ <strong style={{ color: '#e2e8f0' }}>Build:</strong> Al subir de nivel eliges mejoras. Equipa armaduras de set para desbloquear sinergias. Consulta tu build con la tecla B.</p>
-                <p>♾️ <strong style={{ color: '#e2e8f0' }}>Endless:</strong> Tras la victoria puedes continuar con dificultad creciente. Tu puntuación y build se conservan.</p>
+                <p style={{ marginBottom: 8 }}><strong style={{ color: '#e2e8f0' }}>Objetivo:</strong> Sobrevive a 10 mapas de salas procedurales, derrota al jefe de cada mapa y desciende al siguiente.</p>
+                <p style={{ marginBottom: 8 }}><strong style={{ color: '#e2e8f0' }}>Controles:</strong> {BINDING_ROWS.filter((r) => ['moveUp','moveDown','moveLeft','moveRight','attack','dash','interact'].includes(r.action)).map((r) => `${r.label}: ${codeLabel(save.bindings[r.action])}`).join(' · ')}</p>
+                <p style={{ marginBottom: 8 }}><strong style={{ color: '#e2e8f0' }}>Cofres y eventos:</strong> Las salas pueden contener cofres con armas y equipo, eventos interactivos con decisiones de riesgo/recompensa, o combates con oleadas de enemigos.</p>
+                <p style={{ marginBottom: 8 }}><strong style={{ color: '#e2e8f0' }}>Build:</strong> Al subir de nivel eliges mejoras. Equipa armaduras de set para desbloquear sinergias. Consulta tu build con la tecla B.</p>
+                <p><strong style={{ color: '#e2e8f0' }}>Modo sin fin:</strong> Tras la victoria puedes continuar con dificultad creciente. Tu puntuación y build se conservan.</p>
               </div>
               <p className="touch-instructions">Derrota al jefe de cada mapa. Usa el mando para moverte, Disparar para atacar y Acción junto a cofres y portales. En Pausa encontrarás tu equipo y los ajustes.</p>
               <button type="button" className="menu-btn primary full-width" onClick={() => {
@@ -765,13 +769,13 @@ export default function App() {
                 <h2 className="game-subtitle">2 0 3 0</h2>
                 <div className="gold-box">
                   <div className="label">MONEDAS ROGUELITE</div>
-                  <div className="value">🪙 {save.gold.toLocaleString()}</div>
+                  <div className="value"><CoinMark /> {save.gold.toLocaleString()}</div>
                 </div>
                 <div style={{ textAlign: 'center', marginBottom: 8, color: factionColor(save.faction!), fontWeight: 700, letterSpacing: '0.1em' }}>
                   {factionLabel(save.faction!)}
                 </div>
                 <div className="menu-grid">
-                <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); setScreen('chars'); }}>▶ Jugar</button>
+                <button type="button" className="menu-btn primary full-width" onClick={() => { audio.play('button'); setScreen('chars'); }}>Jugar</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('armory'); }}>Armería</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('bestiary'); }}>Bestiario</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setScreen('shop'); }}>Tienda</button>
@@ -810,7 +814,7 @@ export default function App() {
                       <CharacterPortrait id={selected.id} variant="idle" />
                       <span>{factionName(selected.faction)}</span>
                     </div>
-                    <div>
+                    <div className="character-sheet-info">
                       <h2 id="character-sheet-title">{selected.name}</h2>
                       <dl className="character-stats">
                         <div><dt>Vida</dt><dd>{selected.stats.hp}</dd></div>
@@ -956,9 +960,9 @@ export default function App() {
           <div className="screen">
             <div className="screen-content">
               <h2 className="section-title" style={{ color: '#ffe14a' }}>TIENDA PERMANENTE</h2>
-              <div className="gold-box"><div className="label">SALDO</div><div className="value">🪙 {save.gold.toLocaleString()}</div></div>
-              <div className="shop-row"><div><div style={{ fontWeight: 800 }}>NÚCLEO DE VITALIDAD (HP)</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permHpLevel} (+{save.upgrades.permHpLevel * 10} HP)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('hp')}>{upgradeCost(save.upgrades.permHpLevel)} 🪙</button></div>
-              <div className="shop-row"><div><div style={{ fontWeight: 800 }}>POTENCIA DE DAÑO</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permDamageLevel} (+{save.upgrades.permDamageLevel * 5}%)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('damage')}>{upgradeCost(save.upgrades.permDamageLevel)} 🪙</button></div>
+              <div className="gold-box"><div className="label">SALDO</div><div className="value"><CoinMark /> {save.gold.toLocaleString()}</div></div>
+              <div className="shop-row"><div><div style={{ fontWeight: 800 }}>NÚCLEO DE VITALIDAD (HP)</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permHpLevel} (+{save.upgrades.permHpLevel * 10} HP)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('hp')}><CoinMark /> {upgradeCost(save.upgrades.permHpLevel)}</button></div>
+              <div className="shop-row"><div><div style={{ fontWeight: 800 }}>POTENCIA DE DAÑO</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nivel {save.upgrades.permDamageLevel} (+{save.upgrades.permDamageLevel * 5}%)</div></div><button type="button" className="menu-btn primary" onClick={() => onBuy('damage')}><CoinMark /> {upgradeCost(save.upgrades.permDamageLevel)}</button></div>
 
               <h3 style={{ color: '#b04dff', letterSpacing: '0.12em', margin: '14px 0 8px' }}>MASCOTAS</h3>
               <div className="list-scroll" style={{ maxHeight: 240 }}>
@@ -978,7 +982,7 @@ export default function App() {
                           {equipped ? 'Equipada' : 'Equipar'}
                         </button>
                       ) : (
-                        <button type="button" className="menu-btn primary" onClick={() => onBuyPet(pet.id, pet.cost)}>{pet.cost} 🪙</button>
+                        <button type="button" className="menu-btn primary" onClick={() => onBuyPet(pet.id, pet.cost)}><CoinMark /> {pet.cost}</button>
                       )}
                     </div>
                   );
@@ -1028,7 +1032,7 @@ export default function App() {
                           <button type="button" className={`menu-btn binding-btn ${isEq ? 'primary' : ''}`} onClick={() => onEquipPet(isEq ? null : pet.id)}>{isEq ? 'Equipada' : 'Equipar'}</button>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{pet.description}</div>
-                        <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3 }}>⚡ {pet.ability}</div>
+                        <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3 }}>Habilidad · {pet.ability}</div>
                         <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 3 }}>
                           Órbita {pet.stats.orbitRadius} · Rareza {pet.rarity.toUpperCase()}
                         </div>
@@ -1049,11 +1053,11 @@ export default function App() {
               <h2 className="section-title" style={{ color: '#00f0ff' }}>CONTROLES Y TECLAS</h2>
               <div className="controls-info">
                 <div className="keyboard-settings">
-                <h3>⌨ Teclado actual</h3>
+                <h3>Teclado actual</h3>
                 {BINDING_ROWS.map((row) => (<p key={row.action}><strong>{codeLabel(save.bindings[row.action])}:</strong> {row.label}</p>))}
                 <p style={{ marginTop: 8, opacity: 0.75 }}>Cambia las teclas en Opciones.</p>
                 </div>
-                <h3>📱 Táctil</h3>
+                <h3>Controles táctiles</h3>
                 <p><strong>Joystick:</strong> movimiento</p>
                 <p><strong>Disparar:</strong> mantén pulsado para apuntar al rival más cercano</p>
                 <p><strong>Acción:</strong> interactúa con el objeto cercano</p>
@@ -1144,7 +1148,7 @@ export default function App() {
                     </button>
                   ) : (
                     <div style={{ marginBottom: 10, padding: '10px 12px', background: 'rgba(255,42,75,0.15)', border: '1px solid rgba(255,42,75,0.5)', borderRadius: 4 }}>
-                      <p style={{ color: '#ff2a4b', fontSize: '0.85rem', marginBottom: 8 }}>⚠️ Esto borrará TODO tu progreso (oro, mejoras, puntuaciones). ¿Confirmas?</p>
+                      <p style={{ color: '#ff2a4b', fontSize: '0.85rem', marginBottom: 8 }}>AVISO · Esto borrará TODO tu progreso (oro, mejoras, puntuaciones). ¿Confirmas?</p>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         <button type="button" className="menu-btn" onClick={doSwitchFaction} style={{ borderColor: '#ff2a4b', color: '#ff2a4b' }}>Sí, reiniciar</button>
                         <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setFactionConfirm(false); }}>Cancelar</button>
@@ -1165,7 +1169,7 @@ export default function App() {
                     a.download = `moros-vs-gitanos-2030-save-${Date.now()}.json`;
                     a.click();
                     URL.revokeObjectURL(url);
-                  }}>⬇️ Exportar partida</button>
+                  }}>Exportar partida</button>
                   <input type="file" accept="application/json" id="import-save-input" style={{ display: 'none' }} onChange={(e) => {
                     const file = e.target.files?.[0]; if (!file) return;
                     const reader = new FileReader();
@@ -1176,7 +1180,7 @@ export default function App() {
                     };
                     reader.readAsText(file); e.target.value = '';
                   }} />
-                  <button type="button" className="menu-btn" style={{ marginBottom: 6, width: '100%' }} onClick={() => { audio.play('button'); document.getElementById('import-save-input')?.click(); }}>⬆️ Importar partida</button>
+                  <button type="button" className="menu-btn" style={{ marginBottom: 6, width: '100%' }} onClick={() => { audio.play('button'); document.getElementById('import-save-input')?.click(); }}>Importar partida</button>
                   {importError && (<p style={{ color: '#ff2a4b', fontSize: '0.8rem', marginBottom: 10 }}>{importError}</p>)}
 
                   <button type="button" className="menu-btn" style={{ marginBottom: 10, width: '100%' }} onClick={() => {
@@ -1247,7 +1251,7 @@ export default function App() {
                   onClick={() => navigator.clipboard.writeText(String(engineRef.current?.getRunSeed()))}
                   style={{ marginLeft: 8, background: 'none', border: 'none', color: '#00f0ff', cursor: 'pointer' }}
                 >
-                  📋 Copiar
+                  Copiar
                 </button>
               </p>
               <div className="menu-grid">
@@ -1354,7 +1358,7 @@ export default function App() {
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{opt.description}</div>
                       {(opt.costGold || opt.costHpPct) && (
                         <div style={{ fontSize: '0.7rem', marginTop: 6, color: '#ff2a4b' }}>
-                          Coste: {opt.costGold ? `${opt.costGold} 🪙` : ''} {opt.costHpPct ? `Pierdes ${Math.round(opt.costHpPct * 100)}% de Vida Max` : ''}
+                          Coste: {opt.costGold ? <><CoinMark /> {opt.costGold}</> : null} {opt.costHpPct ? `Pierdes ${Math.round(opt.costHpPct * 100)}% de Vida Max` : ''}
                         </div>
                       )}
                     </button>
@@ -1401,7 +1405,7 @@ export default function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, color: it.color, display: 'flex', alignItems: 'center', gap: 8 }}>
                         {it.kind === 'weapon' ? (
-                          '⚔️ '
+                          <span className="ui-mark" aria-hidden="true">ARM</span>
                         ) : (
                           <EquipIcon setId={it.setId} slot={it.slot!} frame={EQ_COLORS[it.rarity as keyof typeof EQ_COLORS]} />
                         )}
@@ -1532,7 +1536,7 @@ export default function App() {
                 <div className="stat-row"><span>Puntos</span><span className="stat-value score">{stats.score.toLocaleString()}</span></div>
                 <div className="stat-row"><span>Salas</span><span className="stat-value">{stats.roomsCleared}/{stats.roomsTotal}</span></div>
                 <div className="stat-row"><span>Bajas</span><span className="stat-value">{stats.kills}</span></div>
-                <div className="stat-row"><span>Monedas ganadas</span><span className="stat-value">🪙 {stats.goldEarned}</span></div>
+                <div className="stat-row"><span>Monedas ganadas</span><span className="stat-value"><CoinMark /> {stats.goldEarned}</span></div>
               </div>
 
               {(() => {
@@ -1545,16 +1549,16 @@ export default function App() {
                 return (
                   <div className="detail-box" style={{ borderColor: 'rgba(255,204,0,0.4)' }}>
                     <div style={{ fontWeight: 800, color: '#ffe14a', letterSpacing: '0.12em', marginBottom: 8 }}>
-                      ✨ DESBLOQUEOS DE ESTA PARTIDA
+                      DESBLOQUEOS DE ESTA PARTIDA
                     </div>
                     {runUnlocks.newHighScore && (
-                      <div style={{ fontSize: '0.85rem', color: '#39ff88', marginBottom: 6 }}>🏆 ¡Nuevo récord de puntuación!</div>
+                      <div style={{ fontSize: '0.85rem', color: '#39ff88', marginBottom: 6 }}>NUEVO RÉCORD DE PUNTUACIÓN</div>
                     )}
                     {runUnlocks.ascension !== null && (() => {
                       const al = ASCENSION_LEVELS.find((l) => l.level === runUnlocks.ascension);
                       return (
                         <div style={{ fontSize: '0.85rem', color: '#00c8ff', marginBottom: 6 }}>
-                          ⬆️ Ascensión desbloqueada: {al ? `${al.icon} ${al.name} (Nivel ${al.level})` : `Nivel ${runUnlocks.ascension}`}
+                          Ascensión desbloqueada: {al ? <>{al.icon} {al.name} (Nivel {al.level})</> : `Nivel ${runUnlocks.ascension}`}
                         </div>
                       );
                     })()}
@@ -1566,7 +1570,7 @@ export default function App() {
                             const w = WEAPON_BASES.find((b) => b.id === id);
                             return (
                               <span key={id} style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 3, border: `1px solid ${w?.color ?? '#888'}55`, color: w?.color ?? '#e2e8f0' }}>
-                                ⚔️ {w?.name ?? id}
+                                {w?.name ?? id}
                               </span>
                             );
                           })}
@@ -1645,7 +1649,7 @@ export default function App() {
                     style={{ borderColor: '#b04dff' }}
                     onClick={() => { audio.play('button'); setShowModifierChoice(true); }}
                   >
-                    ♾️ Continuar · Ciclo {(stats.cycle ?? 1) + 1}
+                    Continuar · Ciclo {(stats.cycle ?? 1) + 1}
                   </button>
                 )}
                 <button type="button" className="menu-btn primary" onClick={startGame}>Reintentar</button>

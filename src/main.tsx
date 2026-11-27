@@ -3,8 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/pixelify-sans/latin-400.css";
 import "@fontsource/pixelify-sans/latin-700.css";
 import "./index.css";
-import "./styles/pixel-ui.css";
-import "./styles/frontier.css";
+import "./styles/tavern-ui.css";
 import App from "./App";
 import { spriteAtlas } from "./game/sprites/spriteAtlas";
 
@@ -24,3 +23,4 @@ const mount = () =>
 // Se espera a los sprites como máximo 1,5 s: con conexiones lentas el juego arranca igualmente
 // (con sus formas originales) y los sprites van apareciendo cuando terminan de cargar.
 Promise.race([spriteAtlas.load(), new Promise((r) => setTimeout(r, 1500))]).then(mount, mount);
+
