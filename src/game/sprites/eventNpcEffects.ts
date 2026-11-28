@@ -1,4 +1,6 @@
-type DrawNpc = (x: number, feet: number, width?: number, height?: number, alpha?: number) => void;
+import { SHADOW_BIRD_ANCHOR, SHADOW_BIRD_FRAMES, SHADOW_BIRD_WIDTH } from './shadowBirdArt';
+
+type DrawNpc = (x: number, feet: number, width?: number, height?: number, alpha?: number, riding?: boolean) => void;
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 const stage = (progress: number, start: number, end: number) => clamp((progress - start) / (end - start));
@@ -44,35 +46,61 @@ function smoke(ctx: CanvasRenderingContext2D, x: number, y: number, life: number
   }
 }
 
+const birdFrames: HTMLCanvasElement[] = [];
+
+function drawShadowBird(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, frame: number) {
+  let bitmap = birdFrames[frame];
+  if (!bitmap) {
+    const rows = SHADOW_BIRD_FRAMES[frame];
+    bitmap = document.createElement('canvas');
+    bitmap.width = SHADOW_BIRD_WIDTH;
+    bitmap.height = rows.length;
+    const paint = bitmap.getContext('2d');
+    if (!paint) return;
+    paint.fillStyle = '#000';
+    for (const [row, runs] of rows.entries()) {
+      for (let i = 0; i < runs.length; i += 2) {
+        paint.fillRect(runs[i], row, runs[i + 1] - runs[i], 1);
+      }
+    }
+    birdFrames[frame] = bitmap;
+  }
+  ctx.drawImage(bitmap, x - Math.round(SHADOW_BIRD_ANCHOR.x * scale), y - Math.round(SHADOW_BIRD_ANCHOR.y * scale),
+    Math.round(bitmap.width * scale), Math.round(bitmap.height * scale));
+}
+
 export function paintKronos(ctx: CanvasRenderingContext2D, drawNpc: DrawNpc, time: number, progress: number) {
-  const launch = stage(progress, .14, .76);
-  const lift = Math.round(launch ** 1.7 * 75 - Math.sin(stage(progress, 0, .14) * Math.PI) * 2);
-  const drift = Math.round(launch * 13);
-  const fade = 1 - stage(progress, .53, .76);
-  oval(ctx, 0, 4, 17 - Math.round(launch * 11), 3, 'rgba(18, 11, 27, .46)');
+  const arrival = stage(progress, .05, .34);
+  const mount = stage(progress, .26, .43);
+  const launch = stage(progress, .42, .96);
+  const birdScale = .68 + .32 * arrival - .43 * launch;
+  const birdX = Math.round(-36 * (1 - arrival) ** 2 + launch * 66);
+  const birdY = Math.round(6 + 16 * (1 - arrival) - launch ** 1.25 * 94);
+  const fade = 1 - stage(progress, .77, .98);
+  const riderX = Math.round((birdX - 6 * birdScale) * mount);
+  const riderFeet = Math.round(4 + (birdY - 3 * birdScale - 4) * mount - Math.sin(mount * Math.PI) * 8);
+
+  ctx.globalAlpha = 1 - launch;
+  oval(ctx, 0, 4, 17, 3, 'rgba(18, 11, 27, .46)');
 
   for (let i = 0; i < 14; i++) {
     const life = (time * .63 + i / 14) % 1;
     const angle = i * 2.4 + time * .9;
     const x = Math.round(Math.cos(angle) * (13 + life * 8));
     const y = Math.round(3 + Math.sin(angle) * 4 - life * 22);
-    smoke(ctx, x + drift, y - Math.round(lift * (1 - life * .52)), 1 - (1 - life) * fade, i % 3 === 0);
+    smoke(ctx, x + riderX - Math.round(launch * life * 23), y + riderFeet - 4 + Math.round(launch * life * 26),
+      1 - (1 - life) * fade, i % 3 === 0);
   }
-  ctx.globalAlpha = 1;
-  drawNpc(drift, 4 - lift, 32, 36, fade);
 
-  if (progress > 0) {
-    const wake = stage(progress, .18, 1);
-    for (let i = 0; i < 10; i++) {
-      const phase = stage(progress, .14 + i * .023, .61 + i * .038);
-      if (phase === 0 || phase === 1) continue;
-      const x = Math.round((i % 2 ? -1 : 1) * phase * (7 + i % 4 * 3) + drift * .45);
-      smoke(ctx, x, Math.round(5 - phase * (7 + i * 4)), phase, i % 2 === 0);
-    }
-    ctx.globalAlpha = 1 - wake;
-    ring(ctx, 0, 4, 9 + Math.round(wake * 16), 2 + Math.round(wake * 3), '#966ac8');
+  if (progress > .05 && fade > 0) {
+    const lastFrame = SHADOW_BIRD_FRAMES.length - 1;
+    const flap = Math.round(lastFrame * (.5 - .5 * Math.cos(progress * TAU * 3.25)));
+    ctx.globalAlpha = stage(progress, .05, .15) * fade;
+    drawShadowBird(ctx, birdX, birdY, birdScale, flap);
   }
   ctx.globalAlpha = 1;
+  const riderScale = 1 - .43 * launch;
+  drawNpc(riderX, riderFeet, Math.round(32 * riderScale), Math.round(36 * riderScale), fade, mount >= .58);
 }
 
 export function paintLady(ctx: CanvasRenderingContext2D, drawNpc: DrawNpc, time: number, progress: number) {
