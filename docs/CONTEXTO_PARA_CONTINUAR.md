@@ -66,3 +66,14 @@ Los scripts se encadenan: `make_world_sprites` importa `make_ui_icons`; armas y 
 - Algunos francotiradores quedan largos junto al jugador (ajustable con `muzzle`/`pixelScale`).
 - Estilos en línea de `App.tsx` limitan lo que el CSS puede restyle (p. ej. color del nombre del bioma en el HUD).
 - La caché: no cachear `index.html` ni `assets/sprites/manifest.json` en el servidor.
+
+## 8. Nuevos pendientes del vestíbulo y la partida
+
+- [ ] Sustituir la compra directa de mascotas por un gacha en el vestíbulo. Si sale una mascota que el jugador ya posee, devolver el 50 % del importe pagado por esa tirada.
+- [ ] Conservar la tienda de mejoras. Añadir más mejoras, poner límites de nivel y subir los precios para que maximizar un personaje requiera más progreso.
+- [ ] Añadir una ruleta en el vestíbulo que use exclusivamente monedas del juego.
+- [ ] Revisar si se puede salir de las salas por sus puertas durante una partida. Comprobar el paso durante el combate y al despejar la sala.
+- [ ] Revisar por qué algunos enemigos a distancia se acercan para disparar o se quedan sin disparar.
+- [ ] Añadir sprites de puertas para las salas y sustituir la franja roja de bloqueo por el aspecto de la puerta cerrada.
+- [ ] Quitar el aura visual de las salas.
+- [ ] Mostrar el nombre del mapa al bajar del autobús o cruzar un portal. Usar fondo negro y letras rojas, con un fundido que revele el mapa, al estilo de las transiciones de Dark Souls.
