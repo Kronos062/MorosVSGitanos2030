@@ -18,9 +18,9 @@ const SERVICES = {
 export type BusService = keyof typeof SERVICES;
 
 const STATIONS: { point: BusPoint; services: BusService[] }[] = [
-  { point: { x: -.55, depth: .42 }, services: ['armory'] },
+  { point: { x: .04, depth: .42 }, services: ['armory'] },
   { point: { x: .25, depth: .51 }, services: ['bestiary'] },
-  { point: { x: -.86, depth: .65 }, services: ['shop', 'pets'] },
+  { point: { x: -.035, depth: .65 }, services: ['shop', 'pets'] },
   { point: { x: .58, depth: .85 }, services: ['scores'] },
 ];
 

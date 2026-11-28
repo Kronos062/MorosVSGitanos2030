@@ -471,7 +471,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .credits-screen dl div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #695439; }
 .credits-screen dd { color: var(--tavern-brass); }
 
-.event-npc-portrait { width: 80px; height: 80px; margin: 0 auto 8px; image-rendering: pixelated; }
+.event-npc-portrait { width: 80px; height: 80px; object-fit: contain; margin: 0 auto 8px; image-rendering: pixelated; }
 
 .pet-sprite {
   display: inline-block;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { spriteAtlas } from '../game/sprites/spriteAtlas';
+import { drawSeatedKronos } from '../game/sprites/eventNpcs';
 
 export type BusPoint = { x: number; depth: number };
 const ROWS = [.30, .52, .74];
@@ -76,10 +77,8 @@ function paintBus(ctx: CanvasRenderingContext2D, tick: number) {
   rect('#becfbc', 283, 48, 2, 10);
   rect('#6f9188', 263, 49, 4, 21);
   rect('#647889', 232, 49, 14, 20);
-  rect('#242732', 234, 53, 14, 13);
-  rect('#3f2c58', 237, 54, 12, 11);
-  rect('#352a2c', 245, 55, 7, 9);
-  rect('#ae785b', 249, 57, 3, 5);
+  rect('#242732', 232, 52, 21, 18);
+  drawSeatedKronos(ctx, 232, 43);
   rect('#202a31', 254, 54, 8, 10);
   rect('#9aa69b', 256, 55, 3, 8);
   rect('#d2bf72', 264, 61, 2, 3);
