@@ -2799,6 +2799,104 @@
           }
         ]
       }
+    },
+    "jerez": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/jerez/albero_0.png",
+          "worlds/jerez/albero_1.png",
+          "worlds/jerez/albero_2.png"
+        ],
+        "worn": [
+          "worlds/jerez/albero_gastado_0.png",
+          "worlds/jerez/albero_gastado_1.png"
+        ]
+      },
+      "sea": [
+        "worlds/jerez/vina_0.png",
+        "worlds/jerez/vina_1.png"
+      ],
+      "shore": {
+        "n": "worlds/jerez/tapia_n.png",
+        "e": "worlds/jerez/tapia_e.png",
+        "s": "worlds/jerez/tapia_s.png",
+        "w": "worlds/jerez/tapia_o.png",
+        "nw": "worlds/jerez/tapia_no.png",
+        "ne": "worlds/jerez/tapia_ne.png",
+        "sw": "worlds/jerez/tapia_so.png",
+        "se": "worlds/jerez/tapia_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/jerez/pasaje_eo.png"
+        ],
+        "ns": [
+          "worlds/jerez/pasaje_ns.png"
+        ],
+        "railN": "worlds/jerez/borde_n.png",
+        "railW": "worlds/jerez/borde_o.png",
+        "railE": "worlds/jerez/borde_e.png",
+        "fascia": "worlds/jerez/borde_s.png",
+        "pile": "worlds/jerez/pilar.png",
+        "gateH": "worlds/jerez/reja_eo.png",
+        "gateV": "worlds/jerez/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/jerez/bodega.png",
+            "foot": [
+              38,
+              62
+            ]
+          },
+          {
+            "image": "worlds/jerez/galeria.png",
+            "foot": [
+              39,
+              62
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/jerez/pozo.png",
+            "foot": [
+              19,
+              26
+            ]
+          },
+          {
+            "image": "worlds/jerez/botas_apiladas.png",
+            "foot": [
+              26,
+              28
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/jerez/emparrado.png",
+            "foot": [
+              23,
+              24
+            ]
+          },
+          {
+            "image": "worlds/jerez/cestas.png",
+            "foot": [
+              16,
+              19
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
