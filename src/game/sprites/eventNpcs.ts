@@ -1,3 +1,4 @@
+import { paintKronos, paintLady, paintWifi } from './eventNpcEffects';
 import { EVENT_NPC_COLORS, EVENT_NPC_PIXELS } from './eventNpcArt';
 
 export const EVENT_NPCS = {
@@ -64,75 +65,61 @@ export function drawSeatedKronos(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.restore();
 }
 
+export const EVENT_NPC_DEPARTURE_DURATION = 1.65;
+const EFFECT_WIDTH = 112;
+const EFFECT_HEIGHT = 124;
+const EFFECT_ORIGIN_Y = 106;
+let effectContext: CanvasRenderingContext2D | null = null;
+
+function getEffectContext() {
+  if (effectContext) return effectContext;
+  const canvas = document.createElement('canvas');
+  canvas.width = EFFECT_WIDTH;
+  canvas.height = EFFECT_HEIGHT;
+  effectContext = canvas.getContext('2d');
+  return effectContext;
+}
+
 export function drawEventNpc(ctx: CanvasRenderingContext2D, id: string, x: number, y: number, time: number, goneAt?: number) {
   const npc = getEventNpc(id);
   if (!npc) return false;
-  const bitmap = getBitmap(id);
-  if (!bitmap) return false;
   const elapsed = goneAt === undefined ? 0 : Math.max(0, time - goneAt);
-  const leaving = goneAt !== undefined;
-  if (leaving && elapsed >= 1.2) return true;
-  const progress = Math.min(1, elapsed / 1.2);
-  let lift = 0;
-  let walk = 0;
-  let fade = 1;
-  ctx.save();
-  ctx.translate(Math.round(x), Math.round(y));
-  ctx.imageSmoothingEnabled = false;
+  if (elapsed >= EVENT_NPC_DEPARTURE_DURATION) return true;
 
-  if (npc.departure === 'fly') {
-    lift = leaving ? -145 * progress ** 1.65 : 0;
-    fade = 1 - progress ** 4;
-    for (let i = 0; i < 8; i++) {
-      const angle = time * .9 + i * Math.PI / 4;
-      ctx.globalAlpha = fade * (.24 + (1 + Math.sin(time * 4 + i)) * .14);
-      ctx.fillStyle = i % 2 === 0 ? '#251333' : '#7851a3';
-      ctx.fillRect(Math.round(Math.cos(angle) * (20 + i % 3 * 4)), Math.round(Math.sin(angle) * 10 + lift * .75), 7, 5);
-    }
-  } else if (leaving && npc.departure === 'sigil') {
-    const radius = 8 + 22 * Math.min(1, progress * 4);
-    ctx.globalAlpha = 1 - progress ** 3;
-    ctx.strokeStyle = '#e14b68';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(0, 7, radius, radius * .55, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    for (let i = 0; i <= 6; i++) {
-      const angle = -Math.PI / 2 + i * Math.PI / 3;
-      const r = i % 2 === 0 ? radius - 4 : radius / 2;
-      const px = Math.cos(angle) * r;
-      const py = 7 + Math.sin(angle) * r * .48;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.stroke();
-    lift = progress * 18;
-    fade = Math.max(0, 1 - Math.max(0, (progress - .18) * 1.35));
-  } else if (leaving && npc.departure === 'portal') {
-    const opening = Math.min(1, progress * 5, (1 - progress) * 5);
-    const portalX = 32;
-    ctx.globalAlpha = .95;
-    ctx.strokeStyle = '#aaf577';
-    ctx.lineWidth = 3;
-    ctx.fillStyle = '#265746';
-    ctx.beginPath();
-    ctx.ellipse(portalX, -13, 11 * opening, 25 * opening, -.12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    if (progress < .2) {
-      ctx.fillStyle = '#a4bfb4';
-      ctx.fillRect(13, -25, 10, 4);
-      ctx.fillStyle = '#c4f899';
-      ctx.fillRect(21, -25, 6, 2);
-    }
-    walk = portalX * Math.min(1, Math.max(0, (progress - .18) * 1.9));
-    fade = Math.min(1, (1 - progress) * 3.2);
+  const bitmap = getBitmap(id);
+  const effect = getEffectContext();
+  if (!bitmap || !effect) return false;
+  const progress = elapsed / EVENT_NPC_DEPARTURE_DURATION;
+
+  // Dibuja personajes y efectos en la misma cuadrícula de píxeles.
+  effect.clearRect(0, 0, EFFECT_WIDTH, EFFECT_HEIGHT);
+  effect.save();
+  effect.translate(EFFECT_WIDTH / 2, EFFECT_ORIGIN_Y);
+  effect.imageSmoothingEnabled = false;
+  const drawNpc = (offset: number, feet: number, width = 32, height = 36, alpha = 1) => {
+    if (alpha <= 0) return;
+    effect.globalAlpha = alpha;
+    effect.drawImage(bitmap.canvas, offset - Math.floor(width / 2), feet - height, width, height);
+    effect.globalAlpha = 1;
+  };
+
+  switch (npc.departure) {
+    case 'fly':
+      paintKronos(effect, drawNpc, time, progress);
+      break;
+    case 'sigil':
+      paintLady(effect, drawNpc, time, progress);
+      break;
+    case 'portal':
+      paintWifi(effect, drawNpc, time, progress);
+      break;
   }
-  ctx.globalAlpha = fade;
-  const width = bitmap.canvas.width * 2;
-  const height = bitmap.canvas.height * 2;
-  ctx.drawImage(bitmap.canvas, Math.round(walk) - width / 2, Math.round(lift) - height + 8, width, height);
+  effect.restore();
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(effect.canvas, Math.round(x) - EFFECT_WIDTH, Math.round(y) - EFFECT_ORIGIN_Y * 2,
+    EFFECT_WIDTH * 2, EFFECT_HEIGHT * 2);
   ctx.restore();
   return true;
 }
