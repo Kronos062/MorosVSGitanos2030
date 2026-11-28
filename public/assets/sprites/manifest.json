@@ -2603,6 +2603,104 @@
           }
         ]
       }
+    },
+    "meknes": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/meknes/patio_0.png",
+          "worlds/meknes/patio_1.png",
+          "worlds/meknes/patio_2.png"
+        ],
+        "worn": [
+          "worlds/meknes/patio_gastado_0.png",
+          "worlds/meknes/patio_gastado_1.png"
+        ]
+      },
+      "sea": [
+        "worlds/meknes/exterior_0.png",
+        "worlds/meknes/exterior_1.png"
+      ],
+      "shore": {
+        "n": "worlds/meknes/muralla_n.png",
+        "e": "worlds/meknes/muralla_e.png",
+        "s": "worlds/meknes/muralla_s.png",
+        "w": "worlds/meknes/muralla_o.png",
+        "nw": "worlds/meknes/muralla_no.png",
+        "ne": "worlds/meknes/muralla_ne.png",
+        "sw": "worlds/meknes/muralla_so.png",
+        "se": "worlds/meknes/muralla_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/meknes/camino_eo.png"
+        ],
+        "ns": [
+          "worlds/meknes/camino_ns.png"
+        ],
+        "railN": "worlds/meknes/pretil_n.png",
+        "railW": "worlds/meknes/pretil_o.png",
+        "railE": "worlds/meknes/pretil_e.png",
+        "fascia": "worlds/meknes/pretil_s.png",
+        "pile": "worlds/meknes/pilar.png",
+        "gateH": "worlds/meknes/reja_eo.png",
+        "gateV": "worlds/meknes/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/meknes/puerta_monumental.png",
+            "foot": [
+              38,
+              66
+            ]
+          },
+          {
+            "image": "worlds/meknes/granero.png",
+            "foot": [
+              37,
+              54
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/meknes/estanque.png",
+            "foot": [
+              20,
+              25
+            ]
+          },
+          {
+            "image": "worlds/meknes/cipres.png",
+            "foot": [
+              14,
+              40
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/meknes/panel_ceramico.png",
+            "foot": [
+              18,
+              16
+            ]
+          },
+          {
+            "image": "worlds/meknes/tinajas.png",
+            "foot": [
+              17,
+              20
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
