@@ -2311,6 +2311,103 @@
           }
         ]
       }
+    },
+    "mercadillo": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/mercadillo/adoquin_0.png",
+          "worlds/mercadillo/adoquin_1.png",
+          "worlds/mercadillo/adoquin_2.png"
+        ],
+        "worn": [
+          "worlds/mercadillo/adoquin_gastado.png"
+        ]
+      },
+      "sea": [
+        "worlds/mercadillo/tierra_0.png",
+        "worlds/mercadillo/tierra_1.png"
+      ],
+      "shore": {
+        "n": "worlds/mercadillo/bordillo_n.png",
+        "e": "worlds/mercadillo/bordillo_e.png",
+        "s": "worlds/mercadillo/bordillo_s.png",
+        "w": "worlds/mercadillo/bordillo_o.png",
+        "nw": "worlds/mercadillo/bordillo_no.png",
+        "ne": "worlds/mercadillo/bordillo_ne.png",
+        "sw": "worlds/mercadillo/bordillo_so.png",
+        "se": "worlds/mercadillo/bordillo_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/mercadillo/calle_eo.png"
+        ],
+        "ns": [
+          "worlds/mercadillo/calle_ns.png"
+        ],
+        "railN": "worlds/mercadillo/cerca_n.png",
+        "railW": "worlds/mercadillo/cerca_o.png",
+        "railE": "worlds/mercadillo/cerca_e.png",
+        "fascia": "worlds/mercadillo/cerca_s.png",
+        "pile": "worlds/mercadillo/bolardo.png",
+        "gateH": "worlds/mercadillo/barrera_eo.png",
+        "gateV": "worlds/mercadillo/barrera_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/mercadillo/puesto_rojo.png",
+            "foot": [
+              33,
+              53
+            ]
+          },
+          {
+            "image": "worlds/mercadillo/puesto_verde.png",
+            "foot": [
+              33,
+              53
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/mercadillo/carretilla.png",
+            "foot": [
+              19,
+              26
+            ]
+          },
+          {
+            "image": "worlds/mercadillo/sacos.png",
+            "foot": [
+              17,
+              23
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/mercadillo/alfombra.png",
+            "foot": [
+              21,
+              16
+            ]
+          },
+          {
+            "image": "worlds/mercadillo/especias.png",
+            "foot": [
+              17,
+              18
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
