@@ -2701,6 +2701,104 @@
           }
         ]
       }
+    },
+    "sacromonte": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/sacromonte/tierra_0.png",
+          "worlds/sacromonte/tierra_1.png",
+          "worlds/sacromonte/tierra_2.png"
+        ],
+        "worn": [
+          "worlds/sacromonte/empedrado_0.png",
+          "worlds/sacromonte/empedrado_1.png"
+        ]
+      },
+      "sea": [
+        "worlds/sacromonte/ladera_0.png",
+        "worlds/sacromonte/ladera_1.png"
+      ],
+      "shore": {
+        "n": "worlds/sacromonte/corte_n.png",
+        "e": "worlds/sacromonte/corte_e.png",
+        "s": "worlds/sacromonte/corte_s.png",
+        "w": "worlds/sacromonte/corte_o.png",
+        "nw": "worlds/sacromonte/corte_no.png",
+        "ne": "worlds/sacromonte/corte_ne.png",
+        "sw": "worlds/sacromonte/corte_so.png",
+        "se": "worlds/sacromonte/corte_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/sacromonte/vereda_eo.png"
+        ],
+        "ns": [
+          "worlds/sacromonte/vereda_ns.png"
+        ],
+        "railN": "worlds/sacromonte/borde_n.png",
+        "railW": "worlds/sacromonte/borde_o.png",
+        "railE": "worlds/sacromonte/borde_e.png",
+        "fascia": "worlds/sacromonte/borde_s.png",
+        "pile": "worlds/sacromonte/roca.png",
+        "gateH": "worlds/sacromonte/barrera_eo.png",
+        "gateV": "worlds/sacromonte/barrera_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/sacromonte/cueva_cortina.png",
+            "foot": [
+              39,
+              63
+            ]
+          },
+          {
+            "image": "worlds/sacromonte/cueva_madera.png",
+            "foot": [
+              39,
+              63
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/sacromonte/escalones.png",
+            "foot": [
+              20,
+              23
+            ]
+          },
+          {
+            "image": "worlds/sacromonte/chumbera.png",
+            "foot": [
+              21,
+              28
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/sacromonte/candil.png",
+            "foot": [
+              12,
+              24
+            ]
+          },
+          {
+            "image": "worlds/sacromonte/cantaros.png",
+            "foot": [
+              16,
+              21
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
