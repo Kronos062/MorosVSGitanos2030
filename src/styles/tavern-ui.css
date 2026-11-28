@@ -403,6 +403,76 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .touch-pause-weapon { display: none; }
 
+.overlay .screen .build-screen-content {
+  display: block;
+  width: min(100%, 980px);
+  max-width: 980px;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.build-screen-content .build-sections {
+  grid-template-columns: minmax(0, 1fr);
+  height: auto;
+}
+
+.build-screen-content .build-loadout-column {
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.build-screen-content .build-column[hidden] { display: none; }
+.build-equipment-section > div > div { flex-wrap: wrap; }
+.build-equipment-section > div > div > span { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+
+.equipment-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.equipment-comparison > div { min-width: 0; overflow-wrap: anywhere; }
+
+.run-loadout {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: 86px;
+  z-index: 8;
+  color: #e8dcc4;
+  font-size: .78rem;
+}
+
+.run-loadout summary {
+  width: max-content;
+  margin-left: auto;
+  padding: 7px 10px;
+  border: 1px solid #667a76;
+  border-radius: 3px;
+  background: #162320e8;
+  cursor: pointer;
+}
+
+.run-loadout-body {
+  width: min(290px, calc(100vw - 32px));
+  max-height: 44dvh;
+  overflow-y: auto;
+  padding: 10px 14px;
+  margin-top: 4px;
+  border: 1px solid #667a76;
+  border-radius: 3px;
+  background: #162320f5;
+}
+
+.run-loadout-body p, .run-loadout-body ul { margin: 5px 0 0; }
+.run-loadout-body ul { padding-left: 1.2em; list-style: disc; }
+.credits-screen dl { margin: 16px auto; max-width: 460px; }
+.credits-screen dl div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #695439; }
+.credits-screen dd { color: var(--tavern-brass); }
+
+.event-npc-portrait { width: 80px; height: 80px; margin: 0 auto 8px; image-rendering: pixelated; }
+
 .pet-sprite {
   display: inline-block;
   width: 36px;
@@ -446,8 +516,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 @media (hover: none) and (pointer: coarse) {
   .hud .hud-top, .hud .abilities, .hud .keyboard-hint { display: none; }
   .touch-pause-weapon { display: list-item; }
+  .run-loadout {
+    inset: max(10px, env(safe-area-inset-top)) auto auto max(12px, env(safe-area-inset-left));
+  }
+  .run-loadout summary { margin-left: 0; min-height: 40px; padding: 10px; }
   .joystick {
     width: min(38vw, 200px);
     height: min(54dvh, 160px);
   }
+}
+
+@media (max-width: 540px) {
+  .build-screen-content .build-grid { grid-template-columns: 1fr; }
+  .build-screen-content .build-cell { gap: 10px; }
+  .equipment-comparison { grid-template-columns: minmax(0, 1fr); }
 }

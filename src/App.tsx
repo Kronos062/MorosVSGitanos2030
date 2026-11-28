@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from './components/CharacterPortrait';
 import { EquipIcon } from './components/EquipIcon';
+import { eventNpcPortrait } from './game/sprites/eventNpcs';
 import { PetPortrait } from './components/PetPortrait';
 import { TouchJoystick } from './components/TouchJoystick';
 import { BusLobby, type BusService } from './components/BusLobby';
@@ -13,7 +14,7 @@ import { PET_DEFS, getPet, PET_RARITY_COLORS } from './content/pets';
 import { GameEngine } from './game/engine';
 import { audio } from './game/audio';
 import { music, MENU_TRACKS } from './game/music';
-import type { GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, NearbyPickupEntry, BuildItemEntry, EquipSlot } from './game/types';
+import type { EventInstance, GameStats, GameScreen, SkillChoice, InputAction, MinimapData, BuildStats, ItemPickupData, NearbyPickupEntry, BuildItemEntry, EquipSlot } from './game/types';
 import { EQUIP_SLOT_LABELS, EQUIP_SLOT_ICONS, RARITY_COLORS as EQ_COLORS, SET_DEFS } from './content/equipment';
 
 import {
@@ -288,6 +289,25 @@ function BuildPanel({ build }: { build: BuildStats }) {
   );
 }
 
+function RunLoadout({ build }: { build: BuildStats }) {
+  return (
+    <details className="run-loadout">
+      <summary>Build · {build.equippedItems.length}/{build.maxItemSlots}</summary>
+      <div className="run-loadout-body">
+        <strong style={{ color: build.weaponColor }}>{build.weaponName}</strong>
+        <p>{Math.round(build.weaponDamage * build.damageMult)} daño · {build.armor} armadura</p>
+        {build.equippedItems.length > 0 && (
+          <ul>{build.equippedItems.map(item => <li key={item.slot}>{item.name}</li>)}</ul>
+        )}
+        {build.activeSets.length > 0 && (
+          <p>{build.activeSets.map(set => `${set.name} ${set.equipped}/4`).join(' · ')}</p>
+        )}
+        {build.upgrades.length > 0 && <p>Mejoras · {build.upgrades.join(' · ')}</p>}
+      </div>
+    </details>
+  );
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -306,7 +326,7 @@ export default function App() {
   const [factionConfirm, setFactionConfirm] = useState(false);
   const [itemPickup, setItemPickup] = useState<{ item: ItemPickupData; equipped: BuildItemEntry[]; resolve: (slot: EquipSlot | null) => void } | null>(null);
   const [pickupChoice, setPickupChoice] = useState<{ items: NearbyPickupEntry[]; resolve: (pickupId: number | null) => void } | null>(null);
-  const [eventData, setEventData] = useState<{ instance: any; resolve: (idx: number | null) => void } | null>(null);
+  const [eventData, setEventData] = useState<{ instance: EventInstance; resolve: (idx: number | null) => void } | null>(null);
   const [buildOrigin, setBuildOrigin] = useState<'playing' | 'paused'>('paused');
   const [runUnlocks, setRunUnlocks] = useState<{
     weapons: string[];
@@ -528,6 +548,15 @@ export default function App() {
     setEndResult(null); setSkillChoices([]); setScreen('playing');
   }, [selectedChar, save.upgrades, save.bindings, save.equippedPet, save.activeAscension, save.assistMode, save.armory, save.bestiary, save.highestAscension, save.highScores, seedInput]);
 
+  const playFromMenu = () => {
+    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches &&
+      !document.fullscreenElement && document.fullscreenEnabled) {
+      void document.documentElement.requestFullscreen().catch(() => {});
+    }
+    audio.play('button');
+    setScreen(hasFaction ? 'chars' : 'faction');
+  };
+
   const onBuyPet = (petId: string, cost: number) => {
     const next = buyPet(save, petId, cost);
     if (next) { audio.play('pickup'); setSave(next); } else { audio.play('hurt'); }
@@ -602,6 +631,7 @@ export default function App() {
     ? `${Math.ceil(ultimateCooldown)} s`
     : ultimateNeedsEnergy ? `Energía ${Math.floor(stats.energy ?? 0)}` : 'Ultimate';
   const dashReady = stats.dashPct >= 1;
+  const eventPortrait = eventData ? eventNpcPortrait(eventData.instance.id) : undefined;
 
   return (
     <div id="game-root">
@@ -680,6 +710,7 @@ export default function App() {
         </div>
       )}
 
+      {screen === 'playing' && stats.build && <RunLoadout build={stats.build} />}
       {screen === 'playing' && (
         <div className="touch-controls">
           <div className="touch-toolbar">
@@ -708,10 +739,10 @@ export default function App() {
         </div>
       )}
 
-      {(screen === 'bus' || screen === 'ascension' || (busService !== null && screen === busService)) && (
+      {(screen === 'bus' || screen === 'ascension' || screen === 'credits' || (busService !== null && screen === busService)) && (
         <BusLobby active={screen === 'bus'} character={selected} roster={availableChars}
           bindings={save.bindings} onService={openBusService} onDepart={startGame}
-          onDifficulty={() => setScreen('ascension')} onMenu={backToMenu} />
+          onDifficulty={() => setScreen('ascension')} onCredits={() => setScreen('credits')} onMenu={backToMenu} />
       )}
 
       <div className="overlay">
@@ -768,7 +799,7 @@ export default function App() {
                 <h1 className="game-title">MOROS VS GITANOS</h1>
                 <h2 className="game-subtitle">2 0 3 0</h2>
                 <div className="menu-grid">
-                <button type="button" className="menu-btn primary" onClick={() => { audio.play('button'); setScreen(hasFaction ? 'chars' : 'faction'); }}>Jugar</button>
+                <button type="button" className="menu-btn primary" onClick={playFromMenu}>Jugar</button>
                 <button type="button" className="menu-btn" onClick={() => { audio.play('button'); setOptionsOrigin('menu'); setScreen('options'); }}>Ajustes</button>
               </div>
             </div>
@@ -905,6 +936,20 @@ export default function App() {
           </div>
         )}
 
+        {screen === 'credits' && (
+          <div className="screen">
+            <div className="screen-content credits-screen">
+              <h2 className="section-title">Créditos</h2>
+              <dl>
+                <div><dt>Creación y dirección</dt><dd>Kronos</dd></div>
+                <div><dt>Diseño y desarrollo</dt><dd>Kronos</dd></div>
+                <div><dt>Arte y ambientación</dt><dd>Kronos</dd></div>
+                <div><dt>Agradecimientos</dt><dd>Lady69Dark y Wifi</dd></div>
+              </dl>
+              <button type="button" className="menu-btn" onClick={returnToBus}>Volver al autobús</button>
+            </div>
+          </div>
+        )}
         {screen === 'bestiary' && (
           <div className="screen">
             <div className="screen-content">
@@ -1026,7 +1071,7 @@ export default function App() {
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{pet.description}</div>
                         <div style={{ fontSize: '0.72rem', color: pet.color, marginTop: 3 }}>Habilidad · {pet.ability}</div>
                         <div style={{ fontSize: '0.7rem', color: '#8891b8', marginTop: 3 }}>
-                          Órbita {pet.stats.orbitRadius} · Rareza {pet.rarity.toUpperCase()}
+                          Rareza {pet.rarity.toUpperCase()}
                         </div>
                       </div>
                     );
@@ -1321,15 +1366,16 @@ export default function App() {
         {screen === 'event' && eventData && (
           <div className="screen">
             <div className="screen-content">
+              {eventPortrait && <img className="event-npc-portrait" src={eventPortrait} alt="" />}
               <h2 className="section-title" style={{ color: eventData.instance.color }}>
-                {eventData.instance.icon} {eventData.instance.name.toUpperCase()}
+                {eventData.instance.icon} {eventData.instance.name}
               </h2>
               <div style={{ marginBottom: 16, color: '#94a3b8', fontSize: '0.85rem' }}>
                 {eventData.instance.description}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                {eventData.instance.options?.map((opt: any, i: number) => {
+                {eventData.instance.options?.map((opt, i) => {
                   const canAffordGold = !opt.costGold || stats.goldEarned >= opt.costGold;
                   const canAffordHp = !opt.costHpPct || stats.hp > stats.maxHp * opt.costHpPct;
                   const canAfford = canAffordGold && canAffordHp;
@@ -1440,7 +1486,7 @@ export default function App() {
                   <EquipIcon setId={itemPickup.item.setId} slot={itemPickup.item.slot} frame={EQ_COLORS[itemPickup.item.rarity as keyof typeof EQ_COLORS]} fallback={itemPickup.item.icon} /> OBJETO ENCONTRADO · {EQUIP_SLOT_LABELS[itemPickup.item.slot].toUpperCase()}
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                <div className="equipment-comparison">
                   <div style={{ padding: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, textAlign: 'left' }}>
                     <div style={{ fontSize: '0.7rem', color: '#8891b8', marginBottom: 6 }}>EQUIPADO</div>
                     {curEq ? (

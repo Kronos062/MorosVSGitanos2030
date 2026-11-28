@@ -1,5 +1,6 @@
 import { getCharacter, getCharactersByFaction, type CharacterDef } from '../content/characters';
 import { drawPetSprite } from './sprites/petSprites';
+import { drawEventNpc, getEventNpc } from './sprites/eventNpcs';
 import { spriteAtlas } from './sprites/spriteAtlas';
 import {
   getWeapon,
@@ -239,7 +240,7 @@ export class GameEngine {
   private pendingItemPickup: { pk: PickupEntity } | null = null;
   private pendingPickupChoice = false;
   private equippedPetId: string | null = null;
-  private pet: { x: number; y: number; angle: number; timers: Record<string, number> } | null = null;
+  private pet: { x: number; y: number; trail: { x: number; y: number }[]; timers: Record<string, number> } | null = null;
   private lootMemory = new LootMemory();
   private currentBiome!: BiomeDef;
   private biomeParticles: Array<{ x: number; y: number; vx: number; vy: number; size: number; alpha: number }> = [];
@@ -688,6 +689,7 @@ export class GameEngine {
       equippedItems: this.buildEquippedItemEntries(),
       maxItemSlots: EQUIP_SLOTS.length,
       activeSets: this.buildActiveSets(),
+      upgrades: this.acquiredSkills.map(skill => skill.name),
     };
   }
 
@@ -1397,7 +1399,7 @@ export class GameEngine {
   private initPet() {
     const def = this.getEquippedPetDef();
     if (!def) { this.pet = null; return; }
-    this.pet = { x: this.player.x, y: this.player.y, angle: 0, timers: {} };
+    this.pet = { x: this.player.x, y: this.player.y, trail: [], timers: {} };
     for (const eff of def.effects) this.pet.timers[eff.kind + (eff.key ?? '')] = 0;
   }
 
@@ -2866,9 +2868,11 @@ export class GameEngine {
       const cat = rollLootCategory(table, this.runDirector);
       switch (cat) {
         case 'gold':
+          // El oro de la baja ya se abonó al jugador.
+          break;
         case 'heal':
-          if (runRandom.next('loot') < 0.85 * luck) {
-            this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 20);
+          if (runRandom.next('loot') < Math.min(.75, .6 * luck)) {
+            this.spawnPickup(e.x, e.y, 'heal', '#39ff88', 18);
           }
           break;
         case 'shield':
@@ -2961,7 +2965,9 @@ export class GameEngine {
 
     def.basicLoot.forEach((kind, i) => {
       const ox = (i - 1) * 18;
-      if (kind === 'heal') this.spawnPickup(chest.x + ox, chest.y + 20, 'heal', '#39ff88', 25);
+      if (kind === 'heal' && runRandom.next('loot') < (chest.defId === 'chest_boss' ? .45 : .22)) {
+        this.spawnPickup(chest.x + ox, chest.y + 20, 'heal', '#39ff88', 20);
+      }
       if (kind === 'score') this.spawnPickup(chest.x + ox, chest.y + 24, 'score', '#ffe14a', 75);
       if (kind === 'shield') this.spawnPickup(chest.x + ox, chest.y + 28, 'shield', '#00f0ff', 1);
     });
@@ -3299,12 +3305,13 @@ export class GameEngine {
 
       audio.play('levelup');
       ent.active = false;
+      if (getEventNpc(ent.instance.id)) ent.departedAt = this.worldTime;
 
       for (const a of opt.actions) {
         if (a.kind === 'stat_mod') {
           const prevMax = this.player.maxHp;
           this.acquiredSkills.push({
-            id: 'event_mod', name: 'Evento', description: '', icon: '', rarity: 'common',
+            id: 'event_mod', name: opt.label, description: '', icon: '', rarity: 'common',
             mods: [{ stat: a.stat, op: a.op, value: a.val }],
           });
           this.recalcStats();
@@ -3402,12 +3409,34 @@ export class GameEngine {
     if (!def || !this.pet) return;
     const pet = this.pet;
 
-    pet.angle += def.stats.orbitSpeed * dt;
-    const r = def.stats.orbitRadius;
-    const targetX = this.player.x + Math.cos(pet.angle) * r;
-    const targetY = this.player.y + Math.sin(pet.angle) * r;
-    pet.x += (targetX - pet.x) * Math.min(1, dt * 10);
-    pet.y += (targetY - pet.y) * Math.min(1, dt * 10);
+    const { x, y } = this.player;
+    const last = pet.trail[pet.trail.length - 1];
+    const moved = last ? Math.hypot(last.x - x, last.y - y) : Infinity;
+    if (moved > 220) {
+      pet.trail.length = 0;
+      pet.x = x;
+      pet.y = y + 24;
+    }
+    if (moved >= 7) {
+      pet.trail.push({ x, y });
+      if (pet.trail.length > 20) pet.trail.shift();
+    }
+    let target = { x, y };
+    let followDistance = def.stats.followDistance;
+    for (let i = pet.trail.length - 1; i >= 0; i--) {
+      const point = pet.trail[i];
+      const segment = Math.hypot(point.x - target.x, point.y - target.y);
+      if (segment >= followDistance) {
+        const ratio = followDistance / segment;
+        target = { x: target.x + (point.x - target.x) * ratio, y: target.y + (point.y - target.y) * ratio };
+        break;
+      }
+      target = point;
+      followDistance -= segment;
+    }
+    if (pet.trail.length <= 2) target = { x, y: y + 24 };
+    pet.x += (target.x - pet.x) * Math.min(1, dt * 12);
+    pet.y += (target.y - pet.y) * Math.min(1, dt * 12);
 
     const inCorridor = this.inCorridor;
 
@@ -3641,7 +3670,8 @@ export class GameEngine {
     }
 
     for (const ev of this.eventEntities) {
-      if (!ev.active) continue;
+      if (!ev.active && (ev.departedAt === undefined || this.worldTime - ev.departedAt >= 1.2)) continue;
+      if (drawEventNpc(ctx, ev.instance.id, ev.x, ev.y, this.worldTime, ev.departedAt)) continue;
       ctx.save();
       ctx.translate(ev.x, ev.y);
       ctx.shadowColor = ev.instance.color;

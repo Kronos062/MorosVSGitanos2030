@@ -9,6 +9,7 @@
 import type { EventInstance, EventOption } from './types';
 import type { RunDirector } from './runDirector';
 import type { BiomeDef } from '../content/biomes';
+import { EVENT_NPCS } from './sprites/eventNpcs';
 
 export type EventType = 'altar' | 'merchant' | 'cursed' | 'shrine' | 'challenge' | 'mystery';
 
@@ -27,10 +28,10 @@ export interface EventDef {
 }
 
 export const EVENT_DEFS: EventDef[] = [
-  { id: 'altar_sangre', name: 'Altar de Sangre', type: 'altar', description: 'Un altar antiguo que exige sacrificios a cambio de poder.', icon: '🩸', color: '#ff2a4b', baseWeight: 100, minMap: 2, maxMap: 10, maxPerRun: 5, maxPerMap: 1 },
-  { id: 'merchant_bot', name: 'Sintético Mercader', type: 'merchant', description: 'Androide con mercancía interesante, si tienes oro.', icon: '🤖', color: '#ffe14a', baseWeight: 80, minMap: 1, maxMap: 8, maxPerRun: 4, maxPerMap: 1 },
+  { id: 'altar_sangre', name: EVENT_NPCS.altar_sangre.name, type: 'altar', description: EVENT_NPCS.altar_sangre.dialogue, icon: '', color: '#ff2a4b', baseWeight: 100, minMap: 2, maxMap: 10, maxPerRun: 5, maxPerMap: 1 },
+  { id: 'merchant_bot', name: EVENT_NPCS.merchant_bot.name, type: 'merchant', description: EVENT_NPCS.merchant_bot.dialogue, icon: '', color: '#b989ea', baseWeight: 80, minMap: 1, maxMap: 8, maxPerRun: 4, maxPerMap: 1 },
   { id: 'cursed_arena', name: 'Sala Maldita', type: 'cursed', description: 'Aura opresiva. Sobrevive a la emboscada letal.', icon: '☠️', color: '#b04dff', baseWeight: 40, minMap: 3, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },
-  { id: 'shrine_light', name: 'Santuario de Luz', type: 'shrine', description: 'Bendición gratuita de una fuente misteriosa.', icon: '✨', color: '#00f0ff', baseWeight: 60, minMap: 1, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },
+  { id: 'shrine_light', name: EVENT_NPCS.shrine_light.name, type: 'shrine', description: EVENT_NPCS.shrine_light.dialogue, icon: '', color: '#8bdf91', baseWeight: 60, minMap: 1, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },
   { id: 'challenge_time', name: 'Desafío: Contrarreloj', type: 'challenge', description: 'Acaba con todos antes de que expire el tiempo.', icon: '⏱️', color: '#ff8800', baseWeight: 50, minMap: 2, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },
   { id: 'challenge_nodamage', name: 'Desafío: Intocable', type: 'challenge', description: 'Sobrevive a la sala sin perder vida (el escudo absorbe golpes sin fallar).', icon: '🛡️', color: '#ff8800', baseWeight: 50, minMap: 3, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },
   { id: 'mystery_roulette', name: 'Anomalía Cuántica', type: 'mystery', description: 'Una distorsión. ¿Te atreves a manipularla?', icon: '🌀', color: '#ff2bd6', baseWeight: 30, minMap: 1, maxMap: 10, maxPerRun: 3, maxPerMap: 1 },

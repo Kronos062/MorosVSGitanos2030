@@ -154,8 +154,8 @@
 }
 
 .bus-stop {
-  width: clamp(44px, 11cqw, 114px);
-  height: clamp(44px, 16cqw, 140px);
+  width: clamp(40px, 8cqw, 86px);
+  height: clamp(40px, 10cqw, 108px);
   transform: translate(-50%, -80%);
   background: transparent;
   cursor: pointer;
@@ -163,8 +163,8 @@
 
 .bus-actor {
   display: block;
-  width: 25cqw;
-  height: 25cqw;
+  width: 16cqw;
+  height: 16cqw;
   image-rendering: pixelated;
 }
 

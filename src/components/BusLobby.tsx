@@ -54,13 +54,14 @@ type Props = {
   onService: (service: BusService) => void;
   onDepart: () => void;
   onDifficulty: () => void;
+  onCredits: () => void;
   onMenu: () => void;
 };
 
-export function BusLobby({ active, character, roster, bindings, onService, onDepart, onDifficulty, onMenu }: Props) {
+export function BusLobby({ active, character, roster, bindings, onService, onDepart, onDifficulty, onCredits, onMenu }: Props) {
   const positionRef = useRef<BusPoint>({ x: 0, depth: .90 });
   const [position, setPosition] = useState(positionRef.current);
-  const [facing, setFacing] = useState<BusPoint>({ x: 0, depth: -1 });
+  const [facing, setFacing] = useState<BusPoint>({ x: 1, depth: 0 });
   const [talking, setTalking] = useState<Stop | null>(null);
   const [approaching, setApproaching] = useState<string | null>(null);
   const pressed = useRef(new Set<string>());
@@ -80,7 +81,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
 
   const place = (next: BusPoint) => {
     if (next.x === positionRef.current.x && next.depth === positionRef.current.depth) return;
-    setFacing({ x: (next.x - positionRef.current.x) * 108, depth: (next.depth - positionRef.current.depth) * 145 });
+    setFacing({ x: (positionRef.current.depth - next.depth) * 247, depth: (next.x - positionRef.current.x) * 42 });
     positionRef.current = next;
     setPosition(next);
   };
@@ -113,7 +114,7 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
       const current = positionRef.current;
       if (dx || dz) {
         const step = distance / Math.max(1, Math.hypot(dx, dz));
-        place(moveOnFloor(current, dx * step * 1.7, dz * step));
+        place(moveOnFloor(current, dz * step * 2.5, -dx * step));
       } else if (route.current.length) {
         const [target] = route.current;
         const x = target.x - current.x;
@@ -227,6 +228,9 @@ export function BusLobby({ active, character, roster, bindings, onService, onDep
               {talking.services?.map(service => (
                 <button type="button" key={service} onClick={() => { setTalking(null); onService(service); }}>{SERVICES[service]}</button>
               ))}
+              {talking.id === 'driver' && (
+                <button type="button" onClick={() => { setTalking(null); onCredits(); }}>Créditos</button>
+              )}
               <button type="button" onClick={() => setTalking(null)}>{talking.passenger ? 'Volver' : 'Continuar'}</button>
             </div>
           </div>
