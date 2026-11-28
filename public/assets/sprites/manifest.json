@@ -2408,6 +2408,103 @@
           }
         ]
       }
+    },
+    "tetuan": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/tetuan/losa_0.png",
+          "worlds/tetuan/losa_1.png",
+          "worlds/tetuan/losa_2.png"
+        ],
+        "worn": [
+          "worlds/tetuan/losa_gastada.png"
+        ]
+      },
+      "sea": [
+        "worlds/tetuan/exterior_0.png",
+        "worlds/tetuan/exterior_1.png"
+      ],
+      "shore": {
+        "n": "worlds/tetuan/muro_n.png",
+        "e": "worlds/tetuan/muro_e.png",
+        "s": "worlds/tetuan/muro_s.png",
+        "w": "worlds/tetuan/muro_o.png",
+        "nw": "worlds/tetuan/muro_no.png",
+        "ne": "worlds/tetuan/muro_ne.png",
+        "sw": "worlds/tetuan/muro_so.png",
+        "se": "worlds/tetuan/muro_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/tetuan/calle_eo.png"
+        ],
+        "ns": [
+          "worlds/tetuan/calle_ns.png"
+        ],
+        "railN": "worlds/tetuan/pretil_n.png",
+        "railW": "worlds/tetuan/pretil_o.png",
+        "railE": "worlds/tetuan/pretil_e.png",
+        "fascia": "worlds/tetuan/pretil_s.png",
+        "pile": "worlds/tetuan/pilar.png",
+        "gateH": "worlds/tetuan/reja_eo.png",
+        "gateV": "worlds/tetuan/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/tetuan/casa_azul.png",
+            "foot": [
+              35,
+              61
+            ]
+          },
+          {
+            "image": "worlds/tetuan/casa_verde.png",
+            "foot": [
+              35,
+              61
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/tetuan/brocal.png",
+            "foot": [
+              19,
+              24
+            ]
+          },
+          {
+            "image": "worlds/tetuan/arbol.png",
+            "foot": [
+              17,
+              39
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/tetuan/ceramica.png",
+            "foot": [
+              15,
+              19
+            ]
+          },
+          {
+            "image": "worlds/tetuan/mosaico.png",
+            "foot": [
+              17,
+              16
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
