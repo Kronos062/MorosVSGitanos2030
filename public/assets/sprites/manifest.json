@@ -2505,6 +2505,104 @@
           }
         ]
       }
+    },
+    "zaragoza": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/zaragoza/pavimento_0.png",
+          "worlds/zaragoza/pavimento_1.png",
+          "worlds/zaragoza/pavimento_2.png"
+        ],
+        "detail": [
+          "worlds/zaragoza/sector_vidriado_0.png",
+          "worlds/zaragoza/sector_vidriado_1.png"
+        ]
+      },
+      "sea": [
+        "worlds/zaragoza/rio_0.png",
+        "worlds/zaragoza/rio_1.png"
+      ],
+      "shore": {
+        "n": "worlds/zaragoza/muro_n.png",
+        "e": "worlds/zaragoza/muro_e.png",
+        "s": "worlds/zaragoza/muro_s.png",
+        "w": "worlds/zaragoza/muro_o.png",
+        "nw": "worlds/zaragoza/muro_no.png",
+        "ne": "worlds/zaragoza/muro_ne.png",
+        "sw": "worlds/zaragoza/muro_so.png",
+        "se": "worlds/zaragoza/muro_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/zaragoza/puente_eo.png"
+        ],
+        "ns": [
+          "worlds/zaragoza/puente_ns.png"
+        ],
+        "railN": "worlds/zaragoza/pretil_n.png",
+        "railW": "worlds/zaragoza/pretil_o.png",
+        "railE": "worlds/zaragoza/pretil_e.png",
+        "fascia": "worlds/zaragoza/pretil_s.png",
+        "pile": "worlds/zaragoza/pilar.png",
+        "gateH": "worlds/zaragoza/reja_eo.png",
+        "gateV": "worlds/zaragoza/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/zaragoza/torre_campanario.png",
+            "foot": [
+              33,
+              66
+            ]
+          },
+          {
+            "image": "worlds/zaragoza/torre_vidriada.png",
+            "foot": [
+              33,
+              66
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/zaragoza/arqueria.png",
+            "foot": [
+              27,
+              41
+            ]
+          },
+          {
+            "image": "worlds/zaragoza/jardinera.png",
+            "foot": [
+              19,
+              24
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/zaragoza/panel_vidriado.png",
+            "foot": [
+              21,
+              16
+            ]
+          },
+          {
+            "image": "worlds/zaragoza/farol.png",
+            "foot": [
+              11,
+              25
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
