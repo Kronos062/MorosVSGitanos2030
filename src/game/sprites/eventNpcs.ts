@@ -61,14 +61,14 @@ export function drawSeatedKronos(ctx: CanvasRenderingContext2D, x: number, y: nu
   if (!bitmap) return;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(bitmap.canvas, 4, 0, 25, 25, x, y, 24, 24);
+  ctx.drawImage(bitmap.canvas, 3, 4, 26, 24, x, y, 25, 23);
   ctx.restore();
 }
 
 export const EVENT_NPC_DEPARTURE_DURATION = 1.65;
-const EFFECT_WIDTH = 112;
-const EFFECT_HEIGHT = 124;
-const EFFECT_ORIGIN_Y = 106;
+const EFFECT_WIDTH = 208;
+const EFFECT_HEIGHT = 164;
+const EFFECT_ORIGIN_Y = 119;
 let effectContext: CanvasRenderingContext2D | null = null;
 
 function getEffectContext() {
@@ -96,10 +96,11 @@ export function drawEventNpc(ctx: CanvasRenderingContext2D, id: string, x: numbe
   effect.save();
   effect.translate(EFFECT_WIDTH / 2, EFFECT_ORIGIN_Y);
   effect.imageSmoothingEnabled = false;
-  const drawNpc = (offset: number, feet: number, width = 32, height = 36, alpha = 1) => {
+  const drawNpc = (offset: number, feet: number, width = 32, height = 36, alpha = 1, riding = false) => {
     if (alpha <= 0) return;
+    const pose = riding ? getBitmap('kronos_riding') ?? bitmap : bitmap;
     effect.globalAlpha = alpha;
-    effect.drawImage(bitmap.canvas, offset - Math.floor(width / 2), feet - height, width, height);
+    effect.drawImage(pose.canvas, offset - Math.floor(width / 2), feet - height, width, height);
     effect.globalAlpha = 1;
   };
 
