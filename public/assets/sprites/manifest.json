@@ -2235,6 +2235,82 @@
           }
         ]
       }
+    },
+    "alhambra": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/alhambra/patio_0.png",
+          "worlds/alhambra/patio_1.png",
+          "worlds/alhambra/patio_2.png"
+        ],
+        "detail": [
+          "worlds/alhambra/alicatado.png"
+        ]
+      },
+      "sea": [
+        "worlds/alhambra/alberca_0.png",
+        "worlds/alhambra/alberca_1.png"
+      ],
+      "shore": {
+        "n": "worlds/alhambra/muro_n.png",
+        "e": "worlds/alhambra/muro_e.png",
+        "s": "worlds/alhambra/muro_s.png",
+        "w": "worlds/alhambra/muro_o.png",
+        "nw": "worlds/alhambra/muro_no.png",
+        "ne": "worlds/alhambra/muro_ne.png",
+        "sw": "worlds/alhambra/muro_so.png",
+        "se": "worlds/alhambra/muro_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/alhambra/paso_eo.png"
+        ],
+        "ns": [
+          "worlds/alhambra/paso_ns.png"
+        ],
+        "railN": "worlds/alhambra/pretil_n.png",
+        "railW": "worlds/alhambra/pretil_o.png",
+        "railE": "worlds/alhambra/pretil_e.png",
+        "fascia": "worlds/alhambra/pretil_s.png",
+        "pile": "worlds/alhambra/contrafuerte.png",
+        "gateH": "worlds/alhambra/reja_eo.png",
+        "gateV": "worlds/alhambra/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/alhambra/arco.png",
+            "foot": [
+              26,
+              59
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/alhambra/arrayan.png",
+            "foot": [
+              16,
+              25
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/alhambra/fuente.png",
+            "foot": [
+              12,
+              18
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
