@@ -197,6 +197,7 @@ export interface InteractiveEventEntity {
   y: number;
   instance: EventInstance;
   active: boolean;
+  departedAt?: number;
 }
 
 export type InputAction =
@@ -410,6 +411,7 @@ export interface BuildStats {
   equippedItems: BuildItemEntry[];
   maxItemSlots: number;
   activeSets: ActiveSetInfo[];
+  upgrades: string[];
 }
 
 export interface ItemPickupData {
@@ -436,6 +438,7 @@ export type GameScreen =
   | 'menu'
   | 'chars'
   | 'bus'
+  | 'credits'
   | 'faction'
   | 'armory'
   | 'bestiary'

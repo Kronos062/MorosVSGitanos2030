@@ -25,7 +25,7 @@ export interface LootTableDef {
 export const LOOT_TABLES: LootTableDef[] = [
   {
     id: 'enemy_normal',
-    categories: { gold: 70, heal: 14, shield: 6, weapon: 2, equipment: 2, relic: 3, nothing: 6 },
+    categories: { gold: 74, heal: 10, shield: 6, weapon: 2, equipment: 2, relic: 3, nothing: 6 },
     qualityBias: { common: 1.3, uncommon: 1, rare: 0.7, epic: 0.3, legendary: 0 },
     allowLegendary: false,
   },

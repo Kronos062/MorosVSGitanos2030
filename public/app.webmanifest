@@ -1,0 +1,10 @@
+{
+  "name": "Moros VS Gitanos 2030",
+  "short_name": "MVG 2030",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10"
+}

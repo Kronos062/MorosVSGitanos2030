@@ -748,7 +748,7 @@ export class SpriteAtlas {
     actor: SpriteSetMeta,
     angle: number,
   ) {
-    const ps = w.meta.pixelScale ?? actor.pixelScale ?? 2;
+    const ps = (w.meta.pixelScale ?? actor.pixelScale ?? 2) * .72;
     ctx.save();
     ctx.translate(socket.x * (actor.pixelScale ?? 2), socket.y * (actor.pixelScale ?? 2));
     ctx.rotate(angle);
@@ -796,7 +796,7 @@ export class SpriteAtlas {
   drawHeldWeapon(ctx: CanvasRenderingContext2D, weaponId: string, x: number, y: number, angle: number, alpha = 1): boolean {
     const w = this.weapons.get(weaponId);
     if (!w) return false;
-    const ps = w.meta.pixelScale ?? 2;
+    const ps = (w.meta.pixelScale ?? 2) * .72;
     const hold = Math.max(-4, Math.min(8, 20 - (w.meta.muzzle ?? 8) * ps));
     ctx.save();
     ctx.imageSmoothingEnabled = false;

@@ -8,7 +8,7 @@ const WIDTH = 320;
 const HEIGHT = 180;
 
 function project({ x, depth }: BusPoint) {
-  return { x: 160 + x * 108, y: 22 + depth * 145 };
+  return { x: 281 - depth * 247, y: 81 + x * 42 };
 }
 
 export function busPlacement(point: BusPoint): CSSProperties {
@@ -26,78 +26,83 @@ function paintBus(ctx: CanvasRenderingContext2D, tick: number) {
     ctx.fillStyle = color;
     ctx.fillRect(Math.round(x), Math.round(y), width, height);
   };
-  rect('#111a23', 0, 0, WIDTH, HEIGHT);
-  rect('#283039', 32, 0, 256, 180);
-  for (let stripe = -1; stripe < 8; stripe++) {
-    const y = stripe * 31 + tick % 31;
-    rect('#cbb275', 39, y, 2, 13);
-    rect('#cbb275', 279, y, 2, 13);
-    rect('#35424b', 34, y + 8, 3, 4);
-    rect('#35424b', 283, y + 8, 3, 4);
+  rect('#354337', 0, 0, WIDTH, HEIGHT);
+  rect('#4c5755', 0, 38, WIDTH, 142);
+  rect('#262e35', 0, 48, WIDTH, 119);
+  rect('#a59a6e', 0, 53, WIDTH, 2);
+  rect('#92886a', 0, 159, WIDTH, 2);
+  for (let stripe = -1; stripe < 10; stripe++) {
+    const x = stripe * 38 - tick % 38;
+    rect('#cbb275', x, 148, 21, 2);
+    rect('#35464c', x + 13, 141, 4, 1);
+    rect('#68756b', x + 21, 34, 6, 1);
   }
 
-  rect('#121e25', 46, 4, 228, 171);
-  rect('#617775', 49, 7, 222, 165);
-  rect('#404d59', 54, 34, 212, 130);
-  rect('#4b5965', 119, 34, 82, 128);
-  for (let y = 41; y < 164; y += 6) {
-    for (let x = 56 + (y % 4); x < 265; x += 7) {
-      rect((x + y) % 5 === 0 ? '#9f9775' : '#586774', x, y, 1, 1);
+  // El bus se mantiene fijo. La carretera pasa por debajo de las ruedas.
+  rect('#202b31', 25, 40, 268, 103);
+  rect('#2d3c43', 21, 48, 278, 85);
+  rect('#5a756f', 26, 40, 262, 87);
+  rect('#a8afa0', 31, 38, 251, 6);
+  rect('#3d555a', 31, 44, 254, 79);
+  rect('#455865', 38, 48, 245, 71);
+  rect('#53626d', 38, 68, 245, 26);
+  for (let x = 39; x < 280; x += 6) {
+    for (let y = 51; y < 119; y += 5) {
+      rect((x + y) % 3 === 0 ? '#76807c' : '#60717a', x, y, 1, 1);
     }
   }
-  rect('#90a5a1', 118, 37, 1, 122);
-  rect('#90a5a1', 201, 37, 1, 122);
-
-  for (const x of [49, 266]) {
-    for (let y = 39; y <= 145; y += 19) {
-      rect('#222d37', x, y, 5, 15);
-      rect('#89bbc1', x + 1, y + 2, 3, 11);
-      rect('#cee6da', x + 1, y + 3, 3, 2);
-    }
+  rect('#aaa489', 39, 67, 244, 1);
+  rect('#aaa489', 39, 94, 244, 1);
+  for (let x = 42; x < 274; x += 27) {
+    rect('#21343e', x, 43, 23, 6);
+    rect('#8fbdc2', x + 1, 44, 21, 3);
+    rect('#d1e3dc', x + 1, 44, 7, 1);
   }
-
-  rect('#d3caab', 52, 7, 216, 4);
-  rect('#223a42', 57, 11, 206, 8);
-  rect('#a5cacc', 59, 12, 202, 4);
-  rect('#d3ebe1', 98, 13, 112, 2);
-  rect('#314953', 63, 20, 155, 9);
-  rect('#263942', 64, 28, 154, 3);
-  rect('#8cc1a6', 132, 23, 18, 2);
-  rect('#d4ad60', 153, 23, 6, 2);
-
-  rect('#17262d', 100, 24, 10, 2);
-  rect('#17262d', 98, 26, 2, 5);
-  rect('#17262d', 110, 26, 2, 5);
-  rect('#17262d', 100, 31, 10, 2);
-  rect('#534b42', 96, 38, 19, 10);
-  rect('#202732', 96, 34, 19, 9);
-  rect('#343849', 100, 29, 11, 10);
-  rect('#525263', 101, 29, 9, 2);
-  rect('#7a6d5d', 96, 32, 3, 4);
-  rect('#7a6d5d', 112, 32, 3, 4);
-
-  rect('#253f46', 236, 18, 29, 32);
-  rect('#839c99', 238, 21, 25, 25);
-  rect('#a9c7c2', 240, 23, 9, 11);
-  rect('#a9c7c2', 252, 23, 9, 11);
-  rect('#344d55', 250, 20, 1, 27);
-  rect('#d8b76c', 237, 47, 28, 2);
 
   for (const depth of ROWS) {
-    const y = project({ x: 0, depth }).y;
-    for (const x of [57, 207]) {
-      rect('#303b46', x - 1, y - 8, 57, 20);
-      rect('#2d4c58', x, y - 8, 55, 18);
-      rect('#286477', x + 3, y - 6, 49, 13);
-      rect('#458492', x + 4, y - 5, 47, 3);
-      rect('#6fa0a5', x + 5, y - 5, 43, 1);
-      rect('#1d4152', x + 3, y + 6, 49, 3);
-      rect('#244d5e', x + 27, y - 6, 2, 13);
-      rect('#c19a52', x === 57 ? x + 53 : x, y - 9, 3, 19);
+    const { x } = project({ x: 0, depth });
+    for (const y of [51, 99]) {
+      rect('#233844', x - 12, y - 1, 25, 20);
+      rect('#24576a', x - 10, y, 21, 17);
+      rect('#387486', x - 8, y + 2, 16, 12);
+      rect('#68a2a5', x - 7, y + 2, 12, 1);
+      rect('#193a4a', x + 7, y + 1, 3, 15);
+      rect('#bb964e', x - 10, y + (y === 51 ? 15 : 1), 3, 3);
     }
   }
-  rect('#78918d', 53, 166, 214, 3);
-  rect('#c3a570', 122, 163, 76, 1);
+
+  rect('#25373e', 265, 44, 20, 52);
+  rect('#90bebf', 281, 46, 5, 37);
+  rect('#becfbc', 283, 48, 2, 10);
+  rect('#6f9188', 263, 49, 4, 21);
+  rect('#647889', 232, 49, 14, 20);
+  rect('#242732', 234, 53, 14, 13);
+  rect('#3f2c58', 237, 54, 12, 11);
+  rect('#352a2c', 245, 55, 7, 9);
+  rect('#ae785b', 249, 57, 3, 5);
+  rect('#202a31', 254, 54, 8, 10);
+  rect('#9aa69b', 256, 55, 3, 8);
+  rect('#d2bf72', 264, 61, 2, 3);
+
+  rect('#1e313b', 230, 101, 23, 27);
+  rect('#7e9791', 232, 103, 19, 20);
+  rect('#bacdc2', 233, 104, 17, 6);
+  rect('#3c535a', 240, 103, 1, 22);
+  rect('#d4b77b', 231, 123, 21, 2);
+
+  rect('#688681', 30, 121, 198, 6);
+  rect('#688681', 254, 121, 38, 6);
+  rect('#9daba2', 31, 121, 195, 2);
+  rect('#a84d49', 23, 102, 5, 9);
+  rect('#c9d2aa', 291, 100, 6, 8);
+  for (const x of [63, 259]) {
+    rect('#181f26', x - 14, 123, 28, 15);
+    rect('#14191f', x - 11, 127, 22, 15);
+    rect('#353f45', x - 7, 130, 14, 10);
+    rect('#718087', x - 4, 132, 8, 6);
+    rect('#273137', x - 2, 133, 4, 4);
+    rect('#aeb5a5', x - 1 + (tick % 6 >= 3 ? 3 : 0), 132, 2, 2);
+  }
 }
 
 export function BusInterior() {
