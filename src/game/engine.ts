@@ -1,6 +1,6 @@
 import { getCharacter, getCharactersByFaction, type CharacterDef } from '../content/characters';
 import { drawPetSprite } from './sprites/petSprites';
-import { drawEventNpc, getEventNpc } from './sprites/eventNpcs';
+import { drawEventNpc, EVENT_NPC_DEPARTURE_DURATION, getEventNpc } from './sprites/eventNpcs';
 import { spriteAtlas } from './sprites/spriteAtlas';
 import {
   getWeapon,
@@ -3670,7 +3670,7 @@ export class GameEngine {
     }
 
     for (const ev of this.eventEntities) {
-      if (!ev.active && (ev.departedAt === undefined || this.worldTime - ev.departedAt >= 1.2)) continue;
+      if (!ev.active && (ev.departedAt === undefined || this.worldTime - ev.departedAt >= EVENT_NPC_DEPARTURE_DURATION)) continue;
       if (drawEventNpc(ctx, ev.instance.id, ev.x, ev.y, this.worldTime, ev.departedAt)) continue;
       ctx.save();
       ctx.translate(ev.x, ev.y);
