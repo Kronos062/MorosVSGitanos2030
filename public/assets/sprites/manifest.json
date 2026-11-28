@@ -2897,6 +2897,104 @@
           }
         ]
       }
+    },
+    "chefchaouen": {
+      "pixelScale": 2,
+      "tile": 32,
+      "islandMargin": {
+        "x": 15,
+        "y": 17
+      },
+      "floor": {
+        "main": [
+          "worlds/chefchaouen/adoquin_0.png",
+          "worlds/chefchaouen/adoquin_1.png",
+          "worlds/chefchaouen/adoquin_2.png"
+        ],
+        "worn": [
+          "worlds/chefchaouen/adoquin_gastado_0.png",
+          "worlds/chefchaouen/adoquin_gastado_1.png"
+        ]
+      },
+      "sea": [
+        "worlds/chefchaouen/ladera_0.png",
+        "worlds/chefchaouen/ladera_1.png"
+      ],
+      "shore": {
+        "n": "worlds/chefchaouen/muro_n.png",
+        "e": "worlds/chefchaouen/muro_e.png",
+        "s": "worlds/chefchaouen/muro_s.png",
+        "w": "worlds/chefchaouen/muro_o.png",
+        "nw": "worlds/chefchaouen/muro_no.png",
+        "ne": "worlds/chefchaouen/muro_ne.png",
+        "sw": "worlds/chefchaouen/muro_so.png",
+        "se": "worlds/chefchaouen/muro_se.png"
+      },
+      "bridge": {
+        "ew": [
+          "worlds/chefchaouen/calle_eo.png"
+        ],
+        "ns": [
+          "worlds/chefchaouen/calle_ns.png"
+        ],
+        "railN": "worlds/chefchaouen/borde_n.png",
+        "railW": "worlds/chefchaouen/borde_o.png",
+        "railE": "worlds/chefchaouen/borde_e.png",
+        "fascia": "worlds/chefchaouen/borde_s.png",
+        "pile": "worlds/chefchaouen/pilar.png",
+        "gateH": "worlds/chefchaouen/reja_eo.png",
+        "gateV": "worlds/chefchaouen/reja_ns.png"
+      },
+      "props": {
+        "cornerTop": [
+          {
+            "image": "worlds/chefchaouen/casa_azul.png",
+            "foot": [
+              37,
+              64
+            ]
+          },
+          {
+            "image": "worlds/chefchaouen/casa_terraza.png",
+            "foot": [
+              37,
+              64
+            ]
+          }
+        ],
+        "cornerBottom": [
+          {
+            "image": "worlds/chefchaouen/macetas.png",
+            "foot": [
+              19,
+              21
+            ]
+          },
+          {
+            "image": "worlds/chefchaouen/escalera.png",
+            "foot": [
+              25,
+              32
+            ]
+          }
+        ],
+        "edge": [
+          {
+            "image": "worlds/chefchaouen/tapiz.png",
+            "foot": [
+              20,
+              18
+            ]
+          },
+          {
+            "image": "worlds/chefchaouen/jarras.png",
+            "foot": [
+              15,
+              21
+            ]
+          }
+        ]
+      }
     }
   },
   "characters": {
